@@ -57,5 +57,12 @@ export const games: GameEntry[] = [
     path: "/games/city-bloxx/",
     accent: "#d9843f",
   },
+  {
+    id: "sliding-puzzle",
+    title: "Sliding Puzzle",
+    description: "Ordena los numeros deslizando filas o columnas completas hacia el espacio vacio.",
+    path: "/games/sliding-puzzle/",
+    accent: "#0ff8ff",
+  },
 ];
 

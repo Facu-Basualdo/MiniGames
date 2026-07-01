@@ -1,0 +1,377 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #040814;
+  font-family: "Outfit", "Consolas", "Courier New", monospace;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+/* --- Back Link --- */
+.back-link {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 50;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-link:hover {
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+/* --- HUD Top Bar --- */
+.hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 20px;
+  padding: 14px 28px;
+  background: rgba(8, 12, 28, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.3s ease;
+  z-index: 20;
+}
+
+.hud-bar.hidden {
+  display: none;
+}
+
+.hud-bar__moves,
+.hud-bar__size,
+.hud-bar__time {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.hud-bar__size {
+  color: #0ff8ff;
+  text-shadow: 0 0 8px rgba(15, 248, 255, 0.3);
+}
+
+/* --- Board Container --- */
+.board-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.puzzle-board {
+  --grid-size: 4;
+  position: relative;
+  width: clamp(280px, 85vw, 460px);
+  height: clamp(280px, 85vw, 460px);
+  background: rgba(10, 14, 30, 0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(15, 248, 255, 0.15);
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.6), 
+    0 0 30px rgba(15, 248, 255, 0.05),
+    inset 0 0 20px rgba(15, 248, 255, 0.05);
+  border-radius: 20px;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.puzzle-board.hidden {
+  display: none;
+}
+
+/* --- Background guide cells --- */
+.board-bg-cell {
+  position: absolute;
+  width: calc((100% - 16px) / var(--grid-size));
+  height: calc((100% - 16px) / var(--grid-size));
+  transform: translate3d(calc(var(--x) * 100%), calc(var(--y) * 100%), 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(16px, 5vw, 28px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.03);
+  user-select: none;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 1px dashed rgba(255, 255, 255, 0.02);
+  margin: 8px; /* Offset for board padding */
+}
+
+/* --- Puzzle Tiles --- */
+.puzzle-tile {
+  position: absolute;
+  width: calc((100% - 16px) / var(--grid-size));
+  height: calc((100% - 16px) / var(--grid-size));
+  transform: translate3d(calc(var(--x) * 100%), calc(var(--y) * 100%), 0);
+  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  padding: 6px;
+  box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
+}
+
+.puzzle-tile-inner {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(20px, 6vw, 34px);
+  font-weight: 700;
+  color: #e5e7eb;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: 
+    background 0.2s ease, 
+    border-color 0.2s ease, 
+    color 0.2s ease, 
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+
+.puzzle-tile:hover .puzzle-tile-inner {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+.puzzle-tile:active .puzzle-tile-inner {
+  transform: scale(0.96);
+}
+
+/* Correct Position Neon Glow */
+.puzzle-tile.is-correct .puzzle-tile-inner {
+  background: linear-gradient(135deg, rgba(15, 248, 255, 0.12) 0%, rgba(15, 248, 255, 0.02) 100%);
+  border-color: rgba(15, 248, 255, 0.4);
+  color: #0ff8ff;
+  text-shadow: 0 0 10px rgba(15, 248, 255, 0.5);
+  box-shadow: 
+    0 4px 15px rgba(15, 248, 255, 0.15),
+    inset 0 0 8px rgba(15, 248, 255, 0.08);
+}
+
+.puzzle-tile.is-correct:hover .puzzle-tile-inner {
+  background: linear-gradient(135deg, rgba(15, 248, 255, 0.18) 0%, rgba(15, 248, 255, 0.04) 100%);
+  border-color: rgba(15, 248, 255, 0.6);
+  box-shadow: 
+    0 6px 20px rgba(15, 248, 255, 0.25),
+    inset 0 0 8px rgba(15, 248, 255, 0.12);
+}
+
+/* --- Overlays (Start / Game Over) --- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 16, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 40;
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.hidden {
+  display: none !important;
+}
+
+.overlay__title {
+  font-size: clamp(32px, 8vw, 52px);
+  font-weight: 700;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 30%, #0ff8ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 30px rgba(15, 248, 255, 0.25);
+}
+
+.overlay__subtitle {
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 28px;
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.overlay__score {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.overlay__rating {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 6px 18px;
+  border-radius: 9999px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.rating-divine {
+  background: linear-gradient(135deg, #0ff8ff, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(15, 248, 255, 0.4);
+}
+
+.rating-ultra {
+  background: #0ea5e9;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+}
+
+.rating-fast {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.rating-average {
+  background: #f59e0b;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+/* --- Size Selector --- */
+.overlay__size-selector {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.size-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.size-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.size-btn.active {
+  background: #0ff8ff;
+  border-color: #0ff8ff;
+  color: #040814;
+  box-shadow: 0 0 20px rgba(15, 248, 255, 0.4);
+  font-weight: 700;
+}
+
+.overlay__bests {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 36px;
+  line-height: 1.6;
+}
+
+.overlay__hint {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+/* --- Countdown Overlay --- */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 45;
+  font-size: 160px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(15, 248, 255, 0.4), 0 10px 40px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+}
+
+.countdown.is-shown {
+  animation: countdown-pop 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  25% { opacity: 1; transform: scale(1.1); }
+  45% { transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
