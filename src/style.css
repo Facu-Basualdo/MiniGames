@@ -1,5 +1,7 @@
 :root {
   color-scheme: dark;
+  --bg: #05000a;
+  --ink: #eef0ff;
 }
 
 * {
@@ -12,8 +14,41 @@ html,
 body {
   width: 100%;
   min-height: 100%;
-  background: #05000a;
+  background: var(--bg);
   font-family: "Consolas", "Courier New", monospace;
+  color: var(--ink);
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Slowly drifting neon aurora behind everything. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 42% at 18% 22%, rgba(255, 0, 230, 0.18), transparent 70%),
+    radial-gradient(40% 44% at 82% 78%, rgba(15, 248, 255, 0.16), transparent 70%),
+    radial-gradient(50% 50% at 50% 50%, rgba(120, 0, 255, 0.1), transparent 75%);
+  filter: blur(10px);
+  animation: aurora 22s ease-in-out infinite alternate;
+}
+
+/* Faint grid to sell the arcade vibe. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 100% 44px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 44px 100%;
+  mask: radial-gradient(circle at 50% 30%, #000, transparent 85%);
+  pointer-events: none;
 }
 
 #app {
@@ -21,68 +56,172 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 64px 24px;
+  padding: clamp(48px, 9vh, 96px) 24px 56px;
 }
 
+/* ---------- Header ---------- */
 .menu__header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: clamp(40px, 7vh, 72px);
 }
 
 .menu__title {
-  font-size: 48px;
-  letter-spacing: 10px;
-  color: #ff00e6;
-  text-shadow:
-    0 0 10px #ff00e6,
-    0 0 30px #ff00e6,
-    0 0 60px #0ff8ff;
+  font-size: clamp(48px, 11vw, 84px);
+  line-height: 1;
+  letter-spacing: clamp(6px, 2vw, 14px);
+  background: linear-gradient(120deg, #ff00e6, #a56bff 45%, #0ff8ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px rgba(255, 0, 230, 0.35));
 }
 
 .menu__subtitle {
-  margin-top: 12px;
+  margin-top: 18px;
   font-size: 14px;
   letter-spacing: 3px;
-  color: #7dfcff;
+  color: #b7bce8;
   opacity: 0.85;
 }
 
+/* ---------- Grid ---------- */
 .menu__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 28px;
   width: 100%;
-  max-width: 960px;
+  max-width: 1000px;
 }
 
+/* ---------- Card ---------- */
 .card {
-  display: block;
-  padding: 24px;
-  border: 1px solid rgba(15, 248, 255, 0.35);
-  border-radius: 8px;
-  background: radial-gradient(circle at top left, rgba(255, 0, 230, 0.08), rgba(2, 0, 6, 0.6));
+  --accent: #0ff8ff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 30px 26px 26px;
+  min-height: 210px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%),
+    rgba(14, 10, 24, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
   text-decoration: none;
+  color: inherit;
+  isolation: isolate;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 90ms + 120ms);
   transition:
-    transform 0.15s ease,
-    border-color 0.15s ease;
+    transform 0.22s cubic-bezier(0.2, 0.7, 0.3, 1),
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(15, 248, 255, 0.9);
+  transform: translateY(-8px);
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow:
+    0 20px 50px color-mix(in srgb, var(--accent) 28%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Accent top edge that lights up on hover. */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.5;
+  transition: opacity 0.22s ease;
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+.card__index {
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
 }
 
 .card__title {
-  font-size: 20px;
-  letter-spacing: 2px;
-  color: #0ff8ff;
-  text-shadow: 0 0 8px #0ff8ff;
+  font-size: 22px;
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .card__description {
-  margin-top: 8px;
   font-size: 13px;
-  line-height: 1.5;
-  color: #d8d8ff;
-  opacity: 0.85;
+  line-height: 1.6;
+  color: #c3c7ec;
+  opacity: 0.82;
+  flex: 1;
+}
+
+.card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.card__arrow {
+  transition: transform 0.22s ease;
+}
+
+.card:hover .card__arrow {
+  transform: translateX(6px);
+}
+
+/* ---------- Footer ---------- */
+.menu__footer {
+  margin-top: 44px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #6b6f96;
+}
+
+/* ---------- Motion ---------- */
+@keyframes aurora {
+  from { transform: translate(-3%, -2%) rotate(0deg); }
+  to { transform: translate(3%, 2%) rotate(6deg); }
+}
+
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  .card {
+    animation: none;
+  }
+  .card {
+    opacity: 1;
+    transform: none;
+  }
 }
