@@ -139,8 +139,8 @@ export class Game {
 
     // Re-initialize objects
     this.initGameObjects();
-    this.ship.lives = 3;
-    this.hud.setLives(3);
+    this.ship.lives = 1;
+    this.hud.setLives(1);
 
     // Spawn initial wave (more asteroids for higher base difficulty)
     this.spawnAsteroidsWave(6);

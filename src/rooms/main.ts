@@ -8,6 +8,7 @@ import {
   joinRoom,
   sanitizeCode,
   startRound,
+  updateSettings,
 } from "../shared/room/api";
 import { RoomChannel } from "../shared/room/channel";
 import { computeRoundDeadline, randomGameId, roomGameUrl } from "../shared/room/roomMode";
@@ -148,9 +149,69 @@ function renderHome(joinProblem?: string): void {
   createPanel.className = "panel";
   createPanel.innerHTML = `<div class="panel__title">Crear una sala</div>`;
 
-  let totalRounds: number = DEFAULT_TOTAL_ROUNDS;
-  let timeLimit: number = DEFAULT_ROUND_TIME_LIMIT;
-  const playlist: string[] = [];
+  let settings: RoomSettings = {
+    totalRounds: DEFAULT_TOTAL_ROUNDS,
+    playlist: null,
+    roundTimeLimitSec: DEFAULT_ROUND_TIME_LIMIT,
+  };
+  const settingsForm = buildSettingsForm(settings, (s) => (settings = s));
+
+  const createBtn = document.createElement("button");
+  createBtn.className = "btn btn--primary";
+  createBtn.type = "button";
+  createBtn.textContent = "Crear sala";
+  const createError = document.createElement("div");
+  createError.className = "error";
+
+  createBtn.addEventListener("click", () => {
+    void (async () => {
+      createError.textContent = "";
+      const player = requireName();
+      if (!player) return;
+      createBtn.disabled = true;
+      const code = await createRoom(player, settings);
+      createBtn.disabled = false;
+      if (!code) {
+        createError.textContent = "No se pudo crear la sala. Proba de nuevo.";
+        return;
+      }
+      renderLobby(code, player);
+    })();
+  });
+
+  createPanel.append(settingsForm, createBtn, createError);
+
+  stack.append(namePanel, joinPanel, createPanel);
+  if (prefillCode) codeInput.focus();
+}
+
+/**
+ * Formulario de ajustes de sala (rondas / tope de tiempo / playlist opcional).
+ * Reutilizado al crear y en el lobby (el host puede cambiar los juegos antes
+ * de cada partida, incluida la revancha). Emite settings ya normalizados:
+ * con playlist, totalRounds = playlist.length.
+ */
+function buildSettingsForm(
+  initial: RoomSettings,
+  onChange: (settings: RoomSettings) => void,
+): HTMLDivElement {
+  const wrap = document.createElement("div");
+
+  let totalRounds: number = (TOTAL_ROUNDS_OPTIONS as readonly number[]).includes(
+    initial.totalRounds,
+  )
+    ? initial.totalRounds
+    : DEFAULT_TOTAL_ROUNDS;
+  let timeLimit: number = initial.roundTimeLimitSec;
+  const playlist: string[] = initial.playlist ? [...initial.playlist] : [];
+
+  const emit = (): void => {
+    onChange({
+      totalRounds: playlist.length > 0 ? playlist.length : totalRounds,
+      playlist: playlist.length > 0 ? [...playlist] : null,
+      roundTimeLimitSec: timeLimit,
+    });
+  };
 
   const roundsLabel = document.createElement("div");
   roundsLabel.className = "panel__label";
@@ -158,7 +219,10 @@ function renderHome(joinProblem?: string): void {
   const roundsChoices = buildChoices(
     TOTAL_ROUNDS_OPTIONS.map((n) => ({ value: n, label: String(n) })),
     totalRounds,
-    (v) => (totalRounds = v),
+    (v) => {
+      totalRounds = v;
+      emit();
+    },
   );
 
   const timeLabel = document.createElement("div");
@@ -167,7 +231,10 @@ function renderHome(joinProblem?: string): void {
   const timeChoices = buildChoices(
     ROUND_TIME_LIMIT_OPTIONS.map((n) => ({ value: n, label: `${n / 60} min` })),
     timeLimit,
-    (v) => (timeLimit = v),
+    (v) => {
+      timeLimit = v;
+      emit();
+    },
   );
 
   const playlistLabel = document.createElement("div");
@@ -204,57 +271,19 @@ function renderHome(joinProblem?: string): void {
       if (idx >= 0) playlist.splice(idx, 1);
       else playlist.push(game.id);
       refreshPlaylistUI();
+      emit();
     });
     playlistGrid.append(btn);
   }
+  refreshPlaylistUI();
 
   const playlistHint = document.createElement("p");
   playlistHint.className = "hint";
   playlistHint.textContent =
     "Si elegis juegos, salen en ese orden. Si no elegis ninguno, despues de cada juego se vota el siguiente entre 3 al azar.";
 
-  const createBtn = document.createElement("button");
-  createBtn.className = "btn btn--primary";
-  createBtn.type = "button";
-  createBtn.textContent = "Crear sala";
-  const createError = document.createElement("div");
-  createError.className = "error";
-
-  createBtn.addEventListener("click", () => {
-    void (async () => {
-      createError.textContent = "";
-      const player = requireName();
-      if (!player) return;
-      const settings: RoomSettings = {
-        totalRounds: playlist.length > 0 ? playlist.length : totalRounds,
-        playlist: playlist.length > 0 ? [...playlist] : null,
-        roundTimeLimitSec: timeLimit,
-      };
-      createBtn.disabled = true;
-      const code = await createRoom(player, settings);
-      createBtn.disabled = false;
-      if (!code) {
-        createError.textContent = "No se pudo crear la sala. Proba de nuevo.";
-        return;
-      }
-      renderLobby(code, player);
-    })();
-  });
-
-  createPanel.append(
-    roundsLabel,
-    roundsChoices,
-    timeLabel,
-    timeChoices,
-    playlistLabel,
-    playlistGrid,
-    playlistHint,
-    createBtn,
-    createError,
-  );
-
-  stack.append(namePanel, joinPanel, createPanel);
-  if (prefillCode) codeInput.focus();
+  wrap.append(roundsLabel, roundsChoices, timeLabel, timeChoices, playlistLabel, playlistGrid, playlistHint);
+  return wrap;
 }
 
 function buildChoices<T extends number>(
@@ -393,13 +422,34 @@ function renderLobby(code: string, player: string): void {
   const channel = new RoomChannel(code, player);
   let state: RoomState | null = null;
   let starting = false;
+  /** Ajustes editados por el host en el lobby (mandan al apretar Empezar). */
+  let localSettings: RoomSettings | null = null;
+  let settingsUiBuilt = false;
+
+  /** El host ve el formulario editable en lugar del resumen de solo lectura. */
+  const buildSettingsUi = (): void => {
+    if (settingsUiBuilt || !state) return;
+    settingsUiBuilt = true;
+    if (state.room.host !== player) return;
+
+    settingsEl.style.display = "none";
+    const form = buildSettingsForm(state.room.settings, (s) => {
+      localSettings = s;
+      // Compartir el cambio al instante para que los demas lo vean en vivo.
+      void updateSettings(code, s).then((ok) => {
+        if (ok) channel.ping();
+      });
+    });
+    panel.append(form);
+  };
 
   const render = (): void => {
     if (!state) return;
     const room = state.room;
-    const settings = room.settings;
+    const settings = localSettings ?? room.settings;
     const present = channel.presentPlayers();
     const isHost = room.host === player;
+    buildSettingsUi();
 
     const playlistText = settings.playlist
       ? settings.playlist
@@ -463,7 +513,7 @@ function renderLobby(code: string, player: string): void {
       if (!state || starting) return;
       starting = true;
       render();
-      const settings = state.room.settings;
+      const settings = localSettings ?? state.room.settings;
       const firstGame = settings.playlist ? settings.playlist[0] : randomGameId();
       const ok = await startRound(
         code,

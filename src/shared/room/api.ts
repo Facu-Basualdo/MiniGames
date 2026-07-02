@@ -268,6 +268,22 @@ export async function finishRoom(code: string): Promise<boolean> {
 }
 
 /**
+ * Cambia los ajustes de la sala en el lobby (solo el host, por convencion).
+ * Permite elegir otros juegos / rondas / tiempo antes de cada partida,
+ * incluida la revancha tras "Jugar otra vez".
+ */
+export async function updateSettings(code: string, settings: RoomSettings): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.from("rooms").update({ settings }).eq("code", code);
+  if (error) {
+    warn("updateSettings", error.message);
+    return false;
+  }
+  return true;
+}
+
+/**
  * "Jugar otra vez": vuelve la sala al lobby con los mismos jugadores y ajustes,
  * borrando el historial de rondas/puntajes/votos para que los totales arranquen
  * de cero. Todos los clientes vuelven a /rooms/ al ver status='lobby'.
