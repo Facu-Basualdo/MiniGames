@@ -84,7 +84,7 @@ export class Hud {
   }
 
   showStart(): void {
-    this.titleEl.textContent = "JUMP BALL";
+    this.titleEl.textContent = "BOUNCE RUSH";
     this.subtitleEl.textContent = "presiona ENTER o toca para empezar";
     this.scoreLineEl.textContent = "";
     this.hintEl.style.display = "block";

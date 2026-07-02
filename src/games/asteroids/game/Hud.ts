@@ -103,7 +103,7 @@ export class Hud {
   }
 
   showStart(): void {
-    this.titleEl.textContent = "ASTEROIDS";
+    this.titleEl.textContent = "ASTEROIDES";
     this.subtitleEl.textContent = "DESTRUYE LAS ROCAS Y SOBREVIVE";
     this.scoreLineEl.textContent = "";
     this.btnEl.textContent = "Iniciar Juego";

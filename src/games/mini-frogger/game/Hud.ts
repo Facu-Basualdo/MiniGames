@@ -58,7 +58,7 @@ export class Hud {
     this.overlayEl.className = "overlay";
     this.overlayEl.innerHTML = `
       <div class="overlay__card">
-        <h1 class="overlay__title" id="overlay-title">MINI FROGGER</h1>
+        <h1 class="overlay__title" id="overlay-title">CRUCE MORTAL</h1>
         <p class="overlay__subtitle" id="overlay-subtitle">Cruza calles y ríos saltando sobre los troncos flotantes. ¡Cuidado con el agua y los autos!</p>
         <div class="overlay__stats">
           <div class="overlay__stat">
@@ -147,7 +147,7 @@ export class Hud {
   }
 
   public showStartScreen(best: number): void {
-    this.overlayTitleEl.textContent = "MINI FROGGER";
+    this.overlayTitleEl.textContent = "CRUCE MORTAL";
     this.overlaySubtitleEl.textContent = "Cruza calles y ríos saltando sobre los troncos flotantes. ¡Cuidado con el agua y los autos!";
     this.overlayStat1ValEl.textContent = "0";
     this.overlayStat2ValEl.textContent = String(best);

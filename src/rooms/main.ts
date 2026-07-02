@@ -1,5 +1,5 @@
 import "./style.css";
-import { games } from "../games";
+import { games, coverUrl } from "../games";
 import { isLeaderboardEnabled } from "../shared/supabase";
 import { getNickname, setNickname, NICKNAME_MAX } from "../shared/nickname";
 import {
@@ -29,16 +29,32 @@ import {
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+const topbar = document.createElement("nav");
+topbar.className = "topbar";
+topbar.innerHTML = `
+  <a class="topbar__logo" href="/"><img src="/juegachos.png" alt="JUEGACHOS" /></a>
+  <div class="topbar__links">
+    <a href="/">Juegos</a>
+    <a href="/rooms/" class="is-active">Salas</a>
+  </div>
+`;
+
 const header = document.createElement("header");
+header.className = "rooms__header";
 header.innerHTML = `
-  <h1 class="rooms__title">SALAS</h1>
-  <p class="rooms__subtitle">Juga con amigos: mismos juegos, misma sala, un ganador</p>
+  <span class="rooms__kicker">Modo salas</span>
+  <h1 class="rooms__title">Jugá con amigos</h1>
+  <p class="rooms__subtitle">Mismos juegos, misma sala, un solo ganador.</p>
 `;
 
 const stack = document.createElement("div");
 stack.className = "rooms__stack";
 
-app.append(header, stack);
+const main = document.createElement("main");
+main.className = "rooms";
+main.append(header, stack);
+
+app.append(topbar, main);
 
 const prefillCode = sanitizeCode(new URLSearchParams(location.search).get("code") ?? "");
 
@@ -195,10 +211,20 @@ function renderHome(joinProblem?: string): void {
     btn.type = "button";
     btn.dataset.id = game.id;
     if (game.accent) btn.style.setProperty("--game-accent", game.accent);
-    const badge = document.createElement("span");
-    badge.className = "playlist__order";
-    badge.style.display = "none";
-    btn.append(document.createTextNode(game.title), badge);
+    btn.innerHTML = `
+      <span class="playlist__cover">
+        <span class="playlist__order" style="display:none"></span>
+      </span>
+      <span class="playlist__name">${game.title}</span>
+    `;
+    // Mini portada del juego (la misma de la landing); si falta, queda el
+    // fondo con el color del juego.
+    const img = document.createElement("img");
+    img.src = coverUrl(game.id);
+    img.alt = "";
+    img.loading = "lazy";
+    img.addEventListener("error", () => img.remove());
+    btn.querySelector(".playlist__cover")!.prepend(img);
     btn.addEventListener("click", () => {
       const idx = playlist.indexOf(game.id);
       if (idx >= 0) playlist.splice(idx, 1);

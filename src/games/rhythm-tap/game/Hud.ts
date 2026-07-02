@@ -124,7 +124,7 @@ export class Hud {
   }
 
   showStart(): void {
-    this.titleEl.textContent = "RHYTHM TAP";
+    this.titleEl.textContent = "BEAT FEVER";
     this.subtitleEl.textContent = "presiona ENTER o toca para empezar";
     this.scoreLineEl.textContent = "";
     this.hintEl.style.display = "block";

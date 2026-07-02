@@ -38,7 +38,7 @@ export class Hud {
 
     this.statusText = document.createElement("div");
     this.statusText.className = "reaction-card__status";
-    this.statusText.textContent = "Reaction Time";
+    this.statusText.textContent = "Reflex";
 
     this.subStatusText = document.createElement("div");
     this.subStatusText.className = "reaction-card__substatus";
@@ -114,7 +114,7 @@ export class Hud {
     this.overlayEl.classList.remove("hidden");
     this.hudBar.classList.add("hidden");
     
-    this.titleEl.textContent = "REACTION TIME";
+    this.titleEl.textContent = "REFLEX";
     this.subtitleEl.textContent = "Pon a prueba tus reflejos en 5 rondas.";
     
     if (bestAverage !== null) {
@@ -134,7 +134,7 @@ export class Hud {
     
     // Reset main card classes
     this.mainCard.className = "reaction-card state-idle";
-    this.statusText.textContent = "Reaction Time";
+    this.statusText.textContent = "Reflex";
     this.subStatusText.textContent = "presiona ENTER o haz clic para comenzar";
 
     this.leaderboard.clear();
@@ -224,7 +224,7 @@ export class Hud {
     const th1 = document.createElement("th");
     th1.textContent = "Ronda";
     const th2 = document.createElement("th");
-    th2.textContent = "Tiempo de Reacción";
+    th2.textContent = "Tiempo de reacción";
     trHead.append(th1, th2);
     table.append(trHead);
 

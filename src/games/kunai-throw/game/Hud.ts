@@ -89,7 +89,7 @@ export class Hud {
   }
 
   showStart(): void {
-    this.titleEl.textContent = "KUNAI THROW";
+    this.titleEl.textContent = "KUNAI STRIKE";
     this.subtitleEl.textContent = "CLAVA LOS KUNAIS EN EL TRONCO QUE GIRA";
     this.scoreLineEl.textContent = "";
     this.btnEl.textContent = "Iniciar Juego";

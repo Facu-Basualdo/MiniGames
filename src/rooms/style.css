@@ -1,8 +1,11 @@
 :root {
-  color-scheme: dark;
-  --bg: #05000a;
-  --ink: #eef0ff;
-  --accent: #0ff8ff;
+  color-scheme: light;
+  --bg: #d6d3bd;
+  --ink: #111111;
+  --muted: #6f6d5e;
+  --card: #efeee6;
+  --accent: #00f0ff;
+  --radius: 22px;
 }
 
 * {
@@ -16,96 +19,124 @@ body {
   width: 100%;
   min-height: 100%;
   background: var(--bg);
-  font-family: "Consolas", "Courier New", monospace;
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
   color: var(--ink);
 }
 
 body {
-  position: relative;
   overflow-x: hidden;
 }
 
-/* Misma aurora neon de la landing. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20%;
-  z-index: -1;
-  background:
-    radial-gradient(38% 42% at 18% 22%, rgba(255, 0, 230, 0.18), transparent 70%),
-    radial-gradient(40% 44% at 82% 78%, rgba(15, 248, 255, 0.16), transparent 70%),
-    radial-gradient(50% 50% at 50% 50%, rgba(120, 0, 255, 0.1), transparent 75%);
-  filter: blur(10px);
-}
-
-.back-link {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 30;
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: #fff;
-  text-decoration: none;
-  opacity: 0.7;
-}
-
-.back-link:hover {
-  opacity: 1;
+a {
+  color: inherit;
 }
 
 #app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* ---------- Topbar (igual que la home) ---------- */
+.topbar {
+  display: flex;
   align-items: center;
-  padding: clamp(48px, 8vh, 80px) 20px 56px;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px clamp(20px, 5vw, 64px);
+}
+
+.topbar__logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.topbar__logo img {
+  height: 46px;
+  width: auto;
+  display: block;
+}
+
+.topbar__links {
+  display: flex;
+  gap: 26px;
+}
+
+.topbar__links a {
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.topbar__links a:hover,
+.topbar__links a.is-active {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 2px;
+}
+
+/* ---------- Contenido ---------- */
+.rooms {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(20px, 5vh, 48px) clamp(20px, 5vw, 32px) 72px;
+  display: flex;
+  flex-direction: column;
+}
+
+.rooms__header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.rooms__kicker {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #0091a6;
+  margin-bottom: 8px;
 }
 
 .rooms__title {
-  font-size: clamp(36px, 8vw, 56px);
+  font-size: clamp(38px, 8vw, 58px);
+  font-weight: 900;
+  letter-spacing: -1.5px;
   line-height: 1;
-  letter-spacing: clamp(4px, 1.5vw, 10px);
-  background: linear-gradient(120deg, #ff00e6, #a56bff 45%, #0ff8ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 24px rgba(255, 0, 230, 0.35));
-  margin-bottom: 10px;
 }
 
 .rooms__subtitle {
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: #b7bce8;
-  opacity: 0.85;
-  margin-bottom: 34px;
-  text-align: center;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .rooms__stack {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  width: 100%;
-  max-width: 480px;
+  gap: 20px;
 }
 
+/* ---------- Panel ---------- */
 .panel {
-  padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  background: rgba(14, 10, 24, 0.62);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  padding: 24px;
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--card);
 }
 
 .panel__title {
   font-size: 13px;
-  letter-spacing: 3px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 14px;
+  color: var(--ink);
+  margin-bottom: 16px;
 }
 
 .panel__row {
@@ -116,215 +147,308 @@ body::before {
 
 .panel__label {
   font-size: 12px;
-  letter-spacing: 1.5px;
-  color: #b7bce8;
-  margin: 14px 0 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 18px 0 10px;
 }
 
 .panel__label:first-of-type {
   margin-top: 0;
 }
 
+/* ---------- Inputs ---------- */
 .input {
   flex: 1;
   min-width: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(17, 17, 17, 0.5);
+  background: #ffffff;
+  color: var(--ink);
   font: inherit;
-  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.input::placeholder {
+  color: rgba(17, 17, 17, 0.35);
+  font-weight: 500;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.35);
 }
 
 .input--code {
   text-transform: uppercase;
-  letter-spacing: 5px;
-  font-weight: 700;
+  letter-spacing: 6px;
+  font-weight: 800;
+  text-align: center;
 }
 
+/* ---------- Botones ---------- */
 .btn {
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  padding: 13px 20px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: none;
+  color: var(--ink);
   font: inherit;
   font-size: 13px;
-  letter-spacing: 2px;
+  font-weight: 700;
+  letter-spacing: 1px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: rgba(15, 248, 255, 0.12);
+  background: var(--ink);
+  color: var(--card);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
 }
 
 .btn--primary {
   width: 100%;
-  margin-top: 16px;
-  padding: 13px 18px;
-  font-weight: 700;
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  margin-top: 20px;
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--card);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ---------- Choices (pills punteadas) ---------- */
 .choices {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .choice {
-  padding: 8px 14px;
+  padding: 9px 18px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.05);
-  color: #c3c7ec;
+  border: 1.6px dashed rgba(17, 17, 17, 0.55);
+  background: none;
+  color: var(--ink);
   font: inherit;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.choice:hover {
+  border-style: solid;
 }
 
 .choice.is-active {
-  color: #fff;
-  border-color: var(--accent);
-  background: rgba(15, 248, 255, 0.14);
+  color: var(--card);
+  border: 1.6px solid var(--ink);
+  background: var(--ink);
 }
 
+/* ---------- Playlist (mini portadas) ---------- */
 .playlist {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
 }
 
 .playlist__item {
-  --game-accent: #0ff8ff;
-  position: relative;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: #c3c7ec;
+  --game-accent: #00f0ff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 2px solid rgba(17, 17, 17, 0.2);
+  background: #ffffff;
+  color: var(--ink);
   font: inherit;
-  font-size: 12px;
-  text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: border-color 0.15s ease, transform 0.14s ease, box-shadow 0.15s ease;
+}
+
+.playlist__item:hover {
+  border-color: var(--ink);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 -4px var(--ink);
 }
 
 .playlist__item.is-picked {
-  color: #fff;
-  border-color: var(--game-accent);
-  background: color-mix(in srgb, var(--game-accent) 14%, transparent);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2.5px var(--ink);
+}
+
+/* Mini pantalla del juego: cuadrada, muestra la portada completa. */
+.playlist__cover {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 100% at 80% 15%, color-mix(in srgb, var(--game-accent) 75%, #ffffff), transparent 60%),
+    linear-gradient(150deg, color-mix(in srgb, var(--game-accent) 55%, #111111), #111111);
+}
+
+.playlist__cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Velo oscuro que aparece al seleccionar, para resaltar el número de orden. */
+.playlist__item.is-picked .playlist__cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 17, 17, 0.4);
+}
+
+.playlist__name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .playlist__order {
   position: absolute;
-  top: -8px;
-  right: -6px;
-  min-width: 20px;
-  height: 20px;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--game-accent);
-  color: #05000a;
-  font-size: 11px;
-  font-weight: 700;
+  border: 3px solid var(--card);
+  background: var(--ink);
+  color: var(--card);
+  font-size: 20px;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
+/* ---------- Hint / error ---------- */
 .hint {
-  font-size: 11px;
-  letter-spacing: 1px;
-  color: #8b90b8;
-  margin-top: 10px;
-  line-height: 1.5;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: 12px;
+  line-height: 1.55;
 }
 
 .error {
   margin-top: 12px;
-  font-size: 12px;
-  letter-spacing: 1px;
-  color: #ff6d8a;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #c81d4a;
   min-height: 1em;
 }
 
 /* ---------- Lobby ---------- */
-
 .lobby__code {
-  font-size: clamp(38px, 9vw, 54px);
-  font-weight: 700;
-  letter-spacing: 12px;
+  font-size: clamp(40px, 10vw, 58px);
+  font-weight: 900;
+  letter-spacing: 10px;
   text-align: center;
-  color: #fff;
-  text-shadow: 0 0 24px rgba(15, 248, 255, 0.5);
-  margin: 6px 0 14px;
+  color: var(--ink);
+  padding: 18px 10px;
+  margin: 4px 0 16px;
+  border: 2.5px dashed rgba(17, 17, 17, 0.4);
+  border-radius: 16px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 240, 255, 0.06) 0 14px,
+    transparent 14px 28px
+  );
 }
 
 .lobby__players {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .lobby__player {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  font-size: 14px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(17, 17, 17, 0.14);
+  background: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .lobby__dot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #555a80;
+  background: #b9b6a3;
   flex-shrink: 0;
 }
 
 .lobby__dot.is-online {
-  background: #39ff88;
-  box-shadow: 0 0 8px rgba(57, 255, 136, 0.7);
+  background: #16c65f;
+  box-shadow: 0 0 10px rgba(22, 198, 95, 0.7);
 }
 
 .lobby__host-tag {
   margin-left: auto;
   font-size: 10px;
-  letter-spacing: 2px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #ffd75e;
+  color: var(--card);
+  background: #d9843f;
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 
 .lobby__settings {
-  font-size: 12px;
-  letter-spacing: 1px;
-  color: #b7bce8;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
   line-height: 1.7;
+  text-align: center;
 }
 
 .lobby__waiting {
   text-align: center;
   font-size: 12px;
-  letter-spacing: 2px;
-  color: #8b90b8;
-  margin-top: 16px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 18px;
 }

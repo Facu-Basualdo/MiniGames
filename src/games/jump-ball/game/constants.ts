@@ -1,4 +1,4 @@
-/** All tunable values for Jump Ball (3D Subway-style runner). Tune here first. */
+/** All tunable values for Bounce Rush (3D Subway-style runner). Tune here first. */
 
 // --- Layout (world units) ---
 export const BALL_RADIUS = 0.55;

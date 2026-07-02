@@ -22,7 +22,7 @@ export interface BlockView {
   topY: number;
 }
 
-/** Draws the whole City Bloxx scene into the 2D canvas context (view units). */
+/** Draws the whole Skyline scene into the 2D canvas context (view units). */
 export class Renderer {
   private readonly clouds: Cloud[] = [];
 

@@ -1,4 +1,4 @@
-/** All tunable values for Stack Tower. Tune here first before touching logic. */
+/** All tunable values for Torre Infinita. Tune here first before touching logic. */
 
 /** Logical play resolution. The canvas is scaled to fit the window while
  *  keeping this aspect ratio, so everything below lives in these units. */

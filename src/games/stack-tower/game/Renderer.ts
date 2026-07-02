@@ -1,7 +1,7 @@
 import { BLOCK_HEIGHT, BLOCK_RADIUS, VIEW_HEIGHT, VIEW_WIDTH } from "./constants";
 import type { Block, Tower } from "./Tower";
 
-/** All canvas drawing for Stack Tower, working in the fixed view-unit space. */
+/** All canvas drawing for Torre Infinita, working in the fixed view-unit space. */
 export class Renderer {
   draw(ctx: CanvasRenderingContext2D, tower: Tower): void {
     this.drawBackground(ctx);

@@ -113,7 +113,7 @@ export class Hud {
     this.hudBar.classList.add("hidden");
     this.boardContainer.classList.add("hidden");
     
-    this.titleEl.textContent = "SLIDING PUZZLE";
+    this.titleEl.textContent = "NUMERIX";
     this.subtitleEl.textContent = "Ordena los numeros deslizando filas o columnas.";
     
     this.statsLineEl.style.display = "none";

@@ -18,7 +18,7 @@ const FIGURE_RADIUS = 30;
 /** Y of the figure -> key legend row, below the hit line. */
 const LEGEND_Y = VIEW_HEIGHT - 56;
 
-/** All canvas drawing for Rhythm Tap, in view units. */
+/** All canvas drawing for Beat Fever, in view units. */
 export class Renderer {
   draw(ctx: CanvasRenderingContext2D, notes: Note[], laneFlash: number[]): void {
     this.drawLanes(ctx, laneFlash);

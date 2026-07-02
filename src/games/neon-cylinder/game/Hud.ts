@@ -84,7 +84,7 @@ export class Hud {
   }
 
   showStart(): void {
-    this.titleEl.textContent = "NEON CYLINDER";
+    this.titleEl.textContent = "NEON VORTEX";
     this.subtitleEl.textContent = "presiona ENTER o toca para empezar";
     this.scoreLineEl.textContent = "";
     this.hintEl.style.display = "block";

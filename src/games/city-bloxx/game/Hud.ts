@@ -96,7 +96,7 @@ export class Hud {
   }
 
   showStart(): void {
-    this.titleEl.textContent = "CITY BLOXX";
+    this.titleEl.textContent = "SKYLINE";
     this.subtitleEl.textContent = "presiona ENTER o toca para empezar";
     this.scoreLineEl.textContent = "";
     this.hintEl.style.display = "block";
