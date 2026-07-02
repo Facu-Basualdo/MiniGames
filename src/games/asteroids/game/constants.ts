@@ -18,6 +18,7 @@ export const MAX_LASERS = 10;
 export const ASTEROID_MAX_VERTICES = 12;
 export const ASTEROID_MIN_VERTICES = 8;
 export const ASTEROID_JAGGEDNESS = 0.25; // 0 to 0.5 (noise level)
+export const ASTEROID_SPAWN_INTERVAL = 5.0; // seconds between spawns
 
 export const ASTEROID_SPEEDS = {
   3: { min: 70, max: 130 },   // Large

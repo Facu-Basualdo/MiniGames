@@ -13,6 +13,7 @@ import {
   STAR_COUNT,
   LASER_COOLDOWN,
   MAX_LASERS,
+  ASTEROID_SPAWN_INTERVAL,
 } from "./constants";
 
 type State = "ready" | "countdown" | "playing" | "gameover";
@@ -57,6 +58,7 @@ export class Game {
   private lastTime = 0;
   private laserCooldownRemaining = 0;
   private countdownTime = 0;
+  private asteroidSpawnTimer = 0;
 
   // Screen shake
   private shakeTime = 0;
@@ -152,6 +154,7 @@ export class Game {
     this.state = "playing";
     this.hud.showCountdown(null);
     this.hud.hide();
+    this.asteroidSpawnTimer = ASTEROID_SPAWN_INTERVAL;
   }
 
   private spawnAsteroidsWave(count: number): void {
@@ -364,6 +367,13 @@ export class Game {
       // Decrement laser cooldown
       if (this.laserCooldownRemaining > 0) {
         this.laserCooldownRemaining -= dt;
+      }
+
+      // Periodically spawn new asteroids
+      this.asteroidSpawnTimer -= dt;
+      if (this.asteroidSpawnTimer <= 0) {
+        this.spawnAsteroidsWave(1);
+        this.asteroidSpawnTimer = ASTEROID_SPAWN_INTERVAL;
       }
     }
 
