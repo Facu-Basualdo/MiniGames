@@ -30,7 +30,6 @@ dist-ssr
 
 # IA
 .agents
-claude.md
 .mcp.json
 skills-lock.json
 .claude

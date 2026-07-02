@@ -89,6 +89,12 @@ Square 1:1 video game cover art, bold indie game key art style, vibrant saturate
 Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A neat glowing grid of rounded square tiles all the same soft purple except one tile with a subtly different shade that clearly stands out, a bright spotlight and a magnifying glass focusing on the odd tile, a thin ticking countdown arc wrapping around the grid, minimal geometric composition, purple and violet neon palette on a dark background. The game title "ODD ONE OUT" is integrated into the artwork as a bold stylized videogame logo, large and readable, spelled exactly "ODD ONE OUT".
 ```
 
+## Keepers! — guardar como `penalty-keeper.jpg`
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A goalkeeper seen from behind in a dark kit with bright green gloves, diving fully stretched toward the top corner of a goal without a net, a glowing white soccer ball incoming with a light trail, night stadium under tall floodlights, dark tribune crowd in the background, HD-2D pixel-art inspired atmosphere, emerald green and cool blue palette, tense last-second save moment. The game title "KEEPERS!" is integrated into the artwork as a bold stylized videogame logo, large and readable, spelled exactly "KEEPERS!".
+```
+
 ## Fondo del banner de salas — guardar como `rooms-banner.jpg`
 
 Fondo del banner "¡Jugá con amigos!" de la home. El banner es una franja muy
