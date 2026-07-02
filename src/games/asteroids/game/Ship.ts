@@ -14,7 +14,7 @@ export class Ship {
   public vy = 0;
   public angle = -Math.PI / 2; // Pointing upwards initially
   public radius = SHIP_RADIUS;
-  public lives = 3;
+  public lives = 1;
   public invulnerableTime = 0;
   public isThrusting = false;
 

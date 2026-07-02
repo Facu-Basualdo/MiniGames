@@ -26,6 +26,7 @@ export const GAME_SCORING: Record<string, GameScoring> = {
   "asteroids": { direction: "higher" },
   "mini-frogger": { direction: "higher" },
   "kunai-throw": { direction: "higher" },
+  "odd-one-out": { direction: "higher" },
   "reaction-time": {
     direction: "lower",
     format: (n) => `${Math.round(n)} ms`,
