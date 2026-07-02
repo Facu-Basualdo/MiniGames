@@ -1,0 +1,197 @@
+import { LeaderboardPanel } from "../../../shared/LeaderboardPanel";
+import { INITIAL_LIVES } from "./constants";
+
+export class Hud {
+  private readonly scoreEl: HTMLDivElement;
+  private readonly bestEl: HTMLDivElement;
+  private readonly livesEl: HTMLDivElement;
+  private readonly levelEl: HTMLDivElement;
+  private readonly overlayEl: HTMLDivElement;
+  private readonly titleEl: HTMLDivElement;
+  private readonly subtitleEl: HTMLDivElement;
+  private readonly scoreLineEl: HTMLDivElement;
+  private readonly hintEl: HTMLDivElement;
+  private readonly countdownEl: HTMLDivElement;
+  private readonly btnEl: HTMLButtonElement;
+  private readonly leaderboard = new LeaderboardPanel();
+
+  // ── Floating score popups ─────────────────────────────────────────
+  private popups: { text: string; x: number; y: number; timer: number; color: string }[] = [];
+  private popupCanvas: HTMLCanvasElement | null = null;
+  private popupCtx: CanvasRenderingContext2D | null = null;
+
+  constructor(container: HTMLElement, onStartClick: () => void) {
+    const hud = document.createElement("div");
+    hud.className = "hud";
+
+    this.scoreEl = document.createElement("div");
+    this.scoreEl.className = "hud__score";
+    this.scoreEl.textContent = "0";
+
+    this.bestEl = document.createElement("div");
+    this.bestEl.className = "hud__best";
+
+    this.livesEl = document.createElement("div");
+    this.livesEl.className = "hud__lives";
+
+    this.levelEl = document.createElement("div");
+    this.levelEl.className = "hud__level";
+
+    hud.append(this.scoreEl, this.bestEl, this.livesEl, this.levelEl);
+
+    this.overlayEl = document.createElement("div");
+    this.overlayEl.className = "overlay";
+
+    this.titleEl = document.createElement("div");
+    this.titleEl.className = "overlay__title";
+
+    this.subtitleEl = document.createElement("div");
+    this.subtitleEl.className = "overlay__subtitle";
+
+    this.scoreLineEl = document.createElement("div");
+    this.scoreLineEl.className = "overlay__score";
+
+    this.btnEl = document.createElement("button");
+    this.btnEl.className = "overlay__btn";
+    this.btnEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onStartClick();
+    });
+
+    this.hintEl = document.createElement("div");
+    this.hintEl.className = "overlay__hint";
+
+    this.overlayEl.append(this.titleEl, this.subtitleEl, this.scoreLineEl, this.btnEl, this.hintEl);
+    this.leaderboard.mount(this.overlayEl);
+    this.leaderboard.clear();
+
+    this.countdownEl = document.createElement("div");
+    this.countdownEl.className = "countdown";
+
+    container.append(hud, this.overlayEl, this.countdownEl);
+  }
+
+  // ── Popup canvas (overlays the game canvas for floating +/- scores) ───
+  mountPopupCanvas(canvas: HTMLCanvasElement): void {
+    this.popupCanvas = document.createElement("canvas");
+    this.popupCanvas.className = "popup-canvas";
+    this.popupCanvas.width = canvas.width;
+    this.popupCanvas.height = canvas.height;
+    this.popupCanvas.style.width = canvas.style.width;
+    this.popupCanvas.style.height = canvas.style.height;
+    this.popupCtx = this.popupCanvas.getContext("2d")!;
+    canvas.parentElement?.append(this.popupCanvas);
+  }
+
+  syncPopupSize(canvas: HTMLCanvasElement): void {
+    if (this.popupCanvas) {
+      this.popupCanvas.style.width = canvas.style.width;
+      this.popupCanvas.style.height = canvas.style.height;
+    }
+  }
+
+  addPopup(text: string, x: number, y: number, color: string): void {
+    this.popups.push({ text, x, y, timer: 0, color });
+  }
+
+  updatePopups(dt: number): void {
+    for (const p of this.popups) {
+      p.timer += dt;
+      p.y -= 40 * dt;
+    }
+    this.popups = this.popups.filter(p => p.timer < 0.8);
+  }
+
+  drawPopups(): void {
+    if (!this.popupCtx || !this.popupCanvas) return;
+    const ctx = this.popupCtx;
+    ctx.clearRect(0, 0, this.popupCanvas.width, this.popupCanvas.height);
+
+    for (const p of this.popups) {
+      const alpha = 1 - p.timer / 0.8;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = "bold 20px 'Rye', serif";
+      ctx.fillStyle = p.color;
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 3;
+      ctx.textAlign = "center";
+      ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.restore();
+    }
+  }
+
+  // ── Standard HUD methods ──────────────────────────────────────────
+  showCountdown(text: string | null): void {
+    if (text === null) {
+      this.countdownEl.classList.remove("is-shown");
+      this.countdownEl.textContent = "";
+      return;
+    }
+    if (this.countdownEl.textContent === text) return;
+    this.countdownEl.textContent = text;
+    this.countdownEl.classList.remove("is-shown");
+    void this.countdownEl.offsetWidth;
+    this.countdownEl.classList.add("is-shown");
+  }
+
+  setScore(score: number): void {
+    this.scoreEl.textContent = String(score);
+  }
+
+  setBest(best: number): void {
+    this.bestEl.textContent = best > 0 ? `RECORD: ${best}` : "";
+  }
+
+  setLives(lives: number): void {
+    let stars = "";
+    for (let i = 0; i < INITIAL_LIVES; i++) {
+      stars += i < lives ? "⭐" : "💀";
+    }
+    this.livesEl.textContent = stars;
+  }
+
+  setLevel(level: number): void {
+    this.levelEl.textContent = level > 0 ? `OLEADA ${level + 1}` : "";
+  }
+
+  showStart(): void {
+    this.titleEl.textContent = "WESTERN SHOOT";
+    this.subtitleEl.textContent = "TIRO AL BLANCO DEL VIEJO OESTE";
+    this.scoreLineEl.textContent = "";
+    this.btnEl.textContent = "Iniciar Juego";
+    this.hintEl.innerHTML = `
+      Controles:<br>
+      <span class="overlay__hint-keys">Mouse</span> : Apuntar<br>
+      <span class="overlay__hint-keys">Click</span> : Disparar<br>
+      ¡Dispara a las dianas y cuidado con los civiles!<br>
+      Los vaqueros enemigos te quitarán vidas si no los derribas.
+    `;
+    this.leaderboard.clear();
+    this.overlayEl.classList.remove("hidden");
+  }
+
+  showRanking(gameId: string, score: number): void {
+    void this.leaderboard.render(gameId, { score });
+  }
+
+  showGameOver(score: number, best: number): void {
+    this.titleEl.textContent = "FIN DE LA PARTIDA";
+    this.subtitleEl.textContent = "LOS BANDIDOS TE DERRIBARON";
+
+    if (score >= best && score > 0) {
+      this.scoreLineEl.innerHTML = `¡NUEVO RÉCORD!<br><span class="overlay__score-big">${score}</span>`;
+    } else {
+      this.scoreLineEl.innerHTML = `PUNTAJE: ${score} · RÉCORD: ${best}`;
+    }
+
+    this.btnEl.textContent = "Reintentar";
+    this.hintEl.innerHTML = "Haz click o presiona ENTER para volver a jugar";
+    this.overlayEl.classList.remove("hidden");
+  }
+
+  hide(): void {
+    this.overlayEl.classList.add("hidden");
+  }
+}

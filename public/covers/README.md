@@ -107,6 +107,12 @@ Square 1:1 video game cover art, bold indie game key art style, vibrant saturate
 Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A dark neon grid of face-down memory cards with thin golden ring emblems on their backs, two cards flipped and glowing: one revealing a bright yellow circle symbol with golden edge glow, another revealing a cyan square symbol with cyan edge glow, a small neon blue brain icon and tiny stars floating above, deep navy background, yellow and cyan palette. The game title "MEMORIA" is integrated into the artwork as a bold stylized videogame logo, large and readable, spelled exactly "MEMORIA".
 ```
 
+## Western Shoot — guardar como `western-shoot.jpg`
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A dusty Old West shooting gallery at golden-hour sunset: round wooden bullseye targets of different sizes popping up over a saloon fence, a revolver crosshair reticle aiming at the center target, a cowboy bandit silhouette peeking out with a gun, muzzle flash and flying splinters, desert canyon and cacti in the background, warm amber, sienna and burnt-orange palette with deep shadows, wanted-poster wood-grain texture. The game title "WESTERN SHOOT" is integrated into the artwork as a bold stylized videogame logo, large and readable, spelled exactly "WESTERN SHOOT".
+```
+
 ## Fondo del banner de salas — guardar como `rooms-banner.jpg`
 
 Fondo del banner "¡Jugá con amigos!" de la home. El banner es una franja muy
