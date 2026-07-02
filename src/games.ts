@@ -79,6 +79,13 @@ export const games: GameEntry[] = [
     accent: "#39ff14",
   },
   {
+    id: "odd-one-out",
+    title: "Odd One Out",
+    description: "Encuentra la ficha con el tono distinto antes de que se acabe el tiempo: la grilla crece y la diferencia se achica.",
+    path: "/games/odd-one-out/",
+    accent: "#c084fc",
+  },
+  {
     id: "kunai-throw",
     title: "Kunai Throw",
     description: "Arroja kunais y clávalos en el tronco que gira sin que un kunai golpee a otro.",
