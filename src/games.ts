@@ -143,5 +143,14 @@ export const games: GameEntry[] = [
     accent: "#3ba7ff",
     category: "Carreras",
   },
+  {
+    id: "blind-time",
+    title: "Crono Ciego",
+    description: "Detén el cronómetro a ciegas lo más cerca posible del tiempo objetivo asignado.",
+    path: "/games/blind-time/",
+    accent: "#ffdd53",
+    category: "Precisión",
+  },
 ];
+
 
