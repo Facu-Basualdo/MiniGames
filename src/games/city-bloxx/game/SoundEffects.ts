@@ -85,6 +85,36 @@ export class SoundEffects {
     osc.stop(now + 0.12);
   }
 
+  /** Bright ascending chime for a perfect placement; pitch climbs with combo. */
+  static playPerfect(combo: number): void {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const now = ctx.currentTime;
+    // Each combo step nudges the chime up a semitone (capped) for a rising streak.
+    const step = Math.min(Math.max(combo - 1, 0), 8);
+    const base = 660 * Math.pow(2, step / 12);
+    const notes = [base, base * 1.5];
+    notes.forEach((freq, i) => {
+      const t = now + i * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, t);
+
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(0.12, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+
+      osc.start(t);
+      osc.stop(t + 0.16);
+    });
+  }
+
   /** Low rumbling crumble when the tower topples or a drop misses. */
   static playCollapse(): void {
     const ctx = getAudioContext();

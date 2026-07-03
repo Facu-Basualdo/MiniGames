@@ -12,6 +12,7 @@ export class Hud {
   private readonly scoreLineEl: HTMLDivElement;
   private readonly hintEl: HTMLDivElement;
   private readonly countdownEl: HTMLDivElement;
+  private readonly perfectFlashEl: HTMLDivElement;
   private readonly leaderboard = new LeaderboardPanel();
 
   constructor(container: HTMLElement) {
@@ -56,7 +57,19 @@ export class Hud {
     this.countdownEl = document.createElement("div");
     this.countdownEl.className = "countdown";
 
-    container.append(hud, this.overlayEl, this.countdownEl);
+    this.perfectFlashEl = document.createElement("div");
+    this.perfectFlashEl.className = "perfect-flash";
+
+    container.append(hud, this.overlayEl, this.countdownEl, this.perfectFlashEl);
+  }
+
+  /** Briefly flashes "PERFECTO" (with the combo count once it grows). */
+  flashPerfect(combo: number): void {
+    this.perfectFlashEl.textContent = combo > 1 ? `PERFECTO x${combo}` : "PERFECTO";
+    this.perfectFlashEl.classList.remove("is-shown");
+    // Force reflow so re-adding the class restarts the pop animation.
+    void this.perfectFlashEl.offsetWidth;
+    this.perfectFlashEl.classList.add("is-shown");
   }
 
   /** Shows a countdown label ("3" / "2" / "1" / "YA"), or hides it when null. */

@@ -22,6 +22,8 @@ Nokia-style tower builder. A hook sweeps horizontally across the top carrying th
 
 **Wobble is a damped angular spring.** Each off-center placement kicks `wobbleVel` (in `Tower.place()`) proportionally to the offset; `Tower.update()` integrates a spring back to rest (`WOBBLE_FREQ`, `WOBBLE_DAMP`). This is purely visual feedback added on top of the static lean.
 
+**Perfect placement.** A drop landing within `PERFECT_OFFSET` (view units) of the floor below snaps dead-center onto it (`Tower.place()` sets the floor's `x` to `refX()`), so it adds **no** balance drift and no wobble kick — precision is rewarded with a stable stack that can climb indefinitely. `PlaceResult.perfect` flags it; `Game.resolveDrop()` then bumps `perfectCombo`, plays the rising `SoundEffects.playPerfect(combo)` chime (pitch climbs a semitone per combo step, capped), spawns a `Renderer.spawnPerfect()` ring-and-sparkle burst at the seam, and flashes `Hud.flashPerfect(combo)` ("PERFECTO", plus `x{n}` once the streak grows). Any non-perfect (or missed) drop resets `perfectCombo` to 0. The score stays a plain floor count ("PISOS"); perfect only affects balance and feedback, not the number.
+
 **Camera pins the hook once the tower is tall.** `Game.cameraTarget()` returns `max(0, HOOK_SCREEN_Y - hangTopY)`, so while the tower is short `camY` stays 0 (ground sits at the bottom) and only once the hook would rise above `HOOK_SCREEN_Y` does the world pan down to keep the build area on screen. `updateCamera()` lerps toward it (`CAM_LERP`).
 
 **Death animations.** A missed drop (no overlap) keeps the block falling off the bottom during the `dead` state. A topple calls `Tower.collapse()`, which accelerates an extra `collapseAngle` so the whole building tips over on the game-over screen.

@@ -43,6 +43,8 @@ export class Game {
   private countdownTime = 0;
   /** Last countdown index that played a tick, so each number sounds once. */
   private lastCountdownIndex = -1;
+  /** Consecutive perfect placements; drives the combo flash and chime pitch. */
+  private perfectCombo = 0;
 
   /** The block in play (on the hook or falling), or null between spawns. */
   private block: BlockView | null = null;
@@ -106,6 +108,7 @@ export class Game {
     this.crane.reset();
     this.crane.update(0, 0, this.hangTopY());
     this.score = 0;
+    this.perfectCombo = 0;
     this.hud.setScore(0);
     this.hud.setBalance(0);
     this.spawnBlock();
@@ -166,7 +169,16 @@ export class Game {
       return;
     }
     this.score++;
-    SoundEffects.playLand(this.score);
+    if (res.perfect) {
+      this.perfectCombo++;
+      SoundEffects.playPerfect(this.perfectCombo);
+      const placed = this.tower.topFloor()!;
+      this.renderer.spawnPerfect(placed.x, placed.topY);
+      this.hud.flashPerfect(this.perfectCombo);
+    } else {
+      this.perfectCombo = 0;
+      SoundEffects.playLand(this.score);
+    }
     this.hud.setScore(this.score);
     this.hud.setBalance(this.tower.balanceRatio());
     if (this.tower.isToppled()) {

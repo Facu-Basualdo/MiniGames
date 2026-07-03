@@ -42,6 +42,8 @@ export const WOBBLE_FREQ = 6.6;
 export const WOBBLE_DAMP = 3.2;
 /** How strongly a misaligned drop kicks the wobble, rad/s per floor-width. */
 export const WOBBLE_IMPULSE = 1.4;
+/** Angle (rad) the toppled tower falls to before it rests flat on the ground. */
+export const COLLAPSE_MAX_ANGLE = Math.PI / 2 + 0.12;
 /** |offset| under this counts as a clean, "perfect" placement. */
 export const PERFECT_OFFSET = 7;
 
