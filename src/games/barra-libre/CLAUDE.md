@@ -95,19 +95,32 @@ bulbs, backlit bottles and the moon actually glow.
 All four bars are open from the first customer; difficulty ramps via
 cadence, speed, punks and groups — not by opening lanes.
 
-- **A. Warmup** (0-15 s) — interval 4.5 s, slow strollers, long gaps.
-- **B. Ritmo** (15-60 s) — interval 3.6 -> 2.0 s, speed climbs;
-  punks/groups fade in to 15%.
-- **C. Mezcla** (60-120 s) — interval to 1.4 s, speed to 0.95 m/s, punks
-  to 35%, groups (two at once) to 30%.
-- **D. Inferno** (120 s+) — capped values blended in over 10 s, no cliff.
+- **A. Warmup** (0-15 s) — interval 4.5 s, slow strollers (0.55 m/s), long gaps.
+- **B. Ritmo** (15-65 s) — interval 3.6 -> 2.6 s, speed climbs to the
+  critical pace (0.62 m/s); punks fade in to 8%, groups to 6%. Real
+  pressure has arrived by ~1 min.
+- **C. Mezcla** (65-250 s) — a long grind: interval eases to 2.3 s, speed
+  creeps to 0.70 m/s, punks to 16%, groups (two at once) to 13%.
+- **D. Inferno** (250 s+) — interval 1.95 s, speed 0.92 m/s, punks 33%,
+  groups 21%, blended in over 20 s (no cliff).
 
-Intervals and `MAX_MISSES` (6) were tuned by Monte Carlo (5000 runs each,
-a movement/reaction-limited player model): with 6 lives a skilled player
-clears 500 points ~95% of runs, a medium one ~57%, a slow one ~15%. Spawn
-interval has a weak effect on that — the real bottleneck is catching the
-returning empties (`mugFell` is the dominant strike), which is why the
-extra lives moved the needle far more than the flow rate did.
+**Retuned by Monte Carlo (2026-07).** The previous curve (ritmo end 60 s,
+inferno start 120 s, mezcla speed to 0.95 and groups to 30%) slammed into
+an unbeatable wall around the 1-minute / ~400-point mark; the reshape above
+pushes that pressure out to ~2.5-3 min while keeping the opening honest.
+The simulation (a headless 1-D port of `Lanes` driven by a
+reaction-limited greedy player, thousands of runs per config) surfaced the
+key fact: **walker speed is the dominant lever, with a sharp critical
+threshold near ~0.6 m/s.** A pour roots the bartender for `POUR_TIME`, so
+past that pace he can no longer serve and catch the returning empties fast
+enough and the backlog collapses (`mugFell` is still the dominant strike).
+Spawn interval and `MAX_MISSES` barely move survival (deaths are burst
+collapses, not linear attrition — so more lives would just inflate scores);
+a high group chance is what read as "too many at once", so it was cut hard.
+`POUR_TIME` was also trimmed 0.55 -> 0.47 s to lift the throughput ceiling,
+which let the opening keep its bite without bringing the wall back in.
+Under the model this lands the median run at ~145 s (weak player) to ~210 s
+(strong player), versus ~90 s for every skill on the old curve.
 
 **Spawns spread across the bars.** `Lanes.pickLane` sends each customer to
 the emptiest open bar that still has entrance room (`laneHasRoom`), random

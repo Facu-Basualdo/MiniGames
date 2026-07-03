@@ -59,8 +59,11 @@ export const BARTENDER_X = 5.15;
 export const LANE_SWITCH_TIME = 0.16;
 /** Seconds of holding the tap to fill a mug. Releasing earlier discards
  *  the half-poured mug (wasted time, no strike). Once full the mug just
- *  waits in his hand — overfilling is not punished, standing there is. */
-export const POUR_TIME = 0.55;
+ *  waits in his hand — overfilling is not punished, standing there is.
+ *  Lowered from 0.55 by the Monte Carlo retune: the pour roots the
+ *  bartender, so this time is the single biggest cap on his throughput
+ *  (see the difficulty note). */
+export const POUR_TIME = 0.47;
 /** How long the serve / catch poses linger, s. */
 export const SERVE_POSE_TIME = 0.28;
 export const CATCH_POSE_TIME = 0.3;
@@ -100,22 +103,32 @@ export const POINTS_SERVE_PUNK = 15;
 export const POINTS_CATCH = 5;
 export const POINTS_TIP = 25;
 
-// --- Difficulty: four hand-designed phases, resolved per spawn by
+// --- Difficulty: four time-driven phases, resolved per spawn by
 // Lanes.paramsAt from the elapsed play time (no levels — the night just
-// gets worse). Tuned by playing, not by simulation:
+// gets worse). Retuned by Monte Carlo (see the difficulty note in the
+// CLAUDE.md): the old curve slammed into an unbeatable wall around the
+// 1-minute mark, so it was reshaped to reach that pressure at ~2.5-3 min
+// instead, while keeping the opening honest.
 //
 //   A. Warmup      — all four bars, slow strollers, generous gaps.
-//   B. Ritmo       — until RITMO_END_S: spawns speed up.
-//   C. Mezcla      — until INFERNO_START_S: punks and groups ramp in.
+//   B. Ritmo       — until RITMO_END_S: spawns speed up, walkers reach
+//                    the critical pace (real pressure by ~1 min).
+//   C. Mezcla      — until INFERNO_START_S: a long grind where walker
+//                    speed creeps up slowly and punks/groups ramp in.
 //   D. Inferno     — everything maxed (blended over INFERNO_BLEND_S).
 //
-// Spawns always target the emptiest bar with room (Lanes.pickLane), so the
-// customers spread across all four instead of piling onto one or two. ---
+// The dominant knob is WALKER SPEED, not the spawn interval: a pour roots
+// the bartender for POUR_TIME, so there is a critical walking pace (~0.6
+// m/s) past which he can no longer serve and catch fast enough and the
+// backlog collapses. The interval and group/punk chances are secondary,
+// but a high group chance is what made it feel like "too many at once", so
+// it was cut hard. Spawns always target the emptiest bar with room
+// (Lanes.pickLane), so customers spread across all four. ---
 
 export const WARMUP_END_S = 15;
-export const RITMO_END_S = 60;
-export const INFERNO_START_S = 120;
-export const INFERNO_BLEND_S = 10;
+export const RITMO_END_S = 65;
+export const INFERNO_START_S = 250;
+export const INFERNO_BLEND_S = 20;
 /** First customer walks in this long after YA, s. */
 export const FIRST_SPAWN_DELAY = 1.0;
 
@@ -125,27 +138,27 @@ export const WARMUP_SPEED = 0.55;
 
 /** B. Ritmo (values at WARMUP_END_S -> at RITMO_END_S). */
 export const RITMO_INTERVAL_START = 3.6;
-export const RITMO_INTERVAL_END = 2.0;
+export const RITMO_INTERVAL_END = 2.6;
 export const RITMO_SPEED_START = 0.55;
-export const RITMO_SPEED_END = 0.75;
-export const RITMO_PUNK_END = 0.15;
-export const RITMO_GROUP_END = 0.15;
+export const RITMO_SPEED_END = 0.62;
+export const RITMO_PUNK_END = 0.08;
+export const RITMO_GROUP_END = 0.06;
 
 /** C. Mezcla (values at RITMO_END_S -> at INFERNO_START_S). */
-export const MIX_INTERVAL_START = 2.0;
-export const MIX_INTERVAL_END = 1.4;
-export const MIX_SPEED_START = 0.75;
-export const MIX_SPEED_END = 0.95;
-export const MIX_PUNK_START = 0.15;
-export const MIX_PUNK_END = 0.35;
-export const MIX_GROUP_START = 0.15;
-export const MIX_GROUP_END = 0.3;
+export const MIX_INTERVAL_START = 2.6;
+export const MIX_INTERVAL_END = 2.3;
+export const MIX_SPEED_START = 0.62;
+export const MIX_SPEED_END = 0.7;
+export const MIX_PUNK_START = 0.08;
+export const MIX_PUNK_END = 0.16;
+export const MIX_GROUP_START = 0.06;
+export const MIX_GROUP_END = 0.13;
 
 /** D. Inferno. */
-export const INFERNO_INTERVAL = 1.2;
-export const INFERNO_SPEED = 1.05;
-export const INFERNO_PUNK = 0.4;
-export const INFERNO_GROUP = 0.35;
+export const INFERNO_INTERVAL = 1.95;
+export const INFERNO_SPEED = 0.92;
+export const INFERNO_PUNK = 0.33;
+export const INFERNO_GROUP = 0.21;
 
 // --- Rules ---
 /** Strikes before the night ends: customer reaches the tap, an empty mug
