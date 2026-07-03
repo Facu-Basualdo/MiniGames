@@ -1,6 +1,6 @@
 # MiniGames
 
-Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rhythm Tap, Jump Ball, Reaction Time, City Bloxx, Sliding Puzzle, Asteroids, Mini Frogger, Neon Drift, Odd One Out, Dunk Shot, Memoria, Kunai Throw, Keepers!, Western Shoot, Crono Ciego, El Trile, PONG, and Block Paddle), each independently playable, plus a landing page to pick one. (Rocket SpaceX / `rocket-arena` still lives in the repo but is temporarily hidden from the roster in `src/games.ts` due to errors.) Stack: Vite + TypeScript, no framework. Deployed as a static site (Vercel).
+Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rhythm Tap, Jump Ball, Reaction Time, City Bloxx, Sliding Puzzle, Asteroids, Mini Frogger, Neon Drift, Odd One Out, Dunk Shot, Memoria, Kunai Throw, Keepers!, Western Shoot, Barra Libre, Crono Ciego, El Trile, PONG, and Block Paddle), each independently playable, plus a landing page to pick one. (Rocket SpaceX / `rocket-arena` still lives in the repo but is hidden from the roster via `hidden: true` in its `meta.ts` due to errors.) Stack: Vite + TypeScript, no framework. Deployed as a static site (Vercel).
 
 ## Conventions (must follow)
 
@@ -12,8 +12,9 @@ Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rh
 
 ## Structure
 
-- `index.html`, `src/main.ts`, `src/style.css` — the landing page. Renders a card per game from `src/games.ts`, plus a "Jugar con amigos" link to `/rooms/` (only when Supabase credentials exist).
-- `src/games.ts` — registry (`GameEntry[]`: `id`, `title`, `description`, `path`, optional `accent` color) the landing page reads. **Every game needs an entry here.**
+- `index.html`, `src/main.ts`, `src/style.css` — the landing page. Renders a card per game from the `games` array in `src/games.ts`, plus a "Jugar con amigos" link to `/rooms/` (only when Supabase credentials exist).
+- `src/games.ts` — the `GameEntry` type (`id`, `title`, `description`, `path`, optional `accent`, `category`, optional `order`, optional `hidden`) plus `coverUrl`. It does **not** list the games by hand: it auto-discovers them with `import.meta.glob("./games/*/meta.ts", { eager: true })`, filters out `hidden` ones, and sorts by `order` (ascending; entries without `order` fall to the end, then alphabetical by title). **This file is closed for modification** — adding a game means adding its `meta.ts`, never editing `games.ts` (this is what stops the registry from producing merge conflicts on every new game).
+- `src/games/<id>/meta.ts` — that game's registry entry: `export const meta: GameEntry = { ... }`. **Every game needs this file** (it is what the landing page, rooms, and random-game picker read). Set `order` to place the card (existing games use multiples of 10). Set `hidden: true` to pull a game from the roster without deleting it (e.g. `rocket-arena`, hidden due to errors) — its code stays in the repo and it just disappears from the landing and the rooms voting / random pool.
 - `games/<id>/index.html` — one Vite HTML entry point per game (root-level `games/`, not under `src/`), giving each game a clean URL `/games/<id>/`.
 - `src/games/<id>/` — that game's source (`main.ts`, `style.css`, plus its own submodules, e.g. `game/`).
 - `src/shared/` — cross-cutting leaderboard infra shared by every game and the landing page (see "Global rankings" below), plus `src/shared/room/` (multiplayer rooms, see "Salas" below). This is the **one** sanctioned shared module; it is not game-engine code.
@@ -32,7 +33,7 @@ Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rh
 
 1. Create `src/games/<id>/` with `main.ts`, `style.css`, and any submodules.
 2. Create `games/<id>/index.html` mirroring `games/neon-cylinder/index.html` (script `src="/src/games/<id>/main.ts"`; optional `.back-link` anchor to `/` to return to the landing page).
-3. Add an entry to `src/games.ts`.
+3. Create `src/games/<id>/meta.ts` exporting `const meta: GameEntry` (see `src/games/blind-time/meta.ts`). Give it an `order` (multiples of 10) to place its card. **Do not touch `src/games.ts`** — the glob picks the new `meta.ts` up automatically.
 4. Add a `CLAUDE.md` inside `src/games/<id>/` documenting that game's mechanics and any non-obvious decisions.
 5. Implement the mandatory Enter-to-start 3 / 2 / 1 / YA countdown (see "Shared UX pattern" below).
 6. Wire the global ranking (see "Global rankings" below): declare the game in `GAME_SCORING` and call `hud.showRanking(...)` on game over.

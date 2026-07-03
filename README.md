@@ -28,6 +28,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Keepers! | Reflejos | Sos el arquero en una tanda infinita de penales. | [emi1i0](https://github.com/emi1i0) |
 | Rocket SpaceX | Carreras | Fútbol de autos 3D estilo Rocket League. | [matiasgzlez](https://github.com/matiasgzlez) |
 | Western Shoot | Precisión | Dispará a los blancos para sumar puntos y a los bandidos para que no te eliminen. | [juanidrose11](https://github.com/juanidrose11) |
+| Barra Libre | Arcade | Atendé las cuatro barras: llená jarras, servílas deslizando y atajá los vasos vacíos. | [emi1i0](https://github.com/emi1i0) |
 | Crono Ciego | Precisión | Detené el cronómetro a ciegas lo más cerca del tiempo objetivo. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | El Trile | Reflejos | Seguí con la mirada el vaso que oculta la moneda. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | PONG | Arcade | Pong clásico de un jugador: devolvé la pelota, la velocidad sube y tenés una sola vida. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
@@ -51,7 +52,7 @@ El ranking global y las salas multijugador son **opcionales**: sin credenciales 
 Cada juego es **independiente**: no compartís código de motor con los demás, así que podés hacer el tuyo a tu manera sin romper nada. Los pasos completos para agregar uno están en [`CLAUDE.md`](CLAUDE.md) (sección "Adding a new minigame"), pero el resumen es:
 
 1. Creá tu juego en `src/games/<id>/` y su HTML en `games/<id>/index.html`.
-2. Registralo en [`src/games.ts`](src/games.ts).
+2. Registralo creando `src/games/<id>/meta.ts` con `export const meta: GameEntry` (mirá [`src/games/blind-time/meta.ts`](src/games/blind-time/meta.ts) como ejemplo). No hace falta tocar [`src/games.ts`](src/games.ts): descubre los juegos solo.
 3. Sumá el countdown 3 / 2 / 1 / YA al empezar (patrón compartido, obligatorio).
 4. Enganchá el ranking global y, si querés, el modo salas.
 5. Corré `npm run build` para confirmar que tu juego se descubre.

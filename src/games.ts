@@ -7,6 +7,10 @@ export interface GameEntry {
   accent?: string;
   /** Categoria para los filtros de la landing. */
   category: string;
+  /** Orden en la landing (menor primero). Sin valor va al final, alfabetico por titulo. */
+  order?: number;
+  /** Ocultar del roster sin borrar la entrada (landing y salas). El juego sigue en el repo. */
+  hidden?: boolean;
 }
 
 /** Portada del juego generada por IA; si falta, la card muestra un fallback. */
@@ -14,193 +18,18 @@ export function coverUrl(gameId: string): string {
   return `/covers/${gameId}.jpg`;
 }
 
-export const games: GameEntry[] = [
-  {
-    id: "neon-cylinder",
-    title: "Neon Vortex",
-    description: "Esquiva las porciones que giran alrededor del cilindro neón y sobrevive el mayor tiempo posible.",
-    path: "/games/neon-cylinder/",
-    accent: "#ff00e6",
-    category: "Arcade",
-  },
-  {
-    id: "flappy-bird",
-    title: "Flappy Bird",
-    description: "Aletea para mantener al pájaro en el aire y cruza la mayor cantidad de tubos sin chocar.",
-    path: "/games/flappy-bird/",
-    accent: "#4ec0e6",
-    category: "Arcade",
-  },
-  {
-    id: "stack-tower",
-    title: "Torre Infinita",
-    description: "Suelta cada bloque en el momento justo para apilar la torre más alta sin que se te escape.",
-    path: "/games/stack-tower/",
-    accent: "#5ce1a6",
-    category: "Precisión",
-  },
-  {
-    id: "rhythm-tap",
-    title: "Beat Fever",
-    description: "Toca las notas de colores justo al cruzar la línea, encadena combos y sobrevive sin quedarte sin vida.",
-    path: "/games/rhythm-tap/",
-    accent: "#ff3f81",
-    category: "Ritmo",
-  },
-  {
-    id: "jump-ball",
-    title: "Bounce Rush",
-    description: "Corre hacia el horizonte saltando solo entre plataformas y cambia de carril a tiempo para no caer al vacío.",
-    path: "/games/jump-ball/",
-    accent: "#ff8a3d",
-    category: "Arcade",
-  },
-  {
-    id: "reaction-time",
-    title: "Reflex",
-    description: "Pon a prueba tus reflejos en este juego de 5 rondas. El puntaje final es tu tiempo de reacción promedio.",
-    path: "/games/reaction-time/",
-    accent: "#39ff14",
-    category: "Reflejos",
-  },
-  {
-    id: "city-bloxx",
-    title: "Skyline",
-    description: "Suelta cada piso desde la grúa en el momento justo y levanta el rascacielos más alto sin que el edificio pierda el equilibrio.",
-    path: "/games/city-bloxx/",
-    accent: "#d9843f",
-    category: "Precisión",
-  },
-  {
-    id: "sliding-puzzle",
-    title: "Numerix",
-    description: "Ordena los numeros deslizando filas o columnas completas hacia el espacio vacio.",
-    path: "/games/sliding-puzzle/",
-    accent: "#0ff8ff",
-    category: "Puzzle",
-  },
-  {
-    id: "asteroids",
-    title: "Asteroides",
-    description: "Navega con inercia, rota y dispara a rocas que se parten en este clásico juego de disparos espacial.",
-    path: "/games/asteroids/",
-    accent: "#ff3f81",
-    category: "Arcade",
-  },
-  {
-    id: "mini-frogger",
-    title: "Cruce Mortal",
-    description: "Cruza calles transitadas y ríos saltando sobre troncos flotantes en el momento justo.",
-    path: "/games/mini-frogger/",
-    accent: "#39ff14",
-    category: "Arcade",
-  },
-  {
-    id: "car-race",
-    title: "Neon Drift",
-    description: "Carrera 2D en circuitos neón: 5 pistas, mapa aleatorio y los autos de todos los jugadores en vivo.",
-    path: "/games/car-race/",
-    accent: "#00f0ff",
-    category: "Carreras",
-  },
-  {
-    id: "odd-one-out",
-    title: "Odd One Out",
-    description: "Encuentra la ficha con el tono distinto antes de que se acabe el tiempo: la grilla crece y la diferencia se achica.",
-    path: "/games/odd-one-out/",
-    accent: "#c084fc",
-    category: "Reflejos",
-  },
-  {
-    id: "dunk-shot",
-    title: "Dunk Shot",
-    description: "Estira, apunta y encesta la pelota en el aro siguiente encadenando canastas perfectas.",
-    path: "/games/dunk-shot/",
-    accent: "#ff7a45",
-    category: "Precisión",
-  },
-  {
-    id: "memory-match",
-    title: "Memoria",
-    description: "Encuentra los pares dando vuelta las cartas: contrarreloj en solitario, y por turnos sobre un tablero compartido en las salas.",
-    path: "/games/memory-match/",
-    accent: "#ffd24a",
-    category: "Puzzle",
-  },
-  {
-    id: "kunai-throw",
-    title: "Kunai Strike",
-    description: "Arroja kunais y clávalos en el tronco que gira sin que un kunai golpee a otro.",
-    path: "/games/kunai-throw/",
-    accent: "#f5a623",
-    category: "Precisión",
-  },
-  {
-    id: "penalty-keeper",
-    title: "Keepers!",
-    description: "Sos el arquero en una tanda infinita de penales: movete y saltá para atajar. Tres goles y se termina.",
-    path: "/games/penalty-keeper/",
-    accent: "#38e07b",
-    category: "Reflejos",
-  },
-  // Oculto temporalmente por errores: no aparece en la landing ni en las salas
-  // (votacion / juego aleatorio). El codigo del juego sigue en el repo; para
-  // reactivarlo, descomentar esta entrada.
-  // {
-  //   id: "rocket-arena",
-  //   title: "Rocket SpaceX",
-  //   description: "Fútbol de autos en 3D estilo Rocket League: 2v2 con bots, o en salas con los autos de todos en vivo.",
-  //   path: "/games/rocket-arena/",
-  //   accent: "#3ba7ff",
-  //   category: "Carreras",
-  // },
-  {
-    id: "western-shoot",
-    title: "Western Shoot",
-    description: "Apunta y dispara a las dianas del viejo oeste. Cuidado con los civiles y derriba a los vaqueros antes de que te disparen.",
-    path: "/games/western-shoot/",
-    accent: "#c9883e",
-    category: "Precisión",
-  },
-  {
-    id: "barra-libre",
-    title: "Barra Libre",
-    description: "Atiende las cuatro barras del bar: llena jarras, sírvelas deslizando y ataja los vasos vacíos antes de que un cliente llegue a la canilla.",
-    path: "/games/barra-libre/",
-    accent: "#ffb454",
-    category: "Arcade",
-  },
-  {
-    id: "blind-time",
-    title: "Crono Ciego",
-    description: "Detén el cronómetro a ciegas lo más cerca posible del tiempo objetivo asignado.",
-    path: "/games/blind-time/",
-    accent: "#ffdd53",
-    category: "Precisión",
-  },
-  {
-    id: "shell-game",
-    title: "El Trile",
-    description: "Sigue con la mirada el vaso que oculta la moneda. !Cada nivel mezcla mas rapido, hace mas pases y agrega mas vasos!",
-    path: "/games/shell-game/",
-    accent: "#ffdd53",
-    category: "Reflejos",
-  },
-  {
-    id: "pong",
-    title: "PONG",
-    description: "Pong clasico de un solo jugador: devuelve la pelota con tu paleta, la velocidad aumenta y solo tenes una vida.",
-    path: "/games/pong/",
-    accent: "#ffffff",
-    category: "Arcade",
-  },
-  {
-    id: "block-paddle",
-    title: "Block Paddle",
-    description: "Movi la barra de izquierda a derecha para evitar que la pelota caiga. Cada rebote suma puntos y acelera la pelota.",
-    path: "/games/block-paddle/",
-    accent: "#64c8ff",
-    category: "Arcade",
-  },
-];
+// Registro auto-descubierto: cada juego declara su propia metadata en
+// src/games/<id>/meta.ts y este glob la junta. Agregar un juego no requiere
+// tocar este archivo (principio Open/Closed), lo que evita conflictos de merge.
+const modules = import.meta.glob<{ meta: GameEntry }>("./games/*/meta.ts", {
+  eager: true,
+});
 
+export const games: GameEntry[] = Object.values(modules)
+  .map((m) => m.meta)
+  .filter((g) => !g.hidden)
+  .sort(
+    (a, b) =>
+      (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
+      a.title.localeCompare(b.title),
+  );
