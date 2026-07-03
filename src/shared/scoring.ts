@@ -35,6 +35,7 @@ export const GAME_SCORING: Record<string, GameScoring> = {
   "asteroids": { direction: "higher" },
   "mini-frogger": { direction: "higher" },
   "kunai-throw": { direction: "higher" },
+  "dunk-shot": { direction: "higher" },
   "odd-one-out": { direction: "higher" },
   "penalty-keeper": { direction: "higher" },
   "memory-match": {

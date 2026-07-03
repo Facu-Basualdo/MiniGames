@@ -112,6 +112,14 @@ export const games: GameEntry[] = [
     category: "Reflejos",
   },
   {
+    id: "dunk-shot",
+    title: "Dunk Shot",
+    description: "Estira, apunta y encesta la pelota en el aro siguiente encadenando canastas perfectas.",
+    path: "/games/dunk-shot/",
+    accent: "#ff7a45",
+    category: "Precisión",
+  },
+  {
     id: "memory-match",
     title: "Memoria",
     description: "Encuentra los pares dando vuelta las cartas: contrarreloj en solitario, y por turnos sobre un tablero compartido en las salas.",
