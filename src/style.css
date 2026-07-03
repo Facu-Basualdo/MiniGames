@@ -385,7 +385,7 @@ a {
   background: #101014;
   color: #efeee6;
   border-radius: 34px;
-  padding: clamp(40px, 6vw, 68px) clamp(24px, 5vw, 64px) 24px;
+  padding: clamp(24px, 4vw, 44px) clamp(24px, 5vw, 64px) 20px;
 }
 
 /* Glows neon en las esquinas, a juego con el logo. */
@@ -433,7 +433,7 @@ a {
   bottom: -0.32em;
   left: 50%;
   transform: translateX(-50%);
-  font-size: clamp(90px, 15vw, 210px);
+  font-size: clamp(70px, 12vw, 160px);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -451,7 +451,7 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
-  padding-bottom: clamp(48px, 7vw, 84px);
+  padding-bottom: clamp(24px, 4vw, 40px);
 }
 
 .site-footer__left {
@@ -459,29 +459,57 @@ a {
 }
 
 .site-footer__logo {
-  width: clamp(210px, 24vw, 310px);
+  width: clamp(160px, 18vw, 240px);
   height: auto;
   display: block;
   margin-left: -8px;
 }
 
 .site-footer__blurb {
-  margin-top: 14px;
-  font-size: 14.5px;
-  line-height: 1.65;
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.5;
   color: rgba(239, 238, 230, 0.72);
 }
 
 /* "Ficha" arcade parpadeante. */
+.site-footer__meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
 .site-footer__coin {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin-top: 22px;
   font-family: "Press Start 2P", "Archivo", monospace;
   font-size: 9px;
   letter-spacing: 1px;
   color: rgba(0, 240, 255, 0.85);
+}
+
+.site-footer__git {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Press Start 2P", "Archivo", monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: rgba(239, 238, 230, 0.60);
+  text-decoration: none;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.site-footer__git:hover {
+  color: #00f0ff;
+  transform: translateY(-1.5px);
+}
+
+.site-footer__git svg {
+  display: block;
 }
 
 .site-footer__coin-dot {
@@ -496,7 +524,7 @@ a {
 .site-footer__links {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   padding-top: 6px;
 }
 
@@ -513,7 +541,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: clamp(20px, 2.4vw, 26px);
+  font-size: clamp(18px, 2vw, 22px);
   font-weight: 800;
   letter-spacing: -0.4px;
   text-decoration: none;

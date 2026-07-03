@@ -8,30 +8,30 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 
 ## Juegos
 
-| Juego | Categoría | De qué va |
-|---|---|---|
-| Neon Vortex | Arcade | Esquivá las porciones que giran alrededor del cilindro neón. |
-| Flappy Bird | Arcade | Aleteá y cruzá la mayor cantidad de tubos sin chocar. |
-| Torre Infinita | Precisión | Soltá cada bloque en el momento justo y apilá la torre más alta. |
-| Beat Fever | Ritmo | Tocá las notas justo al cruzar la línea y encadená combos. |
-| Bounce Rush | Arcade | Saltá entre plataformas y cambiá de carril a tiempo. |
-| Reflex | Reflejos | Poné a prueba tus reflejos en 5 rondas de tiempo de reacción. |
-| Skyline | Precisión | Levantá el rascacielos más alto sin perder el equilibrio. |
-| Numerix | Puzzle | Ordená los números deslizando filas o columnas. |
-| Asteroides | Arcade | El clásico: navegá con inercia y dispará a las rocas. |
-| Cruce Mortal | Arcade | Cruzá calles y ríos saltando sobre troncos flotantes. |
-| Neon Drift | Carreras | Carrera 2D en circuitos neón con los autos de todos en vivo. |
-| Odd One Out | Reflejos | Encontrá la ficha con el tono distinto antes de que se acabe el tiempo. |
-| Dunk Shot | Precisión | Estirá, apuntá y encestá encadenando canastas perfectas. |
-| Memoria | Puzzle | Encontrá los pares: contrarreloj en solitario o por turnos en salas. |
-| Kunai Strike | Precisión | Clavá kunais en el tronco que gira sin que se golpeen entre sí. |
-| Keepers! | Reflejos | Sos el arquero en una tanda infinita de penales. |
-| Rocket SpaceX | Carreras | Fútbol de autos 3D estilo Rocket League. |
-| Western Shoot | Precisión | Dispará a los blancos para sumar puntos y a los bandidos para que no te eliminen. |
-| Crono Ciego | Precisión | Detené el cronómetro a ciegas lo más cerca del tiempo objetivo. |
-| El Trile | Reflejos | Seguí con la mirada el vaso que oculta la moneda. |
-| PONG | Arcade | Pong clásico de un jugador: devolvé la pelota, la velocidad sube y tenés una sola vida. |
-| Block Paddle | Arcade | Moví la barra para que la pelota no caiga; cada rebote suma y acelera. |
+| Juego | Categoría | De qué va | Creado por |
+|---|---|---|---|
+| Neon Vortex | Arcade | Esquivá las porciones que giran alrededor del cilindro neón. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Flappy Bird | Arcade | Aleteá y cruzá la mayor cantidad de tubos sin chocar. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Torre Infinita | Precisión | Soltá cada bloque en el momento justo y apilá la torre más alta. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Beat Fever | Ritmo | Tocá las notas justo al cruzar la línea y encadená combos. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Bounce Rush | Arcade | Saltá entre plataformas y cambiá de carril a tiempo. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Reflex | Reflejos | Poné a prueba tus reflejos en 5 rondas de tiempo de reacción. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Skyline | Precisión | Levantá el rascacielos más alto sin perder el equilibrio. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Numerix | Puzzle | Ordená los números deslizando filas o columnas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Asteroides | Arcade | El clásico: navegá con inercia y dispará a las rocas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Cruce Mortal | Arcade | Cruzá calles y ríos saltando sobre troncos flotantes. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Neon Drift | Carreras | Carrera 2D en circuitos neón con los autos de todos en vivo. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Odd One Out | Reflejos | Encontrá la ficha con el tono distinto antes de que se acabe el tiempo. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Dunk Shot | Precisión | Estirá, apuntá y encestá encadenando canastas perfectas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Memoria | Puzzle | Encontrá los pares: contrarreloj en solitario o por turnos en salas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Kunai Strike | Precisión | Clavá kunais en el tronco que gira sin que se golpeen entre sí. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Keepers! | Reflejos | Sos el arquero en una tanda infinita de penales. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Rocket SpaceX | Carreras | Fútbol de autos 3D estilo Rocket League. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Western Shoot | Precisión | Dispará a los blancos para sumar puntos y a los bandidos para que no te eliminen. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Crono Ciego | Precisión | Detené el cronómetro a ciegas lo más cerca del tiempo objetivo. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| El Trile | Reflejos | Seguí con la mirada el vaso que oculta la moneda. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| PONG | Arcade | Pong clásico de un jugador: devolvé la pelota, la velocidad sube y tenés una sola vida. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Block Paddle | Arcade | Moví la barra para que la pelota no caiga; cada rebote suma y acelera. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 
 ## Empezar
 

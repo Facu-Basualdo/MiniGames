@@ -371,17 +371,21 @@ export class RoomOverlay {
     }
   }
 
-  /** Votacion del proximo juego. */
+  /** Votacion (proximo juego o tope de tiempo). */
   showVoting(opts: {
     options: VoteOption[];
-    /** Cantidad de votos por juego. */
+    /** Cantidad de votos por opcion. */
     counts: Record<string, number>;
     myVote: string | null;
-    onVote: (gameId: string) => void;
+    onVote: (optionId: string) => void;
+    /** Textos de la vista (por defecto, la votacion del proximo juego). */
+    kicker?: string;
+    title?: string;
+    hint?: string;
   }): void {
     this.show();
-    this.addKicker("Votacion");
-    this.addTitle("Elegi el proximo juego");
+    this.addKicker(opts.kicker ?? "Votacion");
+    this.addTitle(opts.title ?? "Elegi el proximo juego");
     this.addTime();
 
     const wrap = document.createElement("div");
@@ -405,7 +409,7 @@ export class RoomOverlay {
       wrap.append(btn);
     }
     this.boxEl.append(wrap);
-    this.addHint("Gana la mayoria; empate se define al azar");
+    this.addHint(opts.hint ?? "Gana la mayoria; empate se define al azar");
   }
 
   /**

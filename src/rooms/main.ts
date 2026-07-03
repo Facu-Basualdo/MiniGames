@@ -8,12 +8,21 @@ import {
   joinRoom,
   sanitizeCode,
   startRound,
+  startTimeVote,
+  updateSettings,
 } from "../shared/room/api";
 import { RoomChannel } from "../shared/room/channel";
-import { computeRoundDeadline, randomGameId, roomGameUrl } from "../shared/room/roomMode";
+import {
+  computeRoundDeadline,
+  randomGameId,
+  roomGameUrl,
+  timeVoteOptionIds,
+  VOTE_SECONDS,
+} from "../shared/room/roomMode";
 import {
   DEFAULT_ROUND_TIME_LIMIT,
   DEFAULT_TOTAL_ROUNDS,
+  formatRoundTimeLimit,
   ROUND_TIME_LIMIT_OPTIONS,
   TOTAL_ROUNDS_OPTIONS,
   type RoomSettings,
@@ -94,6 +103,7 @@ async function autoJoin(code: string, player: string): Promise<void> {
 
 function renderHome(joinProblem?: string): void {
   stack.innerHTML = "";
+  main.classList.remove("rooms--wide");
 
   // Nombre del jugador (mismo nickname del ranking global).
   const namePanel = document.createElement("div");
@@ -185,6 +195,7 @@ function renderHome(joinProblem?: string): void {
 
 function renderCreate(): void {
   stack.innerHTML = "";
+  main.classList.remove("rooms--wide");
 
   const createPanel = document.createElement("div");
   createPanel.className = "panel";
@@ -194,6 +205,7 @@ function renderCreate(): void {
     totalRounds: DEFAULT_TOTAL_ROUNDS,
     playlist: null,
     roundTimeLimitSec: DEFAULT_ROUND_TIME_LIMIT,
+    timeVote: false,
   };
   const settingsForm = buildSettingsForm(settings, (s) => (settings = s));
 
@@ -259,6 +271,7 @@ function buildSettingsForm(
     ? initial.totalRounds
     : DEFAULT_TOTAL_ROUNDS;
   let timeLimit: number = initial.roundTimeLimitSec;
+  let timeVote: boolean = initial.timeVote ?? false;
   const playlist: string[] = initial.playlist ? [...initial.playlist] : [];
 
   // La cantidad elegida arriba manda: es el tope de juegos que se pueden
@@ -269,6 +282,7 @@ function buildSettingsForm(
       totalRounds,
       playlist: playlist.length > 0 ? [...playlist] : null,
       roundTimeLimitSec: timeLimit,
+      timeVote,
     });
   };
 
@@ -287,17 +301,48 @@ function buildSettingsForm(
     },
   );
 
+  // Votar el tope de tiempo antes de cada juego (en vez de un tope fijo).
+  const timeVoteLabel = document.createElement("div");
+  timeVoteLabel.className = "panel__label";
+  timeVoteLabel.textContent = "Votar el tiempo antes de cada juego";
+  const timeVoteChoices = buildChoices(
+    [
+      { value: 0, label: "No" },
+      { value: 1, label: "Si" },
+    ],
+    timeVote ? 1 : 0,
+    (v) => {
+      timeVote = v === 1;
+      applyTimeVoteUI();
+      emit();
+    },
+  );
+
+  // Selector de tope fijo, solo cuando NO se vota el tiempo.
+  const timeSelector = document.createElement("div");
   const timeLabel = document.createElement("div");
   timeLabel.className = "panel__label";
   timeLabel.textContent = "Tope de tiempo por juego";
   const timeChoices = buildChoices(
-    ROUND_TIME_LIMIT_OPTIONS.map((n) => ({ value: n, label: `${n / 60} min` })),
+    ROUND_TIME_LIMIT_OPTIONS.map((n) => ({ value: n, label: formatRoundTimeLimit(n) })),
     timeLimit,
     (v) => {
       timeLimit = v;
       emit();
     },
   );
+  timeSelector.append(timeLabel, timeChoices);
+
+  const timeVoteHint = document.createElement("p");
+  timeVoteHint.className = "hint";
+  timeVoteHint.textContent =
+    "Antes de cada juego los jugadores votan el tope entre 1 y 5 minutos o sin limite.";
+
+  const applyTimeVoteUI = (): void => {
+    timeSelector.style.display = timeVote ? "none" : "";
+    timeVoteHint.style.display = timeVote ? "" : "none";
+  };
+  applyTimeVoteUI();
 
   const playlistLabel = document.createElement("div");
   playlistLabel.className = "panel__label";
@@ -365,7 +410,17 @@ function buildSettingsForm(
   playlistHint.textContent =
     "Elegi en orden la misma cantidad de juegos que marcaste arriba. Si no elegis ninguno, despues de cada juego se vota el siguiente entre 3 al azar.";
 
-  wrap.append(roundsLabel, roundsChoices, timeLabel, timeChoices, playlistLabel, playlistGrid, playlistHint);
+  wrap.append(
+    roundsLabel,
+    roundsChoices,
+    timeVoteLabel,
+    timeVoteChoices,
+    timeSelector,
+    timeVoteHint,
+    playlistLabel,
+    playlistGrid,
+    playlistHint,
+  );
   return wrap;
 }
 
@@ -478,10 +533,20 @@ function renderLobby(code: string, player: string): void {
   });
   copyRow.append(copyBtn);
 
-  const settingsEl = document.createElement("p");
-  settingsEl.className = "lobby__settings";
+  panel.append(codeEl, copyRow);
 
-  panel.append(codeEl, copyRow, settingsEl);
+  // Panel de ajustes editable (solo el host). Se arma una sola vez cuando se
+  // detecta que este jugador es el anfitrion, para no pisar sus cambios en cada
+  // refresco. Los cambios se guardan al vuelo con updateSettings + ping asi el
+  // resto ve el resumen actualizado.
+  const settingsPanel = document.createElement("div");
+  settingsPanel.className = "panel";
+  settingsPanel.style.display = "none";
+  settingsPanel.innerHTML = `<div class="panel__title">Ajustes</div>`;
+  const settingsFormWrap = document.createElement("div");
+  const settingsError = document.createElement("div");
+  settingsError.className = "error";
+  settingsPanel.append(settingsFormWrap, settingsError);
 
   const playersPanel = document.createElement("div");
   playersPanel.className = "panel";
@@ -500,11 +565,40 @@ function renderLobby(code: string, player: string): void {
   waitingEl.className = "lobby__waiting";
 
   playersPanel.append(startBtn, waitingEl);
-  stack.append(panel, playersPanel);
+
+  // Dos columnas para el host: ajustes a la izquierda, codigo + jugadores a la
+  // derecha. Los invitados ven una sola columna (codigo + jugadores).
+  const columns = document.createElement("div");
+  columns.className = "lobby__columns";
+  const colLeft = document.createElement("div");
+  colLeft.className = "lobby__col";
+  const colRight = document.createElement("div");
+  colRight.className = "lobby__col";
+  colLeft.append(settingsPanel);
+  colRight.append(panel, playersPanel);
+  columns.append(colLeft, colRight);
+  stack.append(columns);
 
   const channel = new RoomChannel(code, player);
   let state: RoomState | null = null;
   let starting = false;
+  // Ajustes que edita el host en el lobby (autoritativos mientras edita).
+  let hostSettings: RoomSettings | null = null;
+  let hostFormBuilt = false;
+
+  const buildHostForm = (initial: RoomSettings): void => {
+    hostSettings = { ...initial };
+    const form = buildSettingsForm(initial, (s) => {
+      hostSettings = s;
+      settingsError.textContent = "";
+      void updateSettings(code, s).then((ok) => {
+        if (ok) channel.ping();
+      });
+    });
+    settingsFormWrap.append(form);
+    settingsPanel.style.display = "";
+    hostFormBuilt = true;
+  };
 
   const render = (): void => {
     if (!state) return;
@@ -513,14 +607,18 @@ function renderLobby(code: string, player: string): void {
     const present = channel.presentPlayers();
     const isHost = room.host === player;
 
-    const playlistText = settings.playlist
-      ? settings.playlist
-          .map((id) => games.find((g) => g.id === id)?.title ?? id)
-          .join(" - ")
-      : "se vota despues de cada juego";
-    settingsEl.textContent =
-      `${settings.totalRounds} ${settings.totalRounds === 1 ? "juego" : "juegos"}` +
-      ` - ${Math.round(settings.roundTimeLimitSec / 60)} min por juego - ${playlistText}`;
+    if (isHost) {
+      // El host edita en su propio formulario; ocultar el resumen de lectura.
+      if (!hostFormBuilt) buildHostForm(settings);
+      main.classList.add("rooms--wide");
+      columns.classList.remove("lobby__columns--solo");
+      colLeft.style.display = "";
+    } else {
+      // Invitado: solo codigo + jugadores en una columna.
+      main.classList.remove("rooms--wide");
+      columns.classList.add("lobby__columns--solo");
+      colLeft.style.display = "none";
+    }
 
     playersList.innerHTML = "";
     for (const p of state.players) {
@@ -573,16 +671,32 @@ function renderLobby(code: string, player: string): void {
   startBtn.addEventListener("click", () => {
     void (async () => {
       if (!state || starting) return;
+      const isHost = state.room.host === player;
+      // Si el host edito ajustes en el lobby, esos mandan (todavia no
+      // refrescados en state); sino, los de la sala.
+      const settings = isHost && hostSettings ? hostSettings : state.room.settings;
+      // O playlist completa o vacia (igual que al crear).
+      if (settings.playlist && settings.playlist.length !== settings.totalRounds) {
+        settingsError.textContent = `Elegí ${settings.totalRounds} juegos o ninguno.`;
+        return;
+      }
       starting = true;
       render();
-      const settings = state.room.settings;
+      // Persistir por las dudas antes de arrancar (el guardado al vuelo pudo
+      // no haber terminado el round-trip).
+      if (isHost && hostSettings) await updateSettings(code, hostSettings);
       const firstGame = settings.playlist ? settings.playlist[0] : randomGameId();
-      const ok = await startRound(
-        code,
-        1,
-        firstGame,
-        computeRoundDeadline(settings.roundTimeLimitSec),
-      );
+      // Con votacion de tiempo habilitada, la primera ronda tambien vota el tope:
+      // se pasa a 'time_voting' y la votacion corre ya en la pagina del juego.
+      const ok = settings.timeVote
+        ? await startTimeVote(
+            code,
+            1,
+            firstGame,
+            timeVoteOptionIds(),
+            new Date(Date.now() + VOTE_SECONDS * 1000),
+          )
+        : await startRound(code, 1, firstGame, computeRoundDeadline(settings.roundTimeLimitSec));
       if (!ok) {
         starting = false;
         render();

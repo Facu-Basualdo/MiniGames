@@ -7,17 +7,24 @@ import {
   closeRound,
   fetchRoomState,
   finishRoom,
+  finishTimeVote,
   openVote,
   reportScore,
   resetRoom,
   sanitizeCode,
   startRound,
+  startTimeVote,
   takeOverHost,
 } from "./api";
 import { RoomChannel } from "./channel";
 import { RoomOverlay, type WaitingEntry } from "./RoomOverlay";
 import { computeTotals, rankRound } from "./points";
-import type { RoomState } from "./types";
+import {
+  formatRoundTimeLimit,
+  NO_TIME_LIMIT,
+  TIME_VOTE_OPTIONS,
+  type RoomState,
+} from "./types";
 
 /**
  * Orquestador del modo sala dentro de cada juego. Contrato minimo por juego:
@@ -93,20 +100,27 @@ export function randomGameId(): string {
   return games[Math.floor(Math.random() * games.length)].id;
 }
 
+/** Candidatos de la votacion de tiempo, como strings de segundos (para vote_options). */
+export function timeVoteOptionIds(): string[] {
+  return TIME_VOTE_OPTIONS.map(String);
+}
+
 /**
  * Margen extra sobre el tope de ronda para cubrir la navegacion entre paginas
  * y el countdown 3/2/1/YA de cada juego.
  */
 const NAV_GRACE_SEC = 10;
 
-/** Deadline de una ronda que arranca ahora. */
-export function computeRoundDeadline(roundTimeLimitSec: number): Date {
+/** Deadline de una ronda que arranca ahora, o null si no hay tope de tiempo. */
+export function computeRoundDeadline(roundTimeLimitSec: number): Date | null {
+  if (roundTimeLimitSec === NO_TIME_LIMIT) return null;
   return new Date(Date.now() + (roundTimeLimitSec + NAV_GRACE_SEC) * 1000);
 }
 
 const TICK_MS = 500;
 const POLL_MS = 5000;
-const VOTE_SECONDS = 20;
+/** Duracion de las votaciones (proximo juego y tope de tiempo). */
+export const VOTE_SECONDS = 20;
 /** Espera tras el deadline antes de cerrar, para que lleguen los parciales. */
 const CLOSE_LAG_MS = 2500;
 /** Cierre anticipado: todos los presentes reportaron y hay ausentes. */
@@ -161,6 +175,10 @@ class RoomModeController implements RoomMode {
   private actionInFlight = false;
   private voteScheduledForRound = 0;
   private hostAbsentSince: number | null = null;
+  /** Cuando esta pagina vio por primera vez la ronda vigente en "playing"
+   * (fallback de inicio de ronda para la gracia sin tope de tiempo). */
+  private playingSinceRound = 0;
+  private playingSince = 0;
   /** El tablero final ya se mostro en esta pagina (para no arrastrar al lobby). */
   private finalShown = false;
   /** El tablero final ya se renderizo una vez (evita re-render en cada poll). */
@@ -311,6 +329,10 @@ class RoomModeController implements RoomMode {
 
     switch (room.status) {
       case "playing":
+        if (this.playingSinceRound !== room.current_round) {
+          this.playingSinceRound = room.current_round;
+          this.playingSince = Date.now();
+        }
         this.updateStrip();
         if (this.reported) {
           this.renderWaiting();
@@ -329,6 +351,12 @@ class RoomModeController implements RoomMode {
         this.reportPartialIfNeeded();
         this.overlay.setStrip(null);
         this.renderVoting();
+        break;
+      case "time_voting":
+        // Antes de jugar: se vota el tope de tiempo de esta ronda. Todavia no
+        // se jugo, asi que no se reporta ningun parcial.
+        this.overlay.setStrip(null);
+        this.renderTimeVoting();
         break;
     }
     this.updateTakeover();
@@ -422,10 +450,14 @@ class RoomModeController implements RoomMode {
           void this.maybeCloseRound(true);
         }
       }
-    } else if (room.status === "voting" && deadline !== null) {
+    } else if (
+      (room.status === "voting" || room.status === "time_voting") &&
+      deadline !== null
+    ) {
       this.overlay.setTimeText(formatClock(deadline - now));
       if (this.isHost() && now >= deadline + CLOSE_LAG_MS) {
-        void this.closeVoting();
+        if (room.status === "voting") void this.closeVoting();
+        else void this.closeTimeVote();
       }
     }
 
@@ -540,6 +572,44 @@ class RoomModeController implements RoomMode {
     }
   }
 
+  /** Votacion del tope de tiempo de esta ronda (antes de jugar). */
+  private renderTimeVoting(): void {
+    const state = this.state!;
+    const room = state.room;
+    const optionIds = room.vote_options ?? [];
+    // El voto de tiempo se guarda en room_votes con round_no = la ronda a jugar
+    // (el string de segundos va en game_id). El filtro por vote_options descarta
+    // votos viejos (p.ej. del voto de juego previo, que se sobrescriben al votar).
+    const round = room.current_round;
+
+    const votes = state.votes.filter(
+      (v) => v.round_no === round && optionIds.includes(v.game_id),
+    );
+    const counts: Record<string, number> = {};
+    for (const v of votes) counts[v.game_id] = (counts[v.game_id] ?? 0) + 1;
+    const myVote = votes.find((v) => v.player === this.me)?.game_id ?? null;
+
+    this.overlay.showVoting({
+      kicker: `Ronda ${room.current_round}/${this.totalRounds()} - ${this.gameTitle(this.gameId)}`,
+      title: "Elegi el tiempo",
+      hint: "Gana la mayoria; empate se define al azar",
+      options: optionIds.map((id) => ({ id, title: formatRoundTimeLimit(Number(id)) })),
+      counts,
+      myVote,
+      onVote: (id) => {
+        void castVote(this.code, round, this.me, id).then((ok) => {
+          if (ok) this.channel?.ping();
+          void this.refresh();
+        });
+      },
+    });
+
+    if (this.isHost()) {
+      const voters = new Set(votes.map((v) => v.player));
+      if (state.players.every((p) => voters.has(p))) void this.closeTimeVote();
+    }
+  }
+
   // ---------- Logica de host ----------
 
   private async hostAction(action: () => Promise<unknown>): Promise<void> {
@@ -568,14 +638,13 @@ class RoomModeController implements RoomMode {
       const presentAllDone = state.players
         .filter((p) => present.includes(p))
         .every((p) => done.has(p));
-      const deadline = this.deadlineMs();
-      const roundStart =
-        deadline !== null
-          ? deadline - (state.room.settings.roundTimeLimitSec + NAV_GRACE_SEC) * 1000
-          : 0;
+      // Inicio de ronda = cuando esta pagina la vio en "playing". No se deriva
+      // del deadline porque con tiempo votado / sin tope el deadline no lo refleja.
       // Gracia para que la presencia se estabilice tras la navegacion.
       onlyAbsentMissing =
-        presentAllDone && done.has(this.me) && Date.now() - roundStart > CLOSE_EARLY_GRACE_MS;
+        presentAllDone &&
+        done.has(this.me) &&
+        Date.now() - this.playingSince > CLOSE_EARLY_GRACE_MS;
     }
 
     if (!allReported && !deadlinePassed && !onlyAbsentMissing) return;
@@ -624,8 +693,38 @@ class RoomModeController implements RoomMode {
     const state = this.state;
     if (!state) return;
     const roundNo = state.room.current_round + 1;
-    const deadline = computeRoundDeadline(state.room.settings.roundTimeLimitSec);
-    await this.hostAction(() => startRound(this.code, roundNo, gameId, deadline));
+    if (state.room.settings.timeVote) {
+      // Con votacion de tiempo habilitada, antes de jugar se vota el tope: se
+      // pasa a 'time_voting' y el tope real se fija al cerrar la votacion.
+      const deadline = new Date(Date.now() + VOTE_SECONDS * 1000);
+      await this.hostAction(() =>
+        startTimeVote(this.code, roundNo, gameId, timeVoteOptionIds(), deadline),
+      );
+    } else {
+      const deadline = computeRoundDeadline(state.room.settings.roundTimeLimitSec);
+      await this.hostAction(() => startRound(this.code, roundNo, gameId, deadline));
+    }
+  }
+
+  /** Cierra la votacion de tiempo y arranca a jugar con el tope ganador. */
+  private async closeTimeVote(): Promise<void> {
+    const state = this.state;
+    if (!state || state.room.status !== "time_voting" || this.actionInFlight) return;
+    const options = state.room.vote_options ?? [];
+    if (options.length === 0) return;
+
+    const round = state.room.current_round;
+    const counts = new Map<string, number>();
+    for (const v of state.votes) {
+      if (v.round_no === round && options.includes(v.game_id)) {
+        counts.set(v.game_id, (counts.get(v.game_id) ?? 0) + 1);
+      }
+    }
+    const max = Math.max(0, ...counts.values());
+    const top = max > 0 ? options.filter((id) => counts.get(id) === max) : options;
+    const winner = top[Math.floor(Math.random() * top.length)];
+    const deadline = computeRoundDeadline(Number(winner));
+    await this.hostAction(() => finishTimeVote(this.code, deadline));
   }
 
   private async finish(): Promise<void> {
@@ -644,6 +743,7 @@ class RoomModeController implements RoomMode {
     const stable =
       state.room.status === "results" ||
       state.room.status === "voting" ||
+      state.room.status === "time_voting" ||
       state.room.status === "finished" ||
       (state.room.status === "playing" && this.reported);
     const present = this.channel?.presentPlayers() ?? [];

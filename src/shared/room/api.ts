@@ -183,12 +183,12 @@ export async function castVote(
 
 // ---------- Mutaciones de host ----------
 
-/** Arranca la ronda roundNo con el juego dado y su deadline. */
+/** Arranca la ronda roundNo con el juego dado y su deadline (null = sin tope). */
 export async function startRound(
   code: string,
   roundNo: number,
   gameId: string,
-  deadline: Date,
+  deadline: Date | null,
 ): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
@@ -208,11 +208,70 @@ export async function startRound(
       current_round: roundNo,
       current_game: gameId,
       vote_options: null,
-      deadline: deadline.toISOString(),
+      deadline: deadline ? deadline.toISOString() : null,
     })
     .eq("code", code);
   if (error) {
     warn("startRound", error.message);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Abre la votacion de tiempo antes de una ronda: fija el juego de la ronda y
+ * pasa a 'time_voting' con las opciones de tiempo (en segundos, como strings)
+ * de candidatos. Al cerrarse, finishTimeVote arranca a jugar con el ganador.
+ */
+export async function startTimeVote(
+  code: string,
+  roundNo: number,
+  gameId: string,
+  options: string[],
+  deadline: Date,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { error: roundError } = await supabase
+    .from("room_rounds")
+    .upsert({ code, round_no: roundNo, game_id: gameId });
+  if (roundError) {
+    warn("startTimeVote", roundError.message);
+    return false;
+  }
+
+  const { error } = await supabase
+    .from("rooms")
+    .update({
+      status: "time_voting",
+      current_round: roundNo,
+      current_game: gameId,
+      vote_options: options,
+      deadline: deadline.toISOString(),
+    })
+    .eq("code", code);
+  if (error) {
+    warn("startTimeVote", error.message);
+    return false;
+  }
+  return true;
+}
+
+/** Cierra la votacion de tiempo: arranca a jugar con el tope votado (null = sin tope). */
+export async function finishTimeVote(code: string, deadline: Date | null): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("rooms")
+    .update({
+      status: "playing",
+      vote_options: null,
+      deadline: deadline ? deadline.toISOString() : null,
+    })
+    .eq("code", code);
+  if (error) {
+    warn("finishTimeVote", error.message);
     return false;
   }
   return true;
