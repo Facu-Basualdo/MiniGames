@@ -152,6 +152,14 @@ export const games: GameEntry[] = [
     category: "Precisión",
   },
   {
+    id: "barra-libre",
+    title: "Barra Libre",
+    description: "Atiende las cuatro barras del bar: llena jarras, sírvelas deslizando y ataja los vasos vacíos antes de que un cliente llegue a la canilla.",
+    path: "/games/barra-libre/",
+    accent: "#ffb454",
+    category: "Arcade",
+  },
+  {
     id: "shell-game",
     title: "El Trile",
     description: "Sigue con la mirada el vaso que oculta la moneda. ¡Cada nivel mezcla más rápido, hace más pases y agrega más vasos!",
