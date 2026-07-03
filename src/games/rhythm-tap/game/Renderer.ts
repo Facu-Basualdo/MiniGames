@@ -87,7 +87,9 @@ export class Renderer {
 
   private drawNote(ctx: CanvasRenderingContext2D, note: Note): void {
     const cx = note.lane * LANE_WIDTH + LANE_WIDTH / 2;
-    const color = FIGURE_COLORS[note.figure];
+    // Fixed color picked at spawn: the arrow shape (not the color) tells you the
+    // key, so each note just carries a random hue that stays put as it falls.
+    const color = `hsl(${note.hue}, 90%, 62%)`;
 
     ctx.save();
     if (note.done) {
@@ -105,14 +107,6 @@ export class Renderer {
     ctx.fillStyle = color;
     this.drawFigure(ctx, note.figure, cx, note.y, FIGURE_RADIUS);
     ctx.fill();
-
-    // Key label centered on the piece.
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(0,0,0,0.85)";
-    ctx.font = "700 24px Consolas, 'Courier New', monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(FIGURE_KEY_LABELS[note.figure], cx, note.y + 1);
     ctx.restore();
   }
 
@@ -138,36 +132,41 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Traces the path for figure index `i` centered at (cx, cy) with radius `r`.
-   *  Leaves the path ready for `fill()`/`stroke()`. */
+  /** Rotation (radians) of the canonical right-pointing arrow per figure, so
+   *  the drawn shape points the way its arrow key does. */
+  private static readonly ARROW_ROTATION: Record<(typeof FIGURES)[number], number> = {
+    right: 0,
+    down: Math.PI / 2,
+    left: Math.PI,
+    up: -Math.PI / 2,
+  };
+
+  /** Traces the arrow path for figure index `i` centered at (cx, cy) with radius
+   *  `r`, pointing in that figure's direction. Leaves the path ready for
+   *  `fill()`/`stroke()`. */
   private drawFigure(ctx: CanvasRenderingContext2D, i: number, cx: number, cy: number, r: number): void {
-    const shape = FIGURES[i];
+    const rot = Renderer.ARROW_ROTATION[FIGURES[i]];
+    // Canonical right-pointing arrow, built in local space then rotated into
+    // place; the path keeps its transformed coordinates after restore().
+    const tip = r;
+    const back = -r;
+    const shaftHalf = r * 0.34;
+    const headHalf = r * 0.72;
+    const headBase = r * 0.1;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
     ctx.beginPath();
-    switch (shape) {
-      case "circle":
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        break;
-      case "triangle": {
-        const h = r * 1.05;
-        ctx.moveTo(cx, cy - h);
-        ctx.lineTo(cx + r, cy + h * 0.7);
-        ctx.lineTo(cx - r, cy + h * 0.7);
-        ctx.closePath();
-        break;
-      }
-      case "diamond":
-        ctx.moveTo(cx, cy - r);
-        ctx.lineTo(cx + r, cy);
-        ctx.lineTo(cx, cy + r);
-        ctx.lineTo(cx - r, cy);
-        ctx.closePath();
-        break;
-      case "square": {
-        const s = r * 0.9;
-        this.roundRect(ctx, cx - s, cy - s, s * 2, s * 2, 6);
-        break;
-      }
-    }
+    ctx.moveTo(tip, 0);
+    ctx.lineTo(headBase, -headHalf);
+    ctx.lineTo(headBase, -shaftHalf);
+    ctx.lineTo(back, -shaftHalf);
+    ctx.lineTo(back, shaftHalf);
+    ctx.lineTo(headBase, shaftHalf);
+    ctx.lineTo(headBase, headHalf);
+    ctx.closePath();
+    ctx.restore();
   }
 
   private roundRect(

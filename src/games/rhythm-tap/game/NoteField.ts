@@ -25,6 +25,9 @@ export interface Note {
   done: boolean;
   /** Seconds since the note was judged, used for the pop/fade effect. */
   fade: number;
+  /** Fixed random hue (degrees) picked at spawn; the note keeps this color as
+   *  it falls. Color is decorative — the arrow shape carries the identity. */
+  hue: number;
 }
 
 export type Judgment = "perfect" | "good" | "miss";
@@ -98,7 +101,7 @@ export class NoteField {
 
     // Figure is independent of the lane: any shape can fall in any column.
     const figure = Math.floor(Math.random() * FIGURES.length);
-    this.notes.push({ lane, figure, y: -NOTE_HALF_HEIGHT, done: false, fade: 0 });
+    this.notes.push({ lane, figure, y: -NOTE_HALF_HEIGHT, done: false, fade: 0, hue: Math.random() * 360 });
   }
 
   /** Judges a figure-key press against the nearest un-judged note of that
