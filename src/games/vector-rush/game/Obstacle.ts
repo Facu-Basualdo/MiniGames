@@ -188,24 +188,29 @@ export class Obstacle {
     return mesh;
   }
 
-  /** Amber markers framing the clear lane so it reads at a glance. */
+  /** Glowing amber frame so the safe lane reads clearly. */
   private buildLaneMarkers(cfg: ObstacleConfig): void {
-    const markerMat = new THREE.MeshStandardMaterial({
-      color: 0x201400,
-      emissive: HAZARD_COLOR,
-      emissiveIntensity: 1.2,
-      metalness: 0.3,
-      roughness: 0.5,
+    const cx = cfg.centerX;
+    const cy = cfg.centerY;
+    const hw = cfg.laneHalfWidth;
+    const hh = cfg.laneHalfHeight;
+
+
+    // Glowing amber frame joining the four corners so the safe zone is obvious.
+    const frameGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(cx - hw, cy - hh, 0),
+      new THREE.Vector3(cx + hw, cy - hh, 0),
+      new THREE.Vector3(cx + hw, cy + hh, 0),
+      new THREE.Vector3(cx - hw, cy + hh, 0),
+    ]);
+    this.disposables.push(frameGeom);
+    const frameMat = new THREE.LineBasicMaterial({
+      color: HAZARD_COLOR,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false, // Prevents Z-fighting and clipping of transparent components (canopy/trail) when close
     });
-    this.disposables.push(markerMat);
-    const geom = new THREE.SphereGeometry(0.16, 10, 10);
-    this.disposables.push(geom);
-    for (const sx of [-1, 1]) {
-      for (const sy of [-1, 1]) {
-        const m = new THREE.Mesh(geom, markerMat);
-        m.position.set(cfg.centerX + sx * cfg.laneHalfWidth, cfg.centerY + sy * cfg.laneHalfHeight, 0);
-        this.group.add(m);
-      }
-    }
+    this.disposables.push(frameMat);
+    this.group.add(new THREE.LineLoop(frameGeom, frameMat));
   }
 }
