@@ -127,6 +127,7 @@ export class Game {
 
     window.addEventListener("resize", this.onResize);
     this.renderer.setAnimationLoop(this.tick);
+    (window as any).__vr = this;
   }
 
   private handleActivate(): void {

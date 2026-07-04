@@ -58,7 +58,7 @@ export const GAP_REACH_FACTOR = 0.62;
 export const COLLISION_TOLERANCE = 0.08; // units of forgiveness
 
 // Space-object palette.
-export const HAZARD_COLOR = 0xffa62b; // amber lane markers
+export const HAZARD_COLOR = 0xffa62b; // orange neon lane markers
 export const ROCK_COLOR = 0x6b6f7a; // meteorite grey
 export const ICE_COLOR = 0x8fd6ff; // icy blue crystal
 export const DEBRIS_COLOR = 0x9aa0ab; // metallic wreckage

@@ -83,8 +83,10 @@ export class ObstacleSpawner {
     const spacing = OBSTACLE_SPACING_MIN + Math.random() * (OBSTACLE_SPACING_MAX - OBSTACLE_SPACING_MIN);
     const reach = PLAYER_MOVE_SPEED * (spacing / speed) * GAP_REACH_FACTOR;
 
-    const rangeX = Math.max(0, FIELD_HALF_WIDTH - laneHalfWidth);
-    const rangeY = Math.max(0, FIELD_HALF_HEIGHT - laneHalfHeight);
+    const marginX = 0.3; // Padding to prevent frame overlap with corridor walls / boundary debris
+    const marginY = 0.3;
+    const rangeX = Math.max(0, FIELD_HALF_WIDTH - laneHalfWidth - marginX);
+    const rangeY = Math.max(0, FIELD_HALF_HEIGHT - laneHalfHeight - marginY);
     const centerX = clamp(this.prevCenterX + (Math.random() * 2 - 1) * reach, -rangeX, rangeX);
     const centerY = clamp(this.prevCenterY + (Math.random() * 2 - 1) * reach, -rangeY, rangeY);
     this.prevCenterX = centerX;
