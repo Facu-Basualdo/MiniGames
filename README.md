@@ -43,6 +43,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Mecano | Reflejos | Juego de mecanografía: escribí la mayor cantidad de palabras en 30 segundos y sumá tu velocidad en palabras por minuto. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Torres de Hanoi | Puzzle | Mové la torre de discos a la última varilla en la menor cantidad de movimientos, sin apoyar un disco sobre otro más chico. Elegí de 3 a 7 discos o votalos en salas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Space Rush | Arcade | Pilotá un caza por el espacio esquivando campos de meteoritos, cristales de hielo y chatarra, con Saturno de fondo. Cada vez vas más rápido. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Boilerbound | Arcade | Esquivá los chorros de vapor que erupcionan del piso de la caldera en patrones de jefe. Corré, saltá, colgate de las paredes y usá el dash con invulnerabilidad para aguantar lo máximo posible. | [emi1i0](https://github.com/emi1i0) |
 
 ## Empezar
 
