@@ -647,6 +647,7 @@ class RoomModeController implements RoomMode {
     const myVote = votes.find((v) => v.player === this.me)?.game_id ?? null;
 
     this.overlay.showVoting({
+      round: voteRound,
       options: optionIds.map((id) => {
         const game = games.find((g) => g.id === id);
         return { id, title: game?.title ?? id, accent: game?.accent };
@@ -682,6 +683,7 @@ class RoomModeController implements RoomMode {
     const myVote = votes.find((v) => v.player === this.me)?.game_id ?? null;
 
     this.overlay.showVoting({
+      round,
       kicker: `Ronda ${room.current_round}/${this.totalRounds()} - ${this.gameTitle(this.gameId)}`,
       title: "Elegi el tiempo",
       hint: "Gana la mayoria; empate se define al azar",
