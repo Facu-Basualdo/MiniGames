@@ -149,6 +149,15 @@ export class RoomOverlay {
   private timeEl: HTMLDivElement | null = null;
   private takeoverEl: HTMLButtonElement | null = null;
 
+  // ── Votacion: estado para actualizar in-place (sin reconstruir el DOM en
+  // cada sync, que hace titilar el modal y borra el countdown) ─────────────
+  private voteSig: string | null = null;
+  private voteEls: Map<string, { btn: HTMLButtonElement; count: HTMLSpanElement }> | null = null;
+  /** Opcion elegida localmente, resaltada al toque antes de que confirme la DB. */
+  private voteOptimisticMine: string | null = null;
+  private voteLastCounts: Record<string, number> = {};
+  private voteLastServerMine: string | null = null;
+
   constructor() {
     ensureStyles();
 
@@ -191,6 +200,7 @@ export class RoomOverlay {
   hide(): void {
     this.root.style.display = "none";
     this.timeEl = null;
+    this.resetVoteState();
   }
 
   private show(): void {
@@ -198,6 +208,13 @@ export class RoomOverlay {
     this.boxEl.innerHTML = "";
     this.timeEl = null;
     this.takeoverEl = null;
+    this.resetVoteState();
+  }
+
+  private resetVoteState(): void {
+    this.voteSig = null;
+    this.voteEls = null;
+    this.voteOptimisticMine = null;
   }
 
   /**
@@ -378,21 +395,41 @@ export class RoomOverlay {
     counts: Record<string, number>;
     myVote: string | null;
     onVote: (optionId: string) => void;
+    /** Ronda que se vota (parte de la firma: una votacion nueva se reconstruye). */
+    round?: number;
     /** Textos de la vista (por defecto, la votacion del proximo juego). */
     kicker?: string;
     title?: string;
     hint?: string;
   }): void {
+    const sig = JSON.stringify({
+      r: opts.round ?? 0,
+      ids: opts.options.map((o) => o.id),
+      kicker: opts.kicker ?? "",
+      title: opts.title ?? "",
+    });
+
+    // Si la votacion ya esta montada con las mismas opciones, solo se actualizan
+    // contadores y resaltado. Se re-renderiza en cada sync/voto/poll; reconstruir
+    // el DOM cada vez hace titilar el modal y borra el countdown hasta el proximo
+    // tick. Actualizar in-place lo mantiene estable.
+    if (this.voteSig === sig && this.voteEls && this.root.style.display !== "none") {
+      this.updateVotes(opts.counts, opts.myVote);
+      return;
+    }
+
     this.show();
+    this.voteSig = sig;
     this.addKicker(opts.kicker ?? "Votacion");
     this.addTitle(opts.title ?? "Elegi el proximo juego");
     this.addTime();
 
+    const els = new Map<string, { btn: HTMLButtonElement; count: HTMLSpanElement }>();
     const wrap = document.createElement("div");
     wrap.className = "mg-room__votes";
     for (const opt of opts.options) {
       const btn = document.createElement("button");
-      btn.className = "mg-room__vote" + (opts.myVote === opt.id ? " mg-room__vote--mine" : "");
+      btn.className = "mg-room__vote";
       btn.type = "button";
       if (opt.accent) btn.style.setProperty("--accent", opt.accent);
 
@@ -401,15 +438,42 @@ export class RoomOverlay {
 
       const count = document.createElement("span");
       count.className = "mg-room__vote-count";
-      const n = opts.counts[opt.id] ?? 0;
-      count.textContent = n === 1 ? "1 voto" : `${n} votos`;
 
       btn.append(title, count);
-      btn.addEventListener("click", () => opts.onVote(opt.id));
+      btn.addEventListener("click", () => {
+        // Resaltado optimista: se marca al toque, sin esperar el round-trip a la
+        // DB. El refresh posterior lo confirma (y corrige los contadores).
+        this.voteOptimisticMine = opt.id;
+        this.updateVotes(this.voteLastCounts, this.voteLastServerMine);
+        opts.onVote(opt.id);
+      });
       wrap.append(btn);
+      els.set(opt.id, { btn, count });
     }
     this.boxEl.append(wrap);
     this.addHint(opts.hint ?? "Gana la mayoria; empate se define al azar");
+
+    this.voteEls = els;
+    this.voteOptimisticMine = null;
+    this.updateVotes(opts.counts, opts.myVote);
+  }
+
+  /** Refresca contadores y resaltado de la votacion sin tocar el resto del DOM. */
+  private updateVotes(counts: Record<string, number>, serverMine: string | null): void {
+    this.voteLastCounts = counts;
+    this.voteLastServerMine = serverMine;
+    // La DB ya registro nuestro voto: se descarta el resaltado optimista.
+    if (serverMine !== null) this.voteOptimisticMine = null;
+    const mine = serverMine ?? this.voteOptimisticMine;
+
+    if (!this.voteEls) return;
+    for (const [id, { btn, count }] of this.voteEls) {
+      let n = counts[id] ?? 0;
+      // Voto optimista que la DB todavia no cuenta: se suma 1 para feedback ya.
+      if (serverMine === null && this.voteOptimisticMine === id) n += 1;
+      count.textContent = n === 1 ? "1 voto" : `${n} votos`;
+      btn.classList.toggle("mg-room__vote--mine", mine === id);
+    }
   }
 
   /**
@@ -456,6 +520,19 @@ export class RoomOverlay {
       this.makeButton("Salir", () => (window.location.href = "/"), "ghost"),
     );
     this.boxEl.append(actions);
+  }
+
+  /**
+   * Modo espectador: el jugador entro con la partida ya empezada. No juega ni
+   * puntua, solo espera a que termine (recien ahi podra sumarse a la revancha).
+   */
+  showSpectator(): void {
+    this.show();
+    this.addKicker("Sala");
+    this.addTitle("Modo espectador");
+    this.addSubtitle(
+      "La partida ya empezo, asi que la miras desde afuera. Vas a poder jugar cuando termine y el anfitrion abra una nueva.",
+    );
   }
 
   /** Error terminal (sala inexistente, etc.). */

@@ -879,3 +879,15 @@ a {
   background: var(--ink);
   color: #efeee6;
 }
+
+/* ---------- Publicidad ---------- */
+/* El look del placeholder lo inyecta src/shared/ads/ads.ts; aca solo el encuadre
+   del banner del landing (ancho, centrado y separacion del footer). */
+.ad-banner {
+  width: min(calc(100% - 40px), 970px);
+  margin: 8px auto 40px;
+}
+
+.ad-banner.ad-slot--placeholder {
+  min-height: 100px;
+}

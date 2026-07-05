@@ -6,6 +6,7 @@ import {
   createRoom,
   fetchRoomState,
   joinRoom,
+  kickPlayer,
   sanitizeCode,
   startRound,
   startTimeVote,
@@ -457,19 +458,30 @@ async function joinFlow(
 ): Promise<string | null> {
   const state = await fetchRoomState(code);
   if (!state) return "La sala no existe.";
+  const registered = state.players.includes(player);
   // Una sala terminada sigue viva ("Jugar otra vez"): los registrados pueden
   // reentrar al tablero final; los nuevos esperan a que vuelva al lobby.
-  if (state.room.status === "finished" && !state.players.includes(player)) {
+  if (state.room.status === "finished" && !registered) {
     return "Esa sala ya termino.";
   }
-  // Tope de jugadores: solo bloquea a los nuevos; los ya registrados reingresan.
-  if (!state.players.includes(player) && state.players.length >= MAX_ROOM_PLAYERS) {
+  // Partida en curso y jugador nuevo: entra como espectador (no se registra ni
+  // ocupa slot), solo mira hasta que termine. Va directo a la ronda vigente.
+  if (state.room.status !== "lobby" && state.room.status !== "finished" && !registered) {
+    if (state.room.current_game) {
+      location.href = roomGameUrl(state.room.current_game, code);
+      return null;
+    }
+    return "La partida ya empezo.";
+  }
+  // Tope de jugadores: solo bloquea a los nuevos en el lobby; los ya registrados
+  // reingresan y los espectadores no cuentan (ya se resolvieron arriba).
+  if (!registered && state.players.length >= MAX_ROOM_PLAYERS) {
     return `La sala esta llena (maximo ${MAX_ROOM_PLAYERS}).`;
   }
 
   // Nick ya registrado: es rejoin valido solo si nadie mas esta conectado con
   // ese nombre (presence). Dos amigos con igual nick serian la misma identidad.
-  if ((opts.presenceCheck ?? true) && state.players.includes(player)) {
+  if ((opts.presenceCheck ?? true) && registered) {
     const online = await probePresence(code, player);
     if (online.includes(player)) {
       return "Ese nombre ya esta conectado en la sala. Elegi otro.";
@@ -479,6 +491,14 @@ async function joinFlow(
   const result = await joinRoom(code, player);
   if (result === "not-found") return "La sala no existe.";
   if (result === "finished") return "Esa sala ya termino.";
+  if (result === "spectator") {
+    // La sala arranco entre el fetch y el join: entrar como espectador.
+    if (state.room.current_game) {
+      location.href = roomGameUrl(state.room.current_game, code);
+      return null;
+    }
+    return "La partida ya empezo.";
+  }
   if (result === "error") return "No se pudo entrar. Proba de nuevo.";
 
   // Sala ya en juego: rejoin directo a la ronda vigente.
@@ -639,6 +659,21 @@ function renderLobby(code: string, player: string): void {
         tag.className = "lobby__host-tag";
         tag.textContent = "anfitrion";
         li.append(tag);
+      } else if (isHost) {
+        // El anfitrion puede expulsar a cualquier otro jugador de la sala.
+        const kickBtn = document.createElement("button");
+        kickBtn.className = "lobby__kick";
+        kickBtn.type = "button";
+        kickBtn.textContent = "Expulsar";
+        kickBtn.title = `Expulsar a ${p}`;
+        kickBtn.addEventListener("click", () => {
+          kickBtn.disabled = true;
+          void kickPlayer(code, p).then((ok) => {
+            if (ok) channel.ping();
+            void refresh();
+          });
+        });
+        li.append(kickBtn);
       }
       playersList.append(li);
     }
@@ -659,6 +694,13 @@ function renderLobby(code: string, player: string): void {
   const refresh = async (): Promise<void> => {
     const fresh = await fetchRoomState(code);
     if (!fresh) return;
+    // El anfitrion me expulso: ya no estoy en la sala, vuelvo al inicio.
+    if (!fresh.players.includes(player)) {
+      window.clearInterval(pollId);
+      channel.dispose();
+      renderHome("El anfitrion te saco de la sala.");
+      return;
+    }
     state = fresh;
     // La sala arranco (quiza desde otra pestana del host): todos adentro.
     if (fresh.room.status !== "lobby" && fresh.room.current_game) {
@@ -670,7 +712,7 @@ function renderLobby(code: string, player: string): void {
 
   channel.onSync(() => void refresh());
   channel.onPresence(render);
-  window.setInterval(() => void refresh(), 5000);
+  const pollId = window.setInterval(() => void refresh(), 5000);
   void refresh();
 
   startBtn.addEventListener("click", () => {

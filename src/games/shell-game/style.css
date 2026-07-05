@@ -476,22 +476,26 @@ body {
 /* Absolutely positioned so showing/hiding it does NOT reflow the board (which
    otherwise shrinks and shifts the whole scene when it appears). Floats over the
    empty upper area of the board, below the HUD bar. */
+/* Panel de espera del modo sala: sigue la tematica de la web (paleta crema/tinta
+   de la landing y del RoomOverlay compartido), no el neon oscuro del juego, para
+   que combine con el resto de la UI de salas que aparece sobre el mismo tablero. */
 .multiplayer-status {
   position: absolute;
   top: 74px;
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 450px;
-  background: rgba(10, 12, 16, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  max-width: 420px;
+  background: #efeee6;
+  border: 2.5px solid #111;
+  border-radius: 18px;
   box-sizing: border-box;
-  padding: 16px;
+  padding: 16px 16px 18px;
   z-index: 50;
   text-align: center;
+  color: #111;
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  box-shadow: 0 12px 0 -4px rgba(17, 17, 17, 0.3);
   transition: opacity 0.3s ease;
 }
 
@@ -499,12 +503,44 @@ body {
   display: none;
 }
 
-.multiplayer-status__title {
+.select-timer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 20px;
+  border-radius: 999px;
+  background: #efeee6;
+  border: 2.5px solid #111;
+  color: #111;
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 12px;
+  font-weight: 800;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 0 -3px rgba(17, 17, 17, 0.3);
+  z-index: 55;
+  pointer-events: none;
+}
+
+.select-timer.is-urgent {
+  color: #c81d4a;
+  border-color: #c81d4a;
+  animation: blink-soft 1s infinite;
+}
+
+.select-timer.hidden {
+  display: none;
+}
+
+.multiplayer-status__title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0091a6;
+  margin-bottom: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
 }
 
 .multiplayer-status__list {
@@ -517,40 +553,56 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border-left: 3px solid #ff3f81;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #111;
+  background: #ffffff;
+  border: 2px solid rgba(17, 17, 17, 0.14);
+  text-align: left;
 }
 
 .multiplayer-status__item.ready {
-  border-left-color: #39ff14;
+  border-color: rgba(10, 157, 84, 0.55);
 }
 
 .multiplayer-status__item.eliminated {
-  border-left-color: #7f8c8d;
-  opacity: 0.55;
+  border-style: dashed;
+  opacity: 0.5;
 }
 
 .multiplayer-status__item.me {
-  background: rgba(102, 252, 241, 0.05);
+  border-color: #111;
+  box-shadow: 0 0 0 2px #111;
 }
 
 .multiplayer-status__item .player-name {
-  font-weight: 600;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multiplayer-status__item .status-indicator {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6f6d5e;
+  white-space: nowrap;
 }
 
 .multiplayer-status__item.ready .status-indicator {
-  color: #39ff14;
+  color: #0a9d54;
 }
 
 .multiplayer-status__item.eliminated .status-indicator {
-  color: #7f8c8d;
+  color: #6f6d5e;
 }
 
 .multiplayer-status__item.waiting .status-indicator {
-  color: #ff3f81;
+  color: #0091a6;
   animation: blink-soft 1.2s infinite;
 }
 

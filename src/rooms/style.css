@@ -488,6 +488,33 @@ a {
   padding: 4px 8px;
 }
 
+.lobby__kick {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #c81d4a;
+  background: transparent;
+  border: 2px solid #c81d4a;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lobby__kick:hover {
+  background: #c81d4a;
+  color: var(--card);
+}
+
+.lobby__kick:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .lobby__settings {
   font-size: 13px;
   font-weight: 500;

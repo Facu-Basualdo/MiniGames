@@ -66,11 +66,31 @@ export async function createRoom(host: string, settings: RoomSettings): Promise<
   return null;
 }
 
-export type JoinResult = "ok" | "not-found" | "finished" | "error";
+export type JoinResult = "ok" | "not-found" | "finished" | "spectator" | "error";
+
+/** Devuelve true si el jugador ya esta registrado (room_players) en la sala. */
+async function isRegistered(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  code: string,
+  player: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("room_players")
+    .select("player")
+    .eq("code", code)
+    .eq("player", player)
+    .maybeSingle();
+  return !!data;
+}
 
 /**
  * Une (o re-une: upsert sobre la PK) a un jugador a la sala. La validacion de
  * "nick ya conectado" es del lobby via presence, no de aca.
+ *
+ * Un jugador nuevo (no registrado) solo puede sumarse mientras la sala esta en
+ * el lobby: si la partida ya arranco entra como espectador (no se registra en
+ * room_players para no frenar el cierre de rondas ni contar en los puntajes),
+ * y si ya termino se lo rechaza. Los ya registrados siempre reingresan.
  */
 export async function joinRoom(code: string, player: string): Promise<JoinResult> {
   const supabase = getSupabase();
@@ -86,16 +106,10 @@ export async function joinRoom(code: string, player: string): Promise<JoinResult
     return "error";
   }
   if (!data) return "not-found";
-  if (data.status === "finished") {
-    // Sala terminada pero viva ("Jugar otra vez"): solo puede reentrar un
-    // jugador ya registrado; los nuevos esperan a que vuelva al lobby.
-    const { data: existing } = await supabase
-      .from("room_players")
-      .select("player")
-      .eq("code", code)
-      .eq("player", player)
-      .maybeSingle();
-    if (!existing) return "finished";
+  if (data.status !== "lobby" && !(await isRegistered(supabase, code, player))) {
+    // Sala terminada pero viva ("Jugar otra vez"): los nuevos esperan a que
+    // vuelva al lobby. Sala en juego: los nuevos entran como espectadores.
+    return data.status === "finished" ? "finished" : "spectator";
   }
 
   const { error: joinError } = await supabase.from("room_players").upsert({ code, player });
@@ -277,6 +291,25 @@ export async function finishTimeVote(code: string, deadline: Date | null): Promi
   return true;
 }
 
+/**
+ * Adelanta (o cambia) el deadline de la ronda o votacion en curso. Se usa para
+ * comprimir la votacion del proximo juego a pocos segundos cuando ya votaron
+ * todos los presentes: no tiene sentido esperar el tope completo.
+ */
+export async function updateDeadline(code: string, deadline: Date): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("rooms")
+    .update({ deadline: deadline.toISOString() })
+    .eq("code", code);
+  if (error) {
+    warn("updateDeadline", error.message);
+    return false;
+  }
+  return true;
+}
+
 /** Cierra la ronda en curso: pasa a la fase de resultados. */
 export async function closeRound(code: string): Promise<boolean> {
   const supabase = getSupabase();
@@ -375,6 +408,27 @@ export async function resetRoom(code: string): Promise<boolean> {
     .eq("code", code);
   if (error) {
     warn("resetRoom", error.message);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * El anfitrion expulsa a un jugador: borra su fila de room_players (y sus
+ * puntajes/votos de la partida en curso, para que no cuente en los tableros).
+ * El expulsado lo detecta al refrescar (ya no esta en state.players) y sale.
+ */
+export async function kickPlayer(code: string, player: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const deletes = await Promise.all([
+    supabase.from("room_players").delete().eq("code", code).eq("player", player),
+    supabase.from("room_round_scores").delete().eq("code", code).eq("player", player),
+    supabase.from("room_votes").delete().eq("code", code).eq("player", player),
+  ]);
+  const failed = deletes.find((r) => r.error);
+  if (failed?.error) {
+    warn("kickPlayer", failed.error.message);
     return false;
   }
   return true;

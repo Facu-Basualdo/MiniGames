@@ -43,6 +43,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Mecano | Reflejos | Juego de mecanografía: escribí la mayor cantidad de palabras en 30 segundos y sumá tu velocidad en palabras por minuto. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Torres de Hanoi | Puzzle | Mové la torre de discos a la última varilla en la menor cantidad de movimientos, sin apoyar un disco sobre otro más chico. Elegí de 3 a 7 discos o votalos en salas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Space Rush | Arcade | Pilotá un caza por el espacio esquivando campos de meteoritos, cristales de hielo y chatarra, con Saturno de fondo. Cada vez vas más rápido. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Lights Out | Puzzle | Apagá todas las luces: cada toque invierte una celda y sus vecinas. Tableros de 3x3 a 5x5, contrarreloj. | [juanr8234](https://github.com/juanr8234) |
 
 ## Empezar
 

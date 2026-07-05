@@ -1,4 +1,12 @@
-import { BEST_KEY, getLevelConfig, COUNTDOWN_LABELS, COUNTDOWN_STEP, MAX_DT } from "./constants";
+import {
+  BEST_KEY,
+  getLevelConfig,
+  COUNTDOWN_LABELS,
+  COUNTDOWN_STEP,
+  MAX_DT,
+  ROOM_SELECT_TIME_LIMIT_SEC,
+  ROOM_FORCE_RESOLVE_GRACE_MS,
+} from "./constants";
 import { Hud } from "./Hud";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 import { SoundEffects } from "./SoundEffects";
@@ -46,6 +54,9 @@ export class Game {
 
   // Multiplayer variables
   private localChoiceSubmitted = false;
+  // Room mode: per-level selection timer (auto-resolves stalled/disconnected picks).
+  private selectTimerId: number | null = null;
+  private selectDeadline = 0;
 
   constructor(container: HTMLElement) {
     // Load best level achieved
@@ -116,6 +127,7 @@ export class Game {
   private startRound(): void {
     this.hud.clearBoard();
     this.hud.hideMultiplayerStatus();
+    this.clearSelectionTimer();
     this.selectedCupIndex = null;
     this.localChoiceSubmitted = false;
 
@@ -295,25 +307,101 @@ export class Game {
       isMeSurviving = this.roomState.surviving.includes(this.room.me);
     }
 
-    if (!isMeSurviving) {
-      if (this.room && this.roomState) {
-        this.hud.updateMultiplayerStatus(
-          this.room.players(),
-          this.roomState.choices,
-          this.roomState.surviving,
-          this.room.me
-        );
-      }
-      return;
+    if (isMeSurviving) {
+      this.cups.forEach((cup) => {
+        cup.el.classList.add("selectable");
+        cup.el.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          this.selectCup(cup);
+        });
+      });
+    } else if (this.room && this.roomState) {
+      this.hud.updateMultiplayerStatus(
+        this.room.players(),
+        this.roomState.choices,
+        this.roomState.surviving,
+        this.room.me
+      );
     }
 
-    this.cups.forEach((cup) => {
-      cup.el.classList.add("selectable");
-      cup.el.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        this.selectCup(cup);
-      });
-    });
+    // Room mode only: bound the choosing window so an idle or disconnected player
+    // can't stall the Battle Royale (revealed never turns true). Runs for
+    // everyone - the host also needs the timer to force-resolve missing picks.
+    if (this.room) this.startSelectionTimer(isMeSurviving);
+  }
+
+  private startSelectionTimer(isMeSurviving: boolean): void {
+    this.clearSelectionTimer();
+    this.selectDeadline = performance.now() + ROOM_SELECT_TIME_LIMIT_SEC * 1000;
+
+    const update = (): void => {
+      const remainMs = this.selectDeadline - performance.now();
+      const remain = Math.max(0, Math.ceil(remainMs / 1000));
+      // Show the countdown only to a live player who still has to choose.
+      this.hud.showSelectTimer(isMeSurviving && !this.localChoiceSubmitted ? remain : null);
+      if (remainMs <= 0) {
+        this.clearSelectionTimer();
+        this.onSelectionTimeout(isMeSurviving);
+      }
+    };
+    update();
+    this.selectTimerId = window.setInterval(update, 250);
+  }
+
+  private clearSelectionTimer(): void {
+    if (this.selectTimerId !== null) {
+      window.clearInterval(this.selectTimerId);
+      this.selectTimerId = null;
+    }
+    this.hud.showSelectTimer(null);
+  }
+
+  private onSelectionTimeout(isMeSurviving: boolean): void {
+    if (this.state !== "waitingChoice") return;
+
+    // Still a live player who never picked: auto-choose an invalid slot so I get
+    // eliminated instead of holding everyone up.
+    if (isMeSurviving && !this.localChoiceSubmitted) {
+      this.cups.forEach((c) => c.el.classList.remove("selectable"));
+      void this.submitRoomChoice(-1);
+    }
+
+    // The host also resolves the round for anyone who never chose (e.g. a
+    // disconnected player), after a short grace so an in-flight remote pick lands.
+    if (this.room?.isHost()) {
+      window.setTimeout(() => void this.forceResolveRound(), ROOM_FORCE_RESOLVE_GRACE_MS);
+    }
+  }
+
+  /**
+   * Host-only: unblock a stalled level by marking any surviving player who never
+   * chose with an invalid pick (-1 -> eliminated) and flipping revealed=true, so
+   * the reveal/advance runs even if someone disconnected mid-choice.
+   */
+  private async forceResolveRound(): Promise<void> {
+    if (!this.room || !this.room.isHost()) return;
+    if (this.state !== "waitingChoice") return;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const matchState = await fetchMatchState<SharedGameState>(this.room.code, this.room.round());
+      if (!matchState) return;
+      const data = matchState.state;
+      if (data.revealed) return; // already resolved (everyone chose or forced)
+
+      for (const p of data.surviving) {
+        if (data.choices[p] === undefined) data.choices[p] = -1;
+      }
+      data.revealed = true;
+
+      const ok = await updateMatchState(this.room.code, this.room.round(), data, matchState.version);
+      if (ok) {
+        this.room.ping();
+        void this.syncRoomState();
+        return;
+      }
+      // Version conflict: re-read and retry.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
   }
 
   private selectCup(cup: Cup): void {
@@ -542,6 +630,7 @@ export class Game {
 
   private async revealMultiplayerChoices(choices: Record<string, number>, data: SharedGameState): Promise<void> {
     this.state = "revealing";
+    this.clearSelectionTimer();
 
     this.positionCoin(this.currentCoinSlot);
     this.hud.coin.classList.remove("hidden");
@@ -668,6 +757,7 @@ export class Game {
 
   private endMultiplayerGame(data: SharedGameState): void {
     this.state = "gameOver";
+    this.clearSelectionTimer();
 
     const me = this.room!.me;
     const isWinner = data.winners.includes(me);
@@ -797,5 +887,6 @@ export class Game {
 
   dispose(): void {
     window.removeEventListener("keydown", this.handleKeyDown);
+    this.clearSelectionTimer();
   }
 }

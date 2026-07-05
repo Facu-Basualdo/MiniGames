@@ -16,6 +16,7 @@ export class Hud {
 
   private readonly countdownEl: HTMLDivElement;
   private readonly multiplayerStatusEl: HTMLDivElement;
+  private readonly selectTimerEl: HTMLDivElement;
 
   private readonly leaderboard = new LeaderboardPanel();
 
@@ -73,7 +74,18 @@ export class Hud {
     this.multiplayerStatusEl = document.createElement("div");
     this.multiplayerStatusEl.className = "multiplayer-status hidden";
 
-    container.append(this.hudBar, this.boardEl, this.overlayEl, this.countdownEl, this.multiplayerStatusEl);
+    // 6. Room mode: countdown to pick a cup (auto-resolves on timeout).
+    this.selectTimerEl = document.createElement("div");
+    this.selectTimerEl.className = "select-timer hidden";
+
+    container.append(
+      this.hudBar,
+      this.boardEl,
+      this.overlayEl,
+      this.countdownEl,
+      this.multiplayerStatusEl,
+      this.selectTimerEl,
+    );
   }
 
   get overlay(): HTMLDivElement {
@@ -250,7 +262,7 @@ export class Hud {
         statusText = "Eliminado";
       } else if (hasChosen) {
         borderClass = "ready";
-        statusText = "✓ Listo";
+        statusText = "Listo";
       }
 
       item.className = `multiplayer-status__item ${borderClass} ${player === me ? "me" : ""}`;
@@ -266,5 +278,16 @@ export class Hud {
 
   hideMultiplayerStatus(): void {
     this.multiplayerStatusEl.classList.add("hidden");
+  }
+
+  /** Room mode: seconds left to pick a cup, or null to hide the timer. */
+  showSelectTimer(seconds: number | null): void {
+    if (seconds === null) {
+      this.selectTimerEl.classList.add("hidden");
+      return;
+    }
+    this.selectTimerEl.classList.remove("hidden");
+    this.selectTimerEl.classList.toggle("is-urgent", seconds <= 3);
+    this.selectTimerEl.textContent = `Elegi tu vaso: ${seconds}s`;
   }
 }

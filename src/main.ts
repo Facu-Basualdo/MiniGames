@@ -5,6 +5,7 @@ import { getScoring } from "./shared/scoring";
 import { fetchTop } from "./shared/leaderboard";
 import { isLeaderboardEnabled } from "./shared/supabase";
 import { recordPlay, fetchPlayCounts, cachedPlayCounts } from "./shared/plays";
+import { createAdSlot, AD_SLOTS } from "./shared/ads/ads";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const roomsOn = isLeaderboardEnabled();
@@ -372,6 +373,17 @@ main.className = "page";
 main.append(hero, filtersBar);
 if (roomsOn) main.append(roomsBanner);
 main.append(grid, empty);
+
+// Banner de publicidad entre la grilla y el footer. null (y no se inserta) si la
+// publicidad esta apagada; ver src/shared/ads/ads.ts.
+const adBanner = createAdSlot({
+  slot: AD_SLOTS.landingBanner,
+  format: "horizontal",
+  responsive: true,
+  className: "ad-banner",
+});
+if (adBanner) main.append(adBanner);
+
 app.append(nav, main, footer);
 
 // Reordena las cards segun el modo actual: mueve los nodos existentes al nuevo

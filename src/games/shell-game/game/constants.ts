@@ -5,6 +5,16 @@ export const COUNTDOWN_LABELS = ["3", "2", "1", "YA!"];
 export const COUNTDOWN_STEP = 0.5; // seconds per tick
 export const MAX_DT = 0.1; // clamp delta-time to avoid jumps on tab switch
 
+// Room mode only: seconds a surviving player has to pick a cup before being
+// auto-resolved. Without this a disconnected player who never chooses would
+// stall the Battle Royale forever (revealed never turns true). On timeout the
+// player auto-picks an invalid slot (eliminated) and the host force-resolves
+// any survivor who never chose.
+export const ROOM_SELECT_TIME_LIMIT_SEC = 12;
+// Extra margin the host waits past the selection deadline before force-resolving,
+// so an in-flight choice from a present-but-slow player still lands.
+export const ROOM_FORCE_RESOLVE_GRACE_MS = 2500;
+
 export interface LevelConfig {
   cups: number;
   swaps: number;
