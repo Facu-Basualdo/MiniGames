@@ -4,6 +4,7 @@ import {
   COLS,
   COUNTDOWN_LABELS,
   COUNTDOWN_STEP,
+  DISGUISED_CHANCE,
   GOLDEN_CHANCE,
   HOLD_DURATION_BASE,
   HOLD_DURATION_MIN,
@@ -200,8 +201,8 @@ export class Game {
 
     target.whack();
 
-    if (target.type === "bomb") {
-      // En solo y en salas la bomba cuesta una vida.
+    if (target.type === "bomb" || target.type === "disguised") {
+      // En solo y en salas la bomba (y la bomba disfrazada) cuesta una vida.
       SoundEffects.playBomb();
       this.lives--;
       this.hud.setLives(this.lives);
@@ -263,6 +264,7 @@ export class Game {
     let type: MoleType = "normal";
     if (roll < BOMB_CHANCE) type = "bomb";
     else if (roll < BOMB_CHANCE + GOLDEN_CHANCE) type = "golden";
+    else if (roll < BOMB_CHANCE + GOLDEN_CHANCE + DISGUISED_CHANCE) type = "disguised";
 
     const hold = this.lerp(HOLD_DURATION_BASE, HOLD_DURATION_MIN, this.difficulty);
     const h = this.holes[hole];
@@ -418,8 +420,16 @@ export class Game {
     ctx.rect(m.cx - (HOLE_RX + 6), 0, (HOLE_RX + 6) * 2, groundY);
     ctx.clip();
 
-    if (m.type === "bomb") this.drawBomb(ctx, m.cx, cy, m.hitFlash);
-    else this.drawCreature(ctx, m.cx, cy, m.type, m.whacked, m.hitFlash);
+    if (m.type === "bomb") {
+      this.drawBomb(ctx, m.cx, cy, m.hitFlash);
+    } else if (m.type === "disguised") {
+      // Durante la finta parece un topo comun; al subir de verdad se revela la
+      // bomba con orejas de topo.
+      if (m.feinting) this.drawCreature(ctx, m.cx, cy, "normal", false, 0);
+      else this.drawDisguisedBomb(ctx, m.cx, cy, m.whacked, m.hitFlash);
+    } else {
+      this.drawCreature(ctx, m.cx, cy, m.type, m.whacked, m.hitFlash);
+    }
 
     ctx.restore();
   }
@@ -548,6 +558,107 @@ export class Game {
       ctx.fillStyle = "#ff8a3a";
       ctx.beginPath();
       ctx.ellipse(cx, cy, r * 1.2, r * 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Bomba "vestida de topo": cuerpo de bomba oscuro con orejas de topo, panza,
+   * nariz y una mecha encendida como pista sutil de que en realidad es una bomba.
+   */
+  private drawDisguisedBomb(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    whacked: boolean,
+    flash: number,
+  ): void {
+    const r = MOLE_RADIUS;
+    const furDark = "#6b4420";
+
+    // Orejas de topo (por detras del cuerpo, como en drawCreature).
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(cx + side * r * 0.62, cy - r * 0.62, r * 0.24, r * 0.24, 0, 0, Math.PI * 2);
+      ctx.fillStyle = furDark;
+      ctx.fill();
+    }
+
+    // Mecha encendida (la pista): sale por arriba antes del cuerpo.
+    ctx.strokeStyle = "#7a5a30";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 0.9);
+    ctx.quadraticCurveTo(cx + 16, cy - r - 14, cx + 6, cy - r - 24);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx + 6, cy - r - 26, 5, 5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffb040";
+    ctx.fill();
+
+    // Cuerpo de bomba
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r * 0.92, r, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#2c2c34";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#14141a";
+    ctx.stroke();
+    // Brillo metalico
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.34, cy - r * 0.4, r * 0.22, r * 0.15, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fill();
+
+    // Panza clara (parte del disfraz de topo)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.28, r * 0.5, r * 0.42, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#4a4a56";
+    ctx.fill();
+
+    // Ojos
+    if (whacked) {
+      ctx.strokeStyle = "#dfe4ff";
+      ctx.lineWidth = 4;
+      for (const side of [-1, 1]) {
+        const ex = cx + side * r * 0.34;
+        const ey = cy - r * 0.28;
+        ctx.beginPath();
+        ctx.moveTo(ex - 7, ey - 7);
+        ctx.lineTo(ex + 7, ey + 7);
+        ctx.moveTo(ex + 7, ey - 7);
+        ctx.lineTo(ex - 7, ey + 7);
+        ctx.stroke();
+      }
+    } else {
+      for (const side of [-1, 1]) {
+        const ex = cx + side * r * 0.34;
+        const ey = cy - r * 0.28;
+        ctx.beginPath();
+        ctx.ellipse(ex, ey, 9, 11, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(ex + side * 2, ey + 1, 4.5, 5.5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "#241a10";
+        ctx.fill();
+      }
+    }
+
+    // Nariz (remata el disfraz)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - r * 0.02, 10, 8, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#e06a8a";
+    ctx.fill();
+
+    // Destello al golpear (naranja como la bomba)
+    if (flash > 0) {
+      ctx.save();
+      ctx.globalAlpha = flash * 0.8;
+      ctx.fillStyle = "#ff8a3a";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * 1.15, r * 1.2, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }

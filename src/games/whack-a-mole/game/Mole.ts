@@ -2,6 +2,8 @@ import {
   BOMB_PENALTY,
   EMERGE_HEIGHT,
   FALL_TIME,
+  FEINT_PEEK,
+  FEINT_TIME,
   GOLDEN_POINTS,
   MOLE_RADIUS,
   NORMAL_POINTS,
@@ -9,7 +11,7 @@ import {
   type MoleType,
 } from "./constants";
 
-type Phase = "rising" | "holding" | "falling" | "gone";
+type Phase = "feint" | "rising" | "holding" | "falling" | "gone";
 
 /**
  * Un topo asomando por un agujero. Sube (`rising`), se queda arriba
@@ -17,7 +19,7 @@ type Phase = "rising" | "holding" | "falling" | "gone";
  * afuera) y se usa para posicionarlo verticalmente y recortarlo contra el suelo.
  */
 export class Mole {
-  phase: Phase = "rising";
+  phase: Phase;
   offset = 0;
   whacked = false;
   /** Animacion de golpe (0..1) al ser aplastado, para el efecto de estrellitas. */
@@ -37,15 +39,24 @@ export class Mole {
     this.cy = cy;
     this.type = type;
     this.holdDuration = holdDuration;
+    // La bomba disfrazada arranca con la finta (un topo asoma y se esconde);
+    // el resto sube directo.
+    this.phase = type === "disguised" ? "feint" : "rising";
   }
 
   get points(): number {
     if (this.type === "golden") return GOLDEN_POINTS;
-    if (this.type === "bomb") return -BOMB_PENALTY;
+    if (this.type === "bomb" || this.type === "disguised") return -BOMB_PENALTY;
     return NORMAL_POINTS;
   }
 
-  /** Se le puede pegar: visible, subiendo o arriba, y sin haber sido golpeado. */
+  /** Durante la finta se muestra como topo normal (todavia no revela la bomba). */
+  get feinting(): boolean {
+    return this.phase === "feint";
+  }
+
+  /** Se le puede pegar: visible, subiendo o arriba, y sin haber sido golpeado.
+   *  La finta no cuenta: no se puede golpear el amague. */
   get whackable(): boolean {
     return (
       !this.whacked &&
@@ -62,7 +73,16 @@ export class Mole {
     if (this.hitFlash > 0) this.hitFlash = Math.max(0, this.hitFlash - dt * 4);
     this.t += dt;
 
-    if (this.phase === "rising") {
+    if (this.phase === "feint") {
+      // Asoma y se esconde con un medio arco de seno; se queda por debajo del
+      // umbral golpeable para que el amague no se pueda pegar.
+      this.offset = Math.sin(Math.min(1, this.t / FEINT_TIME) * Math.PI) * FEINT_PEEK;
+      if (this.t >= FEINT_TIME) {
+        this.phase = "rising";
+        this.offset = 0;
+        this.t = 0;
+      }
+    } else if (this.phase === "rising") {
       this.offset = Math.min(1, this.t / RISE_TIME);
       if (this.t >= RISE_TIME) {
         this.phase = "holding";

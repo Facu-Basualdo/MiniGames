@@ -12,8 +12,14 @@ un tope de tiempo por ronda que **fija el anfitrion** (ver "Modo sala").
 
 - **Topo normal** (`Mole`, tipo `normal`): +`NORMAL_POINTS` (10).
 - **Topo dorado** (`golden`, prob. `GOLDEN_CHANCE` 12%): +`GOLDEN_POINTS` (25).
-- **Bomba** (`bomb`, prob. `BOMB_CHANCE` 18%): hay que **evitarla**; golpearla
+- **Bomba** (`bomb`, prob. `BOMB_CHANCE` 16%): hay que **evitarla**; golpearla
   cuesta **una vida** (tanto en solo como en salas).
+- **Bomba disfrazada** (`disguised`, prob. `DISGUISED_CHANCE` 12%): es una bomba
+  **vestida de topo**. Arranca con una **finta** (fase `feint`): un topo normal
+  asoma apenas (`FEINT_PEEK`, por debajo del umbral golpeable) durante
+  `FEINT_TIME` y se esconde; recien despues sube la bomba con **orejas de topo**
+  (`drawDisguisedBomb`). Enganha porque parece un topo comun, pero golpearla
+  cuesta **una vida** como cualquier bomba. La finta no es golpeable.
 - Dejar que un topo se esconda no penaliza (es amistoso). Un martillazo al vacio
   (sin topo bajo el cursor) resta `MISS_PENALTY` (3) puntos; nunca baja de 0.
 
