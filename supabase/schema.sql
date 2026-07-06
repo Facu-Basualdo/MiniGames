@@ -32,3 +32,39 @@ create policy "scores_insert_public" on public.scores
     char_length(player) between 1 and 12
     and score >= 0 and score < 1e9
   );
+
+-- ---------------------------------------------------------------------------
+-- Popularidad: contador de partidas por juego para ordenar la landing (mas
+-- jugados primero). Se incrementa al abrir un juego desde la landing.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.game_plays (
+  game_id    text        primary key,
+  plays      bigint      not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.game_plays enable row level security;
+
+-- Lectura publica del conteo (la landing lo lee para ordenar).
+drop policy if exists "game_plays_select_public" on public.game_plays;
+create policy "game_plays_select_public" on public.game_plays
+  for select using (true);
+
+-- Incremento atomico via RPC. `security definer` evita tener que abrir insert/
+-- update por RLS: el cliente solo puede sumar de a uno, no fijar valores.
+-- Mismo nivel de confianza que `scores` (spoofable con la anon key, aceptable
+-- para minijuegos).
+create or replace function public.increment_game_plays(p_game_id text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.game_plays (game_id, plays, updated_at)
+  values (p_game_id, 1, now())
+  on conflict (game_id)
+  do update set plays = public.game_plays.plays + 1, updated_at = now();
+$$;
+
+grant execute on function public.increment_game_plays(text) to anon, authenticated;

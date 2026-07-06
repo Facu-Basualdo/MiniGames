@@ -1,0 +1,457 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --accent: #f5a623;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0710;
+  font-family: "Outfit", "Consolas", "Courier New", monospace;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+/* --- Back Link --- */
+.back-link {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 50;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-link:hover {
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+/* --- HUD Top Bar --- */
+.hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 520px;
+  margin-bottom: 22px;
+  padding: 14px 28px;
+  background: rgba(20, 12, 28, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.hud-bar.hidden {
+  display: none;
+}
+
+.hud-bar__moves,
+.hud-bar__discs,
+.hud-bar__time {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.hud-bar__discs {
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(245, 166, 35, 0.3);
+}
+
+/* --- Board --- */
+.board-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.hanoi-board {
+  --discs: 3;
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(10px, 3vw, 26px);
+  width: clamp(300px, 92vw, 540px);
+  height: clamp(280px, 52vh, 420px);
+  padding: 18px 14px 0;
+  background: rgba(16, 10, 24, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(245, 166, 35, 0.16);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(245, 166, 35, 0.05),
+    inset 0 0 20px rgba(245, 166, 35, 0.04);
+  border-radius: 20px;
+}
+
+.hanoi-board.hidden {
+  display: none;
+}
+
+.peg {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background 0.15s ease;
+  /* El arrastre con dedo no debe hacer scroll de la pagina. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.peg:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.peg__rod {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 9px;
+  height: calc(100% - 14px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.08));
+  border-radius: 6px 6px 0 0;
+  z-index: 1;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+/* Varilla objetivo (la ultima): donde hay que armar la torre. Dorada. */
+.peg--target .peg__rod {
+  background: linear-gradient(180deg, #ffd76a, rgba(255, 200, 60, 0.35));
+  box-shadow: 0 0 16px rgba(255, 200, 60, 0.55);
+}
+
+.peg--target .peg__base {
+  background: linear-gradient(180deg, #ffd76a, rgba(255, 200, 60, 0.4));
+  box-shadow: 0 0 14px rgba(255, 200, 60, 0.4);
+}
+
+.peg--selected .peg__rod {
+  background: linear-gradient(180deg, var(--accent), rgba(245, 166, 35, 0.4));
+  box-shadow: 0 0 18px rgba(245, 166, 35, 0.6);
+}
+
+/* Al levantar el disco de la varilla objetivo, gana el resaltado de seleccion. */
+.peg--target.peg--selected .peg__rod {
+  background: linear-gradient(180deg, #ffe08a, rgba(255, 200, 60, 0.5));
+  box-shadow: 0 0 20px rgba(255, 210, 90, 0.75);
+}
+
+.peg__base {
+  position: absolute;
+  bottom: 0;
+  left: 4%;
+  width: 92%;
+  height: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  border-radius: 7px;
+  z-index: 1;
+}
+
+.peg__stack {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 14px;
+  gap: 4px;
+}
+
+.disc {
+  height: clamp(20px, 4vh, 30px);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.65);
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.25);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.14s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.14s ease;
+}
+
+.disc--lifted {
+  transform: translateY(-12px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(245, 166, 35, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  cursor: grab;
+}
+
+/* Disco siguiendo el puntero mientras se arrastra: sin transicion (sigue en
+   vivo), por encima del resto y sin captar sus propios eventos de puntero. */
+.disc--dragging {
+  transition: none;
+  z-index: 40;
+  pointer-events: none;
+  cursor: grabbing;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.55), 0 0 20px rgba(245, 166, 35, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* --- Overlays (Start / Vote / Victory) --- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 7, 16, 0.86);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 40;
+  text-align: center;
+}
+
+.overlay.hidden {
+  display: none !important;
+}
+
+.overlay__title {
+  font-size: clamp(30px, 7.5vw, 50px);
+  font-weight: 700;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 30px rgba(245, 166, 35, 0.25);
+}
+
+.overlay__subtitle {
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 28px;
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.overlay__score {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.overlay__rating {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 6px 18px;
+  border-radius: 9999px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.rating-divine {
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.4);
+}
+
+.rating-ultra {
+  background: #f5a623;
+  color: #1a1206;
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.4);
+}
+
+.rating-fast {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.rating-average {
+  background: #64748b;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(100, 116, 139, 0.3);
+}
+
+/* --- Disc selector (solo) --- */
+.overlay__disc-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.disc-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.disc-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.disc-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1206;
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.4);
+}
+
+/* --- Disc vote (rooms) --- */
+.overlay__vote {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 22px;
+}
+
+.vote-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vote-btn:hover {
+  border-color: rgba(245, 166, 35, 0.6);
+  transform: translateY(-2px);
+}
+
+.vote-btn.mine {
+  border-color: var(--accent);
+  background: rgba(245, 166, 35, 0.14);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.vote-btn__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.overlay__bests {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 32px;
+  line-height: 1.7;
+}
+
+.overlay__optimal {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.overlay__hint {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+/* --- Countdown Overlay --- */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 45;
+  font-size: 160px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(245, 166, 35, 0.4), 0 10px 40px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+}
+
+.countdown.is-shown {
+  animation: countdown-pop 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  25% { opacity: 1; transform: scale(1.1); }
+  45% { transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.2); }
+}

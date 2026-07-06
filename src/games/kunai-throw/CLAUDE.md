@@ -29,3 +29,7 @@ Implements the repo-wide Enter-to-start 3 / 2 / 1 / YA countdown: `Game.ts` has 
 - `KUNAIS_BASE` — kunais to clear level 1.
 - `LOG_RADIUS`, `KUNAI_LENGTH`, `KUNAI_EMBED` — geometry.
 - Rotation pattern (speed ramp, reversals, sine pulses, obstacle count) is set in `Log.setLevel()`.
+
+## Room mode (multiplayer)
+
+Wired to the shared party mode: the constructor calls `initRoomMode("kunai-throw", { getScore: () => this.score })` (see root `CLAUDE.md`, "Salas (multiplayer rooms)"). With `?room=` in the URL the game-over reports the score to the room instead of the global ranking, and the restart input is blocked (one run per round). Without the param nothing changes.

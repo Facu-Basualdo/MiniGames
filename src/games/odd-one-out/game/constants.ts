@@ -4,6 +4,9 @@ export const COUNTDOWN_LABELS = ["3", "2", "1", "YA"];
 export const COUNTDOWN_STEP = 0.75; // seconds
 export const MAX_DT = 0.1; // capping delta time to avoid jumps on tab blur
 
+// Al perder se resalta la ficha distinta este tiempo antes de tapar el tablero.
+export const GAME_OVER_REVEAL_MS = 1100;
+
 // Timer global: arranca con START_TIME, cada acierto recarga HIT_BONUS
 // (con tope MAX_TIME) y cada error descuenta MISS_PENALTY.
 export const START_TIME = 10; // seconds

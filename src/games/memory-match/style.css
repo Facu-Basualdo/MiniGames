@@ -1,0 +1,371 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #040814;
+  font-family: "Outfit", "Consolas", "Courier New", monospace;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+/* --- Back Link --- */
+.back-link {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 50;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-link:hover {
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+/* --- HUD Top Bar --- */
+.hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 560px;
+  margin-bottom: 14px;
+  padding: 14px 28px;
+  background: rgba(8, 12, 28, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.hud-bar.hidden {
+  display: none;
+}
+
+.hud-bar__pairs,
+.hud-bar__time {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hud-bar__turn {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  flex: 1;
+}
+
+.hud-bar__turn.is-mine {
+  color: #ffd24a;
+  text-shadow: 0 0 10px rgba(255, 210, 74, 0.45);
+}
+
+/* --- Players Panel (modo sala) --- */
+.players-panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 560px;
+  margin-bottom: 14px;
+  z-index: 20;
+}
+
+.players-panel.hidden {
+  display: none;
+}
+
+.player-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: rgba(8, 12, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.75);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.player-chip.is-turn {
+  border-color: var(--player-color);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--player-color) 40%, transparent);
+  color: #fff;
+}
+
+.player-chip__pairs {
+  min-width: 22px;
+  text-align: center;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--player-color) 22%, transparent);
+  color: var(--player-color);
+  font-weight: 700;
+}
+
+/* --- Board --- */
+.board-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.memory-board {
+  --cols: 4;
+  --rows: 4;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  gap: clamp(6px, 1.4vw, 10px);
+  /* El alto total (filas de cartas 3:4) no debe pasar de ~72vh. */
+  width: min(92vw, 560px, calc(72vh * 0.75 * var(--cols) / var(--rows)));
+  padding: clamp(8px, 1.6vw, 14px);
+  background: rgba(10, 14, 30, 0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 210, 74, 0.15);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(255, 210, 74, 0.05),
+    inset 0 0 20px rgba(255, 210, 74, 0.04);
+  border-radius: 20px;
+}
+
+.memory-board.hidden {
+  display: none;
+}
+
+/* --- Cards --- */
+.card {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  perspective: 700px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card__inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.card.is-up .card__inner {
+  transform: rotateY(180deg);
+}
+
+.card__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card__face--back {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.card__face--back::after {
+  content: "";
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 210, 74, 0.25);
+}
+
+.card:hover .card__face--back {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.card__face--front {
+  transform: rotateY(180deg);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.card__face--front svg {
+  width: 55%;
+  height: 55%;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+/* Emparejada: borde con el color del dueno y carta apagada. */
+.card.is-matched {
+  cursor: default;
+}
+
+.card.is-matched .card__face--front {
+  border-color: color-mix(in srgb, var(--owner-color) 65%, transparent);
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--owner-color) 25%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--owner-color) 10%, transparent);
+  opacity: 0.75;
+}
+
+.card.is-won {
+  animation: card-won 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes card-won {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* --- Overlays (Start / Game Over) --- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 16, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 40;
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.hidden {
+  display: none !important;
+}
+
+.overlay__title {
+  font-size: clamp(32px, 8vw, 52px);
+  font-weight: 700;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 30%, #ffd24a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 30px rgba(255, 210, 74, 0.25);
+}
+
+.overlay__subtitle {
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 28px;
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.overlay__score {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.overlay__bests {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 36px;
+  line-height: 1.6;
+}
+
+.overlay__hint {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+/* --- Countdown Overlay --- */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 45;
+  font-size: 160px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(255, 210, 74, 0.4), 0 10px 40px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+}
+
+.countdown.is-shown {
+  animation: countdown-pop 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  25% { opacity: 1; transform: scale(1.1); }
+  45% { transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.2); }
+}

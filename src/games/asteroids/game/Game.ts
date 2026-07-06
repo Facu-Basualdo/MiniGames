@@ -14,6 +14,7 @@ import {
   LASER_COOLDOWN,
   MAX_LASERS,
   ASTEROID_SPAWN_INTERVAL,
+  SHIP_ROTATION_SPEED,
 } from "./constants";
 
 type State = "ready" | "countdown" | "playing" | "gameover";
@@ -58,11 +59,21 @@ export class Game {
   private lastTime = 0;
   private laserCooldownRemaining = 0;
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   private asteroidSpawnTimer = 0;
 
   // Screen shake
   private shakeTime = 0;
   private shakeAmount = 0;
+
+  // Mouse control (desktop only; gated on pointerType === "mouse" so touch keeps
+  // using the on-screen buttons). Aim: the ship turns toward the cursor at its
+  // normal rotation speed. Left click shoots; right click (held) thrusts.
+  private mouseX = 0;
+  private mouseY = 0;
+  private mouseAimActive = false;
+  private mouseThrust = false;
 
   constructor(container: HTMLElement) {
     // Create canvas
@@ -77,7 +88,10 @@ export class Game {
     this.hud.setBest(this.bestScore);
     this.hud.showStart();
 
-    this.room = initRoomMode("asteroids", { getScore: () => this.score });
+    this.room = initRoomMode("asteroids", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     // Initialize entities
     this.initGameObjects();
@@ -88,6 +102,13 @@ export class Game {
       () => this.fireLaser(),
       () => this.handleStartAction()
     );
+
+    // Mouse control (desktop): aim toward cursor, left click fires, right click
+    // holds thrust. Touch is untouched (handled by the on-screen buttons).
+    this.canvas.addEventListener("pointermove", this.onPointerMove);
+    this.canvas.addEventListener("pointerdown", this.onPointerDown);
+    window.addEventListener("pointerup", this.onPointerUp);
+    this.canvas.addEventListener("contextmenu", this.onContextMenu);
 
     // Resize canvas to fill window
     this.resize();
@@ -148,6 +169,7 @@ export class Game {
     this.spawnAsteroidsWave(6);
 
     this.countdownTime = COUNTDOWN_LABELS.length * COUNTDOWN_STEP;
+    this.lastCountdownIndex = -1;
   }
 
   private startGameplay(): void {
@@ -178,6 +200,45 @@ export class Game {
 
       this.asteroids.push(new Asteroid(x, y, 3)); // 3 = Large
     }
+  }
+
+  private onPointerMove = (e: PointerEvent): void => {
+    if (e.pointerType !== "mouse") return;
+    this.mouseX = e.clientX;
+    this.mouseY = e.clientY;
+    this.mouseAimActive = true;
+  };
+
+  private onPointerDown = (e: PointerEvent): void => {
+    if (e.pointerType !== "mouse") return;
+    this.mouseX = e.clientX;
+    this.mouseY = e.clientY;
+    this.mouseAimActive = true;
+    if (e.button === 2) {
+      this.mouseThrust = true;
+    } else if (e.button === 0) {
+      this.fireLaser();
+    }
+  };
+
+  private onPointerUp = (e: PointerEvent): void => {
+    if (e.pointerType !== "mouse") return;
+    if (e.button === 2) this.mouseThrust = false;
+  };
+
+  private onContextMenu = (e: Event): void => {
+    // Right click is "thrust" during play; suppress the browser menu.
+    e.preventDefault();
+  };
+
+  /** Rotates the ship toward an absolute angle, capped at its turn rate so mouse
+   *  aim keeps the same maneuverability limit as the keyboard. */
+  private aimToward(targetAngle: number, dt: number): void {
+    let diff = targetAngle - this.ship.angle;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // shortest signed delta
+    const maxStep = SHIP_ROTATION_SPEED * dt;
+    if (Math.abs(diff) <= maxStep) this.ship.angle = targetAngle;
+    else this.ship.angle += Math.sign(diff) * maxStep;
   }
 
   private fireLaser(): void {
@@ -321,8 +382,12 @@ export class Game {
         const totalDuration = COUNTDOWN_LABELS.length * COUNTDOWN_STEP;
         const elapsedTime = totalDuration - this.countdownTime;
         const stepIdx = Math.floor(elapsedTime / COUNTDOWN_STEP);
-        const text = COUNTDOWN_LABELS[Math.max(0, Math.min(COUNTDOWN_LABELS.length - 1, stepIdx))];
-        this.hud.showCountdown(text);
+        const index = Math.max(0, Math.min(COUNTDOWN_LABELS.length - 1, stepIdx));
+        if (index !== this.lastCountdownIndex) {
+          this.lastCountdownIndex = index;
+          SoundEffects.playCountdownTick();
+        }
+        this.hud.showCountdown(COUNTDOWN_LABELS[index]);
       }
       return;
     }
@@ -331,13 +396,19 @@ export class Game {
     if (this.state === "playing") {
       this.ship.isThrusting = false;
 
+      const rotatingByKey = this.input.rotateLeft || this.input.rotateRight;
       if (this.input.rotateLeft) {
         this.ship.rotate(-1, dt);
       }
       if (this.input.rotateRight) {
         this.ship.rotate(1, dt);
       }
-      if (this.input.thrust) {
+      // Mouse aim takes over only when no rotation key is held.
+      if (!rotatingByKey && this.mouseAimActive) {
+        const targetAngle = Math.atan2(this.mouseY - this.ship.y, this.mouseX - this.ship.x);
+        this.aimToward(targetAngle, dt);
+      }
+      if (this.input.thrust || this.mouseThrust) {
         this.ship.applyThrust(dt);
 
         // Sound effect (brief periodic rumbles)
@@ -550,6 +621,10 @@ export class Game {
 
   public destroy(): void {
     window.removeEventListener("resize", this.resize);
+    this.canvas.removeEventListener("pointermove", this.onPointerMove);
+    this.canvas.removeEventListener("pointerdown", this.onPointerDown);
+    window.removeEventListener("pointerup", this.onPointerUp);
+    this.canvas.removeEventListener("contextmenu", this.onContextMenu);
     this.input.destroy();
     this.canvas.remove();
   }

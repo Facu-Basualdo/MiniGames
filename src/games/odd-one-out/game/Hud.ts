@@ -164,7 +164,15 @@ export class Hud {
   }
 
   clearBoard(): void {
+    this.boardEl.classList.remove("is-revealing");
     this.boardEl.innerHTML = "";
+  }
+
+  /** Al perder, resalta la ficha distinta y atenua el resto para revelar cual era. */
+  revealOdd(oddIndex: number): void {
+    this.boardEl.classList.add("is-revealing");
+    const tile = this.boardEl.children[oddIndex] as HTMLElement | undefined;
+    if (tile) tile.classList.add("is-odd");
   }
 
   /** Marca visualmente una ficha equivocada (sacudida breve). */

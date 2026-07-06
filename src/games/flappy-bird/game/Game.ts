@@ -4,6 +4,7 @@ import { PipeField } from "./PipeField";
 import { Renderer } from "./Renderer";
 import { InputController } from "./InputController";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 
 type State = "ready" | "countdown" | "playing" | "dead";
@@ -35,6 +36,8 @@ export class Game {
   private deadFor = 0;
   /** Elapsed time in the pre-run countdown. */
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement("canvas");
@@ -47,7 +50,10 @@ export class Game {
     this.hud.showScore(false);
     this.hud.showStart();
 
-    this.room = initRoomMode("flappy-bird", { getScore: () => this.score });
+    this.room = initRoomMode("flappy-bird", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     // Listen on the container, not the canvas: the start / game-over overlay
     // sits above the canvas, so taps there must still start the game (mobile
@@ -68,6 +74,7 @@ export class Game {
         break;
       case "playing":
         this.bird.flap();
+        SoundEffects.playFlap();
         break;
       case "dead":
         // En modo sala se juega una sola partida por ronda: sin reintento.
@@ -83,6 +90,7 @@ export class Game {
     this.pipes.reset();
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.showScore(false);
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -100,6 +108,7 @@ export class Game {
   private die(): void {
     this.state = "dead";
     this.deadFor = 0;
+    SoundEffects.playHit();
     this.hud.showScore(false);
     if (this.score > this.best) {
       this.best = this.score;
@@ -127,7 +136,11 @@ export class Game {
     if (this.state === "playing") {
       this.groundScroll += PIPE_SPEED * dt;
       this.bird.update(dt);
-      this.score += this.pipes.update(dt, this.bird.x);
+      const gained = this.pipes.update(dt, this.bird.x);
+      if (gained > 0) {
+        this.score += gained;
+        SoundEffects.playScore();
+      }
       this.hud.setScore(this.score);
 
       const floor = VIEW_HEIGHT - GROUND_HEIGHT - this.bird.radius;
@@ -157,7 +170,11 @@ export class Game {
     this.countdownTime += dt;
     const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
     if (index >= COUNTDOWN_LABELS.length) this.start();
-    else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    else if (index !== this.lastCountdownIndex) {
+      this.lastCountdownIndex = index;
+      SoundEffects.playCountdownTick();
+      this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    }
   }
 
   private render(): void {

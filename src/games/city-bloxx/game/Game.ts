@@ -12,6 +12,7 @@ import { Crane } from "./Crane";
 import { Renderer, type BlockView } from "./Renderer";
 import { InputController } from "./InputController";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 
 type State = "ready" | "countdown" | "playing" | "dead";
@@ -40,6 +41,10 @@ export class Game {
   private lastTime = 0;
   private deadFor = 0;
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
+  /** Consecutive perfect placements; drives the combo flash and chime pitch. */
+  private perfectCombo = 0;
 
   /** The block in play (on the hook or falling), or null between spawns. */
   private block: BlockView | null = null;
@@ -61,7 +66,10 @@ export class Game {
     this.hud.showScore(false);
     this.hud.showStart();
 
-    this.room = initRoomMode("city-bloxx", { getScore: () => this.score });
+    this.room = initRoomMode("city-bloxx", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     this.input = new InputController(this.canvas, () => this.onDrop());
 
@@ -83,6 +91,7 @@ export class Game {
           this.blockFalling = true;
           this.blockVx = this.crane.vx;
           this.blockVy = this.crane.vy;
+          SoundEffects.playDrop();
         }
         break;
       case "dead":
@@ -99,6 +108,7 @@ export class Game {
     this.crane.reset();
     this.crane.update(0, 0, this.hangTopY());
     this.score = 0;
+    this.perfectCombo = 0;
     this.hud.setScore(0);
     this.hud.setBalance(0);
     this.spawnBlock();
@@ -122,6 +132,7 @@ export class Game {
     this.resetWorld();
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.showScore(false);
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -137,6 +148,7 @@ export class Game {
   private die(): void {
     this.state = "dead";
     this.deadFor = 0;
+    SoundEffects.playCollapse();
     this.hud.showScore(false);
     if (this.score > this.best) {
       this.best = this.score;
@@ -157,6 +169,16 @@ export class Game {
       return;
     }
     this.score++;
+    if (res.perfect) {
+      this.perfectCombo++;
+      SoundEffects.playPerfect(this.perfectCombo);
+      const placed = this.tower.topFloor()!;
+      this.renderer.spawnPerfect(placed.x, placed.topY);
+      this.hud.flashPerfect(this.perfectCombo);
+    } else {
+      this.perfectCombo = 0;
+      SoundEffects.playLand(this.score);
+    }
     this.hud.setScore(this.score);
     this.hud.setBalance(this.tower.balanceRatio());
     if (this.tower.isToppled()) {
@@ -219,7 +241,11 @@ export class Game {
     this.countdownTime += dt;
     const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
     if (index >= COUNTDOWN_LABELS.length) this.start();
-    else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    else if (index !== this.lastCountdownIndex) {
+      this.lastCountdownIndex = index;
+      SoundEffects.playCountdownTick();
+      this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    }
   }
 
   /** Target pan that pins the hook near the top once the tower is tall. */

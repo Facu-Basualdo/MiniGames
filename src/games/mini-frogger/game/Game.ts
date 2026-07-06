@@ -4,12 +4,16 @@ import {
   VIEW_HEIGHT,
   MAX_DT,
   LIVES_START,
+  FROG_HITBOX_HALF,
+  FROG_SUPPORT_HALF,
+  MIN_SUPPORT_OVERLAP,
   type LaneData,
 } from "./constants";
 import { Frog } from "./Frog";
 import { Obstacle } from "./Obstacle";
 import { Renderer } from "./Renderer";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 
 type State = "ready" | "playing" | "dead" | "gameover";
@@ -66,7 +70,10 @@ export class Game {
     this.hud.setBest(this.best);
     this.hud.showStartScreen(this.best);
 
-    this.room = initRoomMode("mini-frogger", { getScore: () => this.score });
+    this.room = initRoomMode("mini-frogger", {
+      getScore: () => this.score,
+      onStart: () => this.start(),
+    });
 
     // Setup input listeners
     window.addEventListener("keydown", (e) => this.handleKeyDown(e));
@@ -108,6 +115,7 @@ export class Game {
     this.frog.snapToGrid();
 
     this.frog.move(dx, dy);
+    SoundEffects.playHop();
 
     // Award points based on the maximum distance (highest row reached)
     const currentDistance = -this.frog.gridY;
@@ -246,23 +254,18 @@ export class Game {
       laneData.speed = (50 + Math.random() * 60) * diffMultiplier;
       laneData.obstacleType = "car";
       laneData.width = Math.random() < 0.25 ? 85 : (Math.random() < 0.4 ? 50 : 60);
-      laneData.spacing = 160 + Math.random() * 90;
       laneData.color = ["#ff2a5f", "#00f0ff", "#ffd700", "#ff8c00", "#a020f0", "#ff00ff"][
         Math.floor(Math.random() * 6)
       ];
-
-      const count = Math.ceil(VIEW_WIDTH / laneData.spacing) + 1;
-      for (let i = 0; i < count; i++) {
-        const x = i * laneData.spacing + (Math.random() * 30);
-        laneData.obstacles.push(
-          new Obstacle(x, row, laneData.width, laneData.speed, dir, "car", laneData.color)
-        );
-      }
+      // spacing = ancho + hueco libre, para que nunca se solapen y quede sitio
+      // seguro entre autos.
+      laneData.spacing = laneData.width + 110 + Math.random() * 90;
+      this.populateLane(laneData, dir);
     } else if (type === "river") {
       const diffMultiplier = 1.0 + Math.min(1.5, -row / 300);
       laneData.speed = (40 + Math.random() * 45) * diffMultiplier;
       laneData.obstacleType = Math.random() < 0.5 ? "log" : "turtle";
-      
+
       if (laneData.obstacleType === "log") {
         laneData.width = Math.random() < 0.33 ? 140 : (Math.random() < 0.5 ? 100 : 80);
         laneData.color = "#8b5a2b";
@@ -270,27 +273,31 @@ export class Game {
         laneData.width = Math.random() < 0.5 ? 90 : 60;
         laneData.color = "#32cd32";
       }
-      
-      laneData.spacing = 150 + Math.random() * 110;
-
-      const count = Math.ceil(VIEW_WIDTH / laneData.spacing) + 1;
-      for (let i = 0; i < count; i++) {
-        const x = i * laneData.spacing + (Math.random() * 20);
-        laneData.obstacles.push(
-          new Obstacle(
-            x,
-            row,
-            laneData.width,
-            laneData.speed,
-            dir,
-            laneData.obstacleType,
-            laneData.color
-          )
-        );
-      }
+      // Plataformas parejas: spacing = ancho + hueco de agua (~1 celda). Sin
+      // solapamientos, los huecos son visibles y consistentes.
+      laneData.spacing = laneData.width + 40 + Math.random() * 30;
+      this.populateLane(laneData, dir);
     }
 
     this.lanes.set(row, laneData);
+  }
+
+  /**
+   * Fills a lane with evenly spaced, non-overlapping obstacles laid out on a
+   * ring of length `count * spacing`. Every obstacle shares that `wrapWidth`, so
+   * they keep their spacing forever (no clustering, no obstacles on top of each
+   * other) and both wrap boundaries stay off-screen (no pop-in).
+   */
+  private populateLane(lane: LaneData, dir: number): void {
+    const count = Math.ceil((VIEW_WIDTH + lane.width) / lane.spacing) + 1;
+    const wrapWidth = count * lane.spacing;
+    const phase = Math.random() * lane.spacing; // desfase aleatorio del patron
+    for (let i = 0; i < count; i++) {
+      const x = -lane.width + i * lane.spacing + phase;
+      lane.obstacles.push(
+        new Obstacle(x, lane.row, lane.width, lane.speed, dir, lane.obstacleType, lane.color, wrapWidth)
+      );
+    }
   }
 
   private update(dt: number): void {
@@ -318,31 +325,39 @@ export class Game {
       const currentLane = this.lanes.get(row);
 
       if (currentLane) {
+        // The frog is, by definition, within this lane's row, so collisions are
+        // a pure horizontal test against each obstacle's visible body. Using the
+        // interpolated (rendered) x keeps deaths in sync with what's on screen.
+        const frogCenterX = this.frog.x + GRID_SIZE / 2;
+
         if (currentLane.type === "road") {
-          // Check car collision
+          // Die only on a real overlap with a car's visible body.
           const hit = currentLane.obstacles.some((obs) =>
-            obs.collidesWith(this.frog.x + 8, this.frog.targetY + 8, GRID_SIZE - 16)
+            obs.overlapsX(frogCenterX, FROG_HITBOX_HALF)
           );
           if (hit) {
-            this.killFrog();
+            this.killFrog("crash");
           }
         } else if (currentLane.type === "river") {
-          // Check support on log/turtle
-          const supportObs = currentLane.obstacles.find((obs) =>
-            obs.collidesWith(this.frog.x + 14, this.frog.targetY + 12, GRID_SIZE - 28)
+          // Ride a log/turtle when a real chunk of the frog's body overlaps it
+          // (not just the exact centre): landing on the edge/side still counts,
+          // so it no longer feels like a coin flip. Platforms don't overlap and
+          // are wider than the frog, so at most one can support it.
+          const supportObs = currentLane.obstacles.find(
+            (obs) => obs.overlapX(frogCenterX, FROG_SUPPORT_HALF) >= MIN_SUPPORT_OVERLAP
           );
           if (supportObs) {
             currentLogSpeed = supportObs.speed * supportObs.dir;
           } else {
             // Water death
-            this.killFrog();
+            this.killFrog("water");
           }
         }
       }
 
       // Check if camera scrolled past the frog (fell off screen)
       if (this.frog.y > this.cameraY + VIEW_HEIGHT + 10) {
-        this.killFrog();
+        this.killFrog("crash");
       }
     }
 
@@ -377,7 +392,9 @@ export class Game {
     }
   }
 
-  private killFrog(): void {
+  private killFrog(cause: "water" | "crash"): void {
+    if (cause === "water") SoundEffects.playSplash();
+    else SoundEffects.playSquash();
     this.frog.die();
     this.state = "dead";
   }

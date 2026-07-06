@@ -1,0 +1,612 @@
+/* General styling for Shell Game (El Trile) */
+:root {
+  --cup-width: 104px;
+  --cup-height: 130px;
+  --coin-size: 34px;
+  --bg-color: #0b0c10;
+  --neon-cyan: #66fcf1;
+  --neon-blue: #45f3ff;
+  --neon-gold: #ffd700;
+  --glass-bg: rgba(31, 38, 135, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: #fff;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  max-width: 800px;
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 20px;
+  position: relative;
+}
+
+.back-link {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  z-index: 100;
+}
+
+.back-link:hover {
+  color: var(--neon-cyan);
+}
+
+/* 1. HUD Bar */
+.hud-bar {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  padding: 12px 24px;
+  border-radius: 16px;
+  box-sizing: border-box;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: opacity 0.3s ease;
+}
+
+.hud-bar.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud-bar__score {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.hud-bar__level {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
+}
+
+.hud-bar__lives {
+  letter-spacing: 2px;
+}
+
+.hud-bar__best {
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* 2. Main Board — third-person scene: red cups on a wooden table */
+.board {
+  flex-grow: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+  margin: 20px 0;
+  border-radius: 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 75% 50% at 50% 118%, rgba(210, 150, 90, 0.22) 0%, transparent 62%),
+    linear-gradient(180deg, #05070b 0%, #0a0d13 55%, #10100e 100%);
+}
+
+/* Receding wooden table plane the cups rest on (gives the 3rd-person depth) */
+.board::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  width: 150%;
+  height: 300px;
+  transform: translateX(-50%) perspective(680px) rotateX(64deg);
+  transform-origin: bottom center;
+  background:
+    radial-gradient(ellipse 55% 62% at 50% 32%, rgba(255, 226, 180, 0.20), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(60, 34, 14, 0.55) 0 2px, transparent 2px 48px),
+    repeating-linear-gradient(90deg, rgba(255, 224, 176, 0.05) 0 3px, transparent 3px 10px, rgba(74, 42, 16, 0.07) 10px 13px, transparent 13px 24px),
+    linear-gradient(0deg, #c48b53 0%, #a9713d 55%, #8a5a2e 100%);
+  border-top: 2px solid rgba(70, 42, 18, 0.85);
+  box-shadow: inset 0 26px 60px rgba(0, 0, 0, 0.32), 0 -10px 30px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.cups-container {
+  width: 84%;
+  height: 250px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  z-index: 1;
+  transition: opacity 0.35s ease;
+}
+
+/* Faded state used to cross-dissolve the board between rounds instead of
+   snapping the old cups away and popping the new ones in. */
+.cups-container.board-faded,
+.coin.board-faded {
+  opacity: 0;
+}
+
+/* Snapshot of the previous round's cups kept on screen while the new board is
+   rebuilt, so the two crossfade (old fades out as new fades in) with no blank
+   frame in between. Sits above the real cups-container while it fades out. */
+.board-ghost {
+  transition: opacity 0.35s ease;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.board-ghost.board-faded {
+  opacity: 0;
+}
+
+/* Cups Positioning and Styles */
+.cup {
+  --cup-glow: rgba(0, 0, 0, 0); /* colored halo only appears on hover/select/reveal */
+  position: absolute;
+  width: var(--cup-width);
+  height: var(--cup-height);
+  bottom: 30px;
+  cursor: pointer;
+  z-index: 5;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              scale 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: bottom center;
+}
+
+/* Elliptical contact shadow cast on the wooden table */
+.cup::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  width: 120%;
+  height: 24px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 46%, transparent 72%);
+  border-radius: 50%;
+  z-index: -1;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Tapered red plastic (Solo) cup: narrow closed base on top, wide mouth on the table */
+.cup-body {
+  position: absolute;
+  inset: 0;
+  bottom: 6px;
+  background:
+    /* cylindrical shading: dark edges, bright vertical highlight band */
+    linear-gradient(90deg,
+      rgba(0, 0, 0, 0.42) 0%,
+      rgba(0, 0, 0, 0.12) 13%,
+      rgba(255, 255, 255, 0.30) 34%,
+      rgba(255, 255, 255, 0.10) 49%,
+      rgba(0, 0, 0, 0.14) 68%,
+      rgba(0, 0, 0, 0.44) 100%),
+    /* base red */
+    linear-gradient(180deg, #e5443a 0%, #d0231d 52%, #a5150f 100%);
+  clip-path: polygon(20% 4%, 80% 4%, 100% 100%, 0% 100%);
+  filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 14px var(--cup-glow));
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+/* Rounded closed base of the (upside-down) cup on top */
+.cup-body::before {
+  content: '';
+  position: absolute;
+  top: -6%;
+  left: 18%;
+  right: 18%;
+  height: 16%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f26a60 0%, #d3271f 100%);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.35), inset 0 -3px 5px rgba(120, 12, 6, 0.5);
+}
+
+/* Vertical gloss highlight for the glossy plastic look */
+.cup-body::after {
+  content: '';
+  position: absolute;
+  top: 12%;
+  bottom: 20%;
+  left: 30%;
+  width: 8%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.05));
+  filter: blur(2px);
+}
+
+/* Mouth of the cup: white plastic lip ellipse resting on the table */
+.cup-rim {
+  position: absolute;
+  bottom: -3px;
+  left: -5%;
+  width: 110%;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 38%, #ffffff 0%, #f4efe8 46%, #d8cec2 100%);
+  box-shadow: 0 5px 9px rgba(0, 0, 0, 0.45), 0 0 12px var(--cup-glow);
+  z-index: 6;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Cup states */
+.cup.lifted {
+  transform: translateY(-115px);
+}
+
+.cup.lifted::after {
+  opacity: 0.25;
+  transform: translateX(-50%) scale(0.85);
+}
+
+.cup.selectable:hover {
+  --cup-glow: rgba(255, 236, 150, 0.65);
+}
+
+.cup.selectable:hover .cup-body {
+  transform: translateY(-8px);
+}
+
+.cup.selected {
+  --cup-glow: rgba(255, 205, 70, 0.9);
+}
+
+/* 3D curves transitions during swap */
+.cup.swap-front {
+  transform: translateY(40px);
+  scale: 1.22;
+  z-index: 10;
+}
+
+.cup.swap-back {
+  transform: translateY(-40px);
+  scale: 0.82;
+  z-index: 2;
+}
+
+/* White ball */
+.coin {
+  position: absolute;
+  width: var(--coin-size);
+  height: var(--coin-size);
+  bottom: 24px; /* Sits on the table, roughly at cup-mouth level */
+  z-index: 1; /* Sits behind the cups */
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+  transform: translateX(-50%); /* Centered on slot */
+}
+
+.coin.hidden {
+  display: none;
+}
+
+.coin-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #ffffff 0%, #f4f4f4 40%, #d2d2d2 74%, #a9a9a9 100%);
+  box-shadow:
+    0 8px 10px rgba(0, 0, 0, 0.5),
+    inset -4px -5px 9px rgba(0, 0, 0, 0.28),
+    inset 3px 4px 8px rgba(255, 255, 255, 0.85);
+  position: relative;
+  animation: ball-bob 1.8s ease-in-out infinite;
+}
+
+.coin-inner::before {
+  content: none;
+}
+
+@keyframes ball-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Player indicators (under cups when choice is revealed) */
+.cup-player-tags {
+  position: absolute;
+  bottom: -45px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  width: 150px;
+  z-index: 15;
+}
+
+.player-tag {
+  font-size: 11px;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+  background: rgba(11, 12, 16, 0.85);
+  border: 1px solid var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(102, 252, 241, 0.2);
+  animation: tag-pop 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+}
+
+.player-tag.me {
+  border-color: var(--neon-gold);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+@keyframes tag-pop {
+  0% { transform: scale(0) translateY(10px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* Correct/Incorrect cup highlights */
+.cup.correct-reveal {
+  --cup-glow: rgba(60, 230, 90, 0.9);
+}
+
+.cup.incorrect-reveal {
+  --cup-glow: rgba(255, 55, 55, 0.95);
+}
+
+/* 3. Screen Overlays */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(11, 12, 16, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 80;
+  box-sizing: border-box;
+  padding: 40px;
+  text-align: center;
+  border-radius: 24px;
+}
+
+.overlay.hidden {
+  display: none !important;
+}
+
+.overlay__title {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  margin-bottom: 16px;
+  background: linear-gradient(45deg, var(--neon-cyan), var(--neon-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 20px rgba(102, 252, 241, 0.1);
+  animation: title-glow 3s infinite alternate;
+}
+
+@keyframes title-glow {
+  0% { filter: drop-shadow(0 0 2px rgba(102, 252, 241, 0.2)); }
+  100% { filter: drop-shadow(0 0 12px rgba(102, 252, 241, 0.5)); }
+}
+
+.overlay__subtitle {
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 480px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 24px;
+}
+
+.overlay__score {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  margin-bottom: 20px;
+}
+
+.overlay__hint {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.9; }
+}
+
+/* 4. Countdown */
+.countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  font-size: 120px;
+  font-weight: 900;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 30px rgba(102, 252, 241, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 90;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
+}
+
+.countdown.is-shown {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  animation: countdown-pop 0.5s forwards;
+}
+
+@keyframes countdown-pop {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* 5. Multiplayer Choices Overlay list */
+/* Absolutely positioned so showing/hiding it does NOT reflow the board (which
+   otherwise shrinks and shifts the whole scene when it appears). Floats over the
+   empty upper area of the board, below the HUD bar. */
+/* Panel de espera del modo sala: sigue la tematica de la web (paleta crema/tinta
+   de la landing y del RoomOverlay compartido), no el neon oscuro del juego, para
+   que combine con el resto de la UI de salas que aparece sobre el mismo tablero. */
+.multiplayer-status {
+  position: absolute;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 420px;
+  background: #efeee6;
+  border: 2.5px solid #111;
+  border-radius: 18px;
+  box-sizing: border-box;
+  padding: 16px 16px 18px;
+  z-index: 50;
+  text-align: center;
+  color: #111;
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  box-shadow: 0 12px 0 -4px rgba(17, 17, 17, 0.3);
+  transition: opacity 0.3s ease;
+}
+
+.multiplayer-status.hidden {
+  display: none;
+}
+
+.select-timer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 20px;
+  border-radius: 999px;
+  background: #efeee6;
+  border: 2.5px solid #111;
+  color: #111;
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 0 -3px rgba(17, 17, 17, 0.3);
+  z-index: 55;
+  pointer-events: none;
+}
+
+.select-timer.is-urgent {
+  color: #c81d4a;
+  border-color: #c81d4a;
+  animation: blink-soft 1s infinite;
+}
+
+.select-timer.hidden {
+  display: none;
+}
+
+.multiplayer-status__title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0091a6;
+  margin-bottom: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.multiplayer-status__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.multiplayer-status__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #111;
+  background: #ffffff;
+  border: 2px solid rgba(17, 17, 17, 0.14);
+  text-align: left;
+}
+
+.multiplayer-status__item.ready {
+  border-color: rgba(10, 157, 84, 0.55);
+}
+
+.multiplayer-status__item.eliminated {
+  border-style: dashed;
+  opacity: 0.5;
+}
+
+.multiplayer-status__item.me {
+  border-color: #111;
+  box-shadow: 0 0 0 2px #111;
+}
+
+.multiplayer-status__item .player-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multiplayer-status__item .status-indicator {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6f6d5e;
+  white-space: nowrap;
+}
+
+.multiplayer-status__item.ready .status-indicator {
+  color: #0a9d54;
+}
+
+.multiplayer-status__item.eliminated .status-indicator {
+  color: #6f6d5e;
+}
+
+.multiplayer-status__item.waiting .status-indicator {
+  color: #0091a6;
+  animation: blink-soft 1.2s infinite;
+}
+
+@keyframes blink-soft {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}

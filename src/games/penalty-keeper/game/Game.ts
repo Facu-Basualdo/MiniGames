@@ -72,6 +72,8 @@ export class Game {
   private idleTime = 0;
   private deadFor = 0;
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   /** Remaining camera-shake time after a conceded goal, s. */
   private shakeTime = 0;
   private lastTime = performance.now();
@@ -140,7 +142,10 @@ export class Game {
       () => this.requestStart(),
     );
 
-    this.room = initRoomMode("penalty-keeper", { getScore: () => this.score });
+    this.room = initRoomMode("penalty-keeper", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     window.addEventListener("resize", this.onResize);
     this.renderer.setAnimationLoop(this.tick);
@@ -177,6 +182,7 @@ export class Game {
     this.kicker.reset();
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.showHud(false);
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -186,7 +192,11 @@ export class Game {
     this.countdownTime += dt;
     const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
     if (index >= COUNTDOWN_LABELS.length) this.start();
-    else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    else if (index !== this.lastCountdownIndex) {
+      this.lastCountdownIndex = index;
+      SoundEffects.playCountdownTick();
+      this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    }
   }
 
   private start(): void {

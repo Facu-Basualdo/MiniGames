@@ -17,6 +17,7 @@ import { Effects } from "./Effects";
 import { Hud } from "./Hud";
 import { InputController } from "./InputController";
 import { RemoteCar } from "./RemoteCar";
+import { SoundEffects } from "./SoundEffects";
 import { assignAlphabetical, assignTeams } from "./teams";
 import {
   ATTACK_X,
@@ -114,6 +115,8 @@ export class Game {
   /** Tiempo extra con gol de oro: el reloj cuenta para arriba. */
   private overtime = false;
   private countdown = 0;
+  /** Ultimo numero de kickoff que sono, para pitar una vez por tick. */
+  private lastCountdownBeep = 0;
   private goalTimer = 0;
   private acc = 0;
   private elapsed = 0;
@@ -439,6 +442,7 @@ export class Game {
     if (ev.e === "goal") {
       if (this.state !== "playing") return;
       if (ev.w) this.hud.showGoal(ev.w === this.myTeam ? "blue" : "orange");
+      SoundEffects.playGoal();
       this.effects.goalBurst(this.ball.position(), ev.w === "blue" ? BLUE : ORANGE);
       this.state = "goal";
       this.goalTimer = CLIENT_GOAL_FALLBACK;
@@ -564,6 +568,7 @@ export class Game {
     this.pads.resetAll();
     this.state = "countdown";
     this.countdown = KICKOFF_COUNT;
+    this.lastCountdownBeep = KICKOFF_COUNT + 1;
     this.hud.showCountdown(String(KICKOFF_COUNT));
   }
 
@@ -590,6 +595,7 @@ export class Game {
     // En sala el flash es relativo al jugador: "¡GOL!" si anotó mi equipo.
     const mine = this.channel ? (team === this.myTeam ? "blue" : "orange") : team;
     this.hud.showGoal(mine as Team);
+    SoundEffects.playGoal();
     this.effects.goalBurst(this.ball.position(), team === "blue" ? BLUE : ORANGE);
     this.state = "goal";
     this.goalTimer = GOAL_PAUSE;
@@ -629,7 +635,7 @@ export class Game {
       if (playing) {
         // El golpe propio corre siempre (predicción local en clientes); los
         // de bots y remotos solo donde la pelota es autoritativa.
-        this.kickFrom(this.player, FIXED_STEP);
+        if (this.kickFrom(this.player, FIXED_STEP)) SoundEffects.playKick();
         if (authority) {
           for (const bot of this.bots) this.kickFrom(bot.car, FIXED_STEP);
           for (const remote of this.remotes.values()) {
@@ -652,7 +658,10 @@ export class Game {
   private pickupPads(): void {
     if (!this.player.demolished) {
       const i = this.pads.tryPickup(this.player);
-      if (i >= 0 && this.channel) this.channel.sendPad({ i });
+      if (i >= 0) {
+        SoundEffects.playBoostPad();
+        if (this.channel) this.channel.sendPad({ i });
+      }
     }
     if (this.ballAuthority()) {
       for (const bot of this.bots) {
@@ -714,16 +723,19 @@ export class Game {
       if (demolished) {
         this.effects.explode(new THREE.Vector3(vp.x, vp.y, vp.z), v.team === "blue" ? BLUE : ORANGE);
         v.car.demolish();
-        if (v.mine) this.hud.showDemolished();
+        if (v.mine) {
+          SoundEffects.playDemolish();
+          this.hud.showDemolished();
+        }
       }
     }
   }
 
-  private kickFrom(car: Car, dt: number): void {
-    if (car.demolished) return;
+  private kickFrom(car: Car, dt: number): boolean {
+    if (car.demolished) return false;
     const p = car.body.translation();
     const v = car.body.linvel();
-    this.kickAt(
+    return this.kickAt(
       car,
       new THREE.Vector3(p.x, p.y, p.z),
       new THREE.Vector3(v.x, v.y, v.z),
@@ -744,17 +756,17 @@ export class Game {
     vel: THREE.Vector3,
     dt: number,
     mult: number,
-  ): void {
+  ): boolean {
     holder.kickTimer = Math.max(0, holder.kickTimer - dt);
-    if (holder.kickTimer > 0) return;
+    if (holder.kickTimer > 0) return false;
 
     const bp = this.ball.position();
     const delta = bp.clone().sub(pos);
     const contactDist = BALL_R + Math.hypot(CAR_HALF.x, CAR_HALF.z);
-    if (delta.length() > contactDist + KICK_RANGE) return;
+    if (delta.length() > contactDist + KICK_RANGE) return false;
 
     const speed = vel.length();
-    if (speed < KICK_SPEED_MIN) return;
+    if (speed < KICK_SPEED_MIN) return false;
 
     // Dirección del tiro: hacia donde va el auto, con un piso de elevación.
     const dir = vel.clone().normalize();
@@ -764,6 +776,7 @@ export class Game {
     const impulse = dir.multiplyScalar(speed * KICK_FACTOR * mult * this.ball.body.mass());
     this.ball.body.applyImpulse({ x: impulse.x, y: impulse.y, z: impulse.z }, true);
     holder.kickTimer = KICK_COOLDOWN;
+    return true;
   }
 
   private readonly tick = (): void => {
@@ -808,8 +821,20 @@ export class Game {
       if (this.countdown <= 0) {
         this.state = "playing";
         this.hud.showCountdown(null);
+      } else if (this.countdown > 0.4) {
+        const shown = Math.ceil(this.countdown);
+        if (shown !== this.lastCountdownBeep) {
+          this.lastCountdownBeep = shown;
+          SoundEffects.playCountdownTick();
+        }
+        this.hud.showCountdown(String(shown));
       } else {
-        this.hud.showCountdown(this.countdown > 0.4 ? String(Math.ceil(this.countdown)) : "¡YA!");
+        // Tick una sola vez al mostrar "¡YA!" (sentinela 0, no colisiona con numeros >=1).
+        if (this.lastCountdownBeep !== 0) {
+          this.lastCountdownBeep = 0;
+          SoundEffects.playCountdownTick();
+        }
+        this.hud.showCountdown("¡YA!");
       }
       this.stepPhysics(false, dt);
     } else if (this.state === "playing") {
@@ -898,6 +923,7 @@ export class Game {
   private finish(): void {
     if (this.state === "finished") return;
     this.state = "finished";
+    SoundEffects.playWhistle();
     this.hud.showCountdown(null);
     if (this.channel && this.isHost) {
       this.channel.sendEvent({ e: "end", b: this.blue, o: this.orange });

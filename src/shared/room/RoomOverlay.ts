@@ -4,109 +4,103 @@
  * full-screen con z-index por encima del overlay de cada juego, asi tapa el
  * "presiona ENTER para reintentar" sin tocar ningun Hud.
  *
- * Vistas: briefing (instrucciones + checklist de "listos"), esperando con
- * ranking en vivo, resultados de ronda, votacion del proximo juego, tablero
- * final y error. Ademas un strip superior permanente con codigo / ronda /
- * tiempo, y un panel-esquina con el ranking en vivo mientras se juega.
+ * Vistas: esperando (checklist de jugadores + countdown), resultados de ronda,
+ * votacion del proximo juego, tablero final y error. Ademas un strip superior
+ * permanente con codigo / ronda / tiempo mientras se juega.
  */
 
 const STYLE_ID = "mg-room-styles";
 
+/*
+ * Paleta y tipografia de la landing (self-contained: se inyecta dentro de cada
+ * juego, que no define las variables :root de /rooms, asi que van hardcodeadas):
+ * tinta #111, card #efeee6, fondo crema #d6d3bd, acento cian #00f0ff, apagado
+ * #6f6d5e. Estilo "flat" con bordes gruesos y pills, igual que el menu.
+ */
 const CSS = `
 .mg-room-strip {
   position: fixed; top: 0; left: 50%; transform: translateX(-50%);
-  z-index: 9999; padding: 0.3rem 1rem; border-radius: 0 0 10px 10px;
-  background: rgba(10, 12, 24, 0.78); color: #fff;
-  font-family: system-ui, sans-serif; font-size: 0.85rem; font-weight: 600;
-  letter-spacing: 0.08em; font-variant-numeric: tabular-nums;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35); pointer-events: none;
-  white-space: nowrap;
+  z-index: 9999; padding: 7px 18px; border-radius: 0 0 14px 14px;
+  background: #efeee6; color: #111; border: 2.5px solid #111; border-top: none;
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif; font-size: 12.5px;
+  font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; box-shadow: 0 5px 0 -2px rgba(17, 17, 17, 0.18);
+  pointer-events: none; white-space: nowrap;
 }
 .mg-room {
   position: fixed; inset: 0; z-index: 10000; display: flex;
-  align-items: center; justify-content: center; padding: 1rem;
-  background: rgba(8, 10, 20, 0.86); backdrop-filter: blur(6px);
-  color: #fff; font-family: system-ui, sans-serif;
+  align-items: center; justify-content: center; padding: 16px;
+  background: rgba(17, 17, 17, 0.55); backdrop-filter: blur(5px);
+  color: #111; font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
 }
-.mg-room__box { width: 100%; max-width: 420px; text-align: center; }
-.mg-room__kicker { font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 0.4rem; }
-.mg-room__title { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.35rem; }
-.mg-room__subtitle { font-size: 0.95rem; opacity: 0.75; margin: 0 0 1rem; }
-.mg-room__time { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 1rem; opacity: 0.9; }
-.mg-room__list { list-style: none; margin: 0 0 1.2rem; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.mg-room__box {
+  width: 100%; max-width: 440px; text-align: center;
+  background: #efeee6; border: 2.5px solid #111; border-radius: 22px;
+  padding: 28px 24px; box-shadow: 0 14px 0 -4px rgba(17, 17, 17, 0.35);
+  max-height: 90vh; overflow-y: auto;
+  /* Capa propia: al refrescar el contador el blur del fondo no re-centra la
+     caja (evita el temblor vertical de subpixel del backdrop-filter). */
+  transform: translateZ(0); backface-visibility: hidden;
+}
+.mg-room__kicker { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: #0091a6; margin-bottom: 8px; }
+.mg-room__title { font-size: clamp(28px, 7vw, 40px); font-weight: 900; letter-spacing: -1.2px; line-height: 1; margin: 0 0 10px; }
+.mg-room__subtitle { font-size: 14px; font-weight: 500; color: #6f6d5e; margin: 0 0 18px; }
+/* line-height/min-height fijos + digitos tabulares: el alto y ancho de la linea
+   del contador no cambian al pasar de un numero a otro, asi el modal no se mueve. */
+.mg-room__time { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.3; min-height: 1.3em; margin-bottom: 16px; }
+.mg-room__list { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .mg-room__row {
   display: grid; grid-template-columns: 2rem 1fr auto; align-items: center;
-  gap: 0.5rem; padding: 0.42rem 0.7rem; border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06); font-size: 0.95rem; text-align: left;
+  gap: 10px; padding: 12px 14px; border-radius: 12px;
+  border: 2px solid rgba(17, 17, 17, 0.14); background: #ffffff;
+  font-size: 15px; font-weight: 600; text-align: left;
 }
-.mg-room__row--me { background: rgba(255, 255, 255, 0.16); font-weight: 700; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3) inset; }
-.mg-room__rank { opacity: 0.6; text-align: right; font-variant-numeric: tabular-nums; }
+.mg-room__row--me { border-color: #111; box-shadow: 0 0 0 2.5px #111; font-weight: 800; }
+.mg-room__rank { color: #6f6d5e; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
 .mg-room__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mg-room__value { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mg-room__value small { opacity: 0.6; font-size: 0.8em; margin-left: 0.35rem; }
-.mg-room__state { font-size: 0.8rem; opacity: 0.7; }
-.mg-room__state--done { color: #6dffa8; opacity: 1; }
-.mg-room__state--offline { opacity: 0.4; }
-.mg-room__section { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.55; margin: 1.1rem 0 0.45rem; }
-.mg-room__votes { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.mg-room__value { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 800; }
+.mg-room__value small { color: #6f6d5e; font-weight: 600; font-size: 0.78em; margin-left: 8px; }
+.mg-room__state { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6f6d5e; }
+.mg-room__state--done { color: #0a9d54; }
+.mg-room__state--offline { opacity: 0.45; }
+.mg-room__section { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #6f6d5e; margin: 18px 0 10px; }
+.mg-room__votes { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .mg-room__vote {
-  --accent: #7dd8ff;
-  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
-  padding: 0.7rem 0.9rem; border-radius: 12px; cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05);
-  color: #fff; font: inherit; font-size: 1rem; font-weight: 700; text-align: left;
+  --accent: #00f0ff;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 16px; border-radius: 14px; cursor: pointer;
+  border: 2px solid rgba(17, 17, 17, 0.2); background: #ffffff;
+  color: #111; font: inherit; font-size: 15px; font-weight: 700; text-align: left;
+  transition: border-color 0.15s ease, transform 0.14s ease, box-shadow 0.15s ease;
 }
-.mg-room__vote:hover { border-color: var(--accent); }
-.mg-room__vote--mine { border-color: var(--accent); background: rgba(255, 255, 255, 0.12); box-shadow: 0 0 14px -4px var(--accent); }
-.mg-room__vote-count { font-size: 0.85rem; opacity: 0.7; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mg-room__vote:hover { border-color: #111; transform: translateY(-2px); box-shadow: 0 6px 0 -3px #111; }
+.mg-room__vote--mine { border-color: #111; box-shadow: 0 0 0 2.5px #111; }
+.mg-room__vote-count { font-size: 12px; font-weight: 700; color: #6f6d5e; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mg-room__actions { display: flex; gap: 10px; margin-top: 6px; }
+.mg-room__actions .mg-room__btn { flex: 1; }
 .mg-room__btn {
-  display: inline-block; padding: 0.6rem 1.4rem; border-radius: 999px;
-  border: none; background: #fff; color: #111; font: inherit; font-size: 1rem;
-  font-weight: 800; cursor: pointer; text-decoration: none;
+  display: inline-block; padding: 14px 22px; border-radius: 999px;
+  border: 2px solid #111; background: none; color: #111; font: inherit; font-size: 14px;
+  font-weight: 800; letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+  text-decoration: none; text-align: center;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
-.mg-room__btn:hover { opacity: 0.85; }
-.mg-room__hint { font-size: 0.82rem; opacity: 0.55; margin-top: 0.8rem; }
-.mg-room__winner { font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem; color: #ffd75e; }
+.mg-room__btn:hover { background: #111; color: #efeee6; }
+.mg-room__btn:active { transform: translateY(1px); }
+.mg-room__btn--primary { background: #111; color: #efeee6; }
+.mg-room__btn--primary:hover { background: #00f0ff; color: #111; }
+.mg-room__hint { font-size: 12px; font-weight: 500; color: #6f6d5e; margin-top: 14px; line-height: 1.5; }
+.mg-room__winner {
+  display: inline-block; margin-bottom: 18px; padding: 9px 20px; border-radius: 999px;
+  background: #111; color: #efeee6; font-size: 15px; font-weight: 800; letter-spacing: 0.3px;
+}
 .mg-room__takeover {
-  display: block; margin: 1rem auto 0; padding: 0.5rem 1.1rem; border-radius: 999px;
-  border: 1px solid rgba(255, 215, 94, 0.5); background: transparent; color: #ffd75e;
-  font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  display: block; margin: 14px auto 0; padding: 10px 18px; border-radius: 999px;
+  border: 2px solid #c81d4a; background: transparent; color: #c81d4a;
+  font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 0.5px;
+  text-transform: uppercase; cursor: pointer;
 }
-.mg-room__takeover:hover { background: rgba(255, 215, 94, 0.12); }
-.mg-room__exit {
-  display: block; margin-top: 1rem; font-size: 0.82rem; letter-spacing: 0.08em;
-  color: #fff; opacity: 0.55; text-decoration: none;
-}
-.mg-room__exit:hover { opacity: 0.9; text-decoration: underline; }
-.mg-room__instructions {
-  font-size: 1rem; line-height: 1.5; opacity: 0.95; text-align: left;
-  background: rgba(255, 255, 255, 0.06); border-radius: 12px;
-  padding: 0.9rem 1rem; margin: 0 0 1.1rem;
-}
-.mg-room__ready { color: #6dffa8; }
-.mg-room__value--pending { opacity: 0.55; }
-
-/* Panel-esquina con el ranking en vivo mientras se juega. */
-.mg-room-live {
-  position: fixed; top: 44px; right: 10px; z-index: 9998;
-  background: rgba(10, 12, 24, 0.72); color: #fff; border-radius: 10px;
-  padding: 0.4rem 0.55rem; font-family: system-ui, sans-serif; font-size: 0.8rem;
-  min-width: 128px; max-width: 44vw; pointer-events: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35); backdrop-filter: blur(4px);
-}
-.mg-room-live__title {
-  font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
-  opacity: 0.55; margin-bottom: 0.32rem;
-}
-.mg-room-live__row {
-  display: grid; grid-template-columns: 1rem 1fr auto; gap: 0.4rem;
-  align-items: center; padding: 0.12rem 0; font-variant-numeric: tabular-nums;
-}
-.mg-room-live__row--me { font-weight: 800; }
-.mg-room-live__row--offline { opacity: 0.4; }
-.mg-room-live__rank { opacity: 0.55; text-align: right; }
-.mg-room-live__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mg-room-live__score { white-space: nowrap; }
+.mg-room__takeover:hover { background: #c81d4a; color: #efeee6; }
 `;
 
 function ensureStyles(): void {
@@ -120,22 +114,6 @@ function ensureStyles(): void {
 export interface WaitingEntry {
   player: string;
   state: "done" | "playing" | "offline";
-}
-
-/** Fila del ranking en vivo (panel-esquina y pantalla de espera). */
-export interface LiveRow {
-  rank: number;
-  player: string;
-  /** Puntaje ya formateado, o "-" si todavia no puntuo. */
-  scoreText: string;
-  state: "done" | "playing" | "offline";
-}
-
-/** Jugador en la pantalla de instrucciones (fase briefing). */
-export interface BriefingPlayer {
-  player: string;
-  ready: boolean;
-  present: boolean;
 }
 
 export interface ResultEntry {
@@ -168,9 +146,17 @@ export class RoomOverlay {
   private readonly root: HTMLDivElement;
   private readonly boxEl: HTMLDivElement;
   private readonly stripEl: HTMLDivElement;
-  private readonly liveEl: HTMLDivElement;
   private timeEl: HTMLDivElement | null = null;
   private takeoverEl: HTMLButtonElement | null = null;
+
+  // ── Votacion: estado para actualizar in-place (sin reconstruir el DOM en
+  // cada sync, que hace titilar el modal y borra el countdown) ─────────────
+  private voteSig: string | null = null;
+  private voteEls: Map<string, { btn: HTMLButtonElement; count: HTMLSpanElement }> | null = null;
+  /** Opcion elegida localmente, resaltada al toque antes de que confirme la DB. */
+  private voteOptimisticMine: string | null = null;
+  private voteLastCounts: Record<string, number> = {};
+  private voteLastServerMine: string | null = null;
 
   constructor() {
     ensureStyles();
@@ -178,10 +164,6 @@ export class RoomOverlay {
     this.stripEl = document.createElement("div");
     this.stripEl.className = "mg-room-strip";
     this.stripEl.style.display = "none";
-
-    this.liveEl = document.createElement("div");
-    this.liveEl.className = "mg-room-live";
-    this.liveEl.style.display = "none";
 
     this.root = document.createElement("div");
     this.root.className = "mg-room";
@@ -196,48 +178,7 @@ export class RoomOverlay {
     this.boxEl.className = "mg-room__box";
     this.root.append(this.boxEl);
 
-    document.body.append(this.stripEl, this.liveEl, this.root);
-  }
-
-  /**
-   * Ranking en vivo en el panel-esquina mientras se juega. null lo oculta.
-   * Es solo lectura (pointer-events: none) para no molestar al juego debajo.
-   */
-  setLiveBoard(rows: LiveRow[] | null, me: string): void {
-    if (!rows || rows.length === 0) {
-      this.liveEl.style.display = "none";
-      return;
-    }
-    this.liveEl.style.display = "";
-    this.liveEl.innerHTML = "";
-
-    const title = document.createElement("div");
-    title.className = "mg-room-live__title";
-    title.textContent = "En vivo";
-    this.liveEl.append(title);
-
-    for (const row of rows) {
-      const el = document.createElement("div");
-      el.className =
-        "mg-room-live__row" +
-        (row.player === me ? " mg-room-live__row--me" : "") +
-        (row.state === "offline" ? " mg-room-live__row--offline" : "");
-
-      const rank = document.createElement("span");
-      rank.className = "mg-room-live__rank";
-      rank.textContent = String(row.rank);
-
-      const name = document.createElement("span");
-      name.className = "mg-room-live__name";
-      name.textContent = row.player;
-
-      const score = document.createElement("span");
-      score.className = "mg-room-live__score";
-      score.textContent = row.scoreText;
-
-      el.append(rank, name, score);
-      this.liveEl.append(el);
-    }
+    document.body.append(this.stripEl, this.root);
   }
 
   /** Strip superior con codigo / ronda / tiempo. null lo oculta. */
@@ -259,15 +200,21 @@ export class RoomOverlay {
   hide(): void {
     this.root.style.display = "none";
     this.timeEl = null;
+    this.resetVoteState();
   }
 
   private show(): void {
-    // Cualquier vista modal tapa el panel-esquina: son mutuamente excluyentes.
-    this.liveEl.style.display = "none";
     this.root.style.display = "";
     this.boxEl.innerHTML = "";
     this.timeEl = null;
     this.takeoverEl = null;
+    this.resetVoteState();
+  }
+
+  private resetVoteState(): void {
+    this.voteSig = null;
+    this.voteEls = null;
+    this.voteOptimisticMine = null;
   }
 
   /**
@@ -320,13 +267,21 @@ export class RoomOverlay {
     this.boxEl.append(el);
   }
 
-  private addButton(label: string, onClick: () => void): void {
+  private makeButton(
+    label: string,
+    onClick: () => void,
+    variant: "primary" | "ghost" = "primary",
+  ): HTMLButtonElement {
     const btn = document.createElement("button");
-    btn.className = "mg-room__btn";
+    btn.className = "mg-room__btn" + (variant === "primary" ? " mg-room__btn--primary" : "");
     btn.type = "button";
     btn.textContent = label;
     btn.addEventListener("click", onClick);
-    this.boxEl.append(btn);
+    return btn;
+  }
+
+  private addButton(label: string, onClick: () => void): void {
+    this.boxEl.append(this.makeButton(label, onClick, "primary"));
   }
 
   private addHint(text: string): void {
@@ -394,89 +349,6 @@ export class RoomOverlay {
     this.boxEl.append(list);
   }
 
-  /**
-   * Pantalla de instrucciones antes de la ronda (fase briefing). Muestra el
-   * como se juega, el checklist de quien dio OK y el countdown de auto-inicio.
-   * El reloj de la ronda todavia no corre.
-   */
-  showBriefing(opts: {
-    roundNo: number;
-    totalRounds: number;
-    gameTitle: string;
-    instructions: string;
-    players: BriefingPlayer[];
-    me: string;
-    iAmReady: boolean;
-    onReady: () => void;
-    /** Accion del host para forzar el inicio ("Empezar ya"), o null. */
-    hostAction: { label: string; onClick: () => void } | null;
-  }): void {
-    this.show();
-    this.addKicker(`Ronda ${opts.roundNo}/${opts.totalRounds}`);
-    this.addTitle(opts.gameTitle);
-
-    const instr = document.createElement("p");
-    instr.className = "mg-room__instructions";
-    instr.textContent = opts.instructions;
-    this.boxEl.append(instr);
-
-    const list = document.createElement("ul");
-    list.className = "mg-room__list";
-    for (const p of opts.players) {
-      const state = document.createElement("span");
-      state.className = "mg-room__state" + (p.ready ? " mg-room__state--done" : p.present ? "" : " mg-room__state--offline");
-      state.textContent = p.ready ? "listo" : p.present ? "leyendo..." : "desconectado";
-      list.append(this.buildRow(p.ready ? "OK" : "...", p.player, state, p.player === opts.me));
-    }
-    this.boxEl.append(list);
-
-    if (!opts.iAmReady) {
-      this.addButton("Estoy listo", opts.onReady);
-    } else {
-      const ok = document.createElement("div");
-      ok.className = "mg-room__hint mg-room__ready";
-      ok.textContent = "Listo. Esperando a los demas...";
-      this.boxEl.append(ok);
-    }
-
-    if (opts.hostAction) {
-      const btn = document.createElement("button");
-      btn.className = "mg-room__takeover";
-      btn.type = "button";
-      btn.textContent = opts.hostAction.label;
-      btn.addEventListener("click", opts.hostAction.onClick);
-      this.boxEl.append(btn);
-    }
-
-    this.addTime();
-  }
-
-  /**
-   * Pantalla de espera con ranking en vivo: el jugador ya termino su ronda y
-   * ve como van los demas en tiempo real (los que siguen jugando, los que ya
-   * terminaron y los desconectados).
-   */
-  showLiveWaiting(rows: LiveRow[], me: string): void {
-    this.show();
-    this.addKicker("Sala");
-    this.addTitle("Esperando a los demas...");
-    this.addTime();
-
-    const list = document.createElement("ul");
-    list.className = "mg-room__list";
-    for (const row of rows) {
-      const value = document.createElement("span");
-      value.className = "mg-room__value" + (row.scoreText === "-" ? " mg-room__value--pending" : "");
-      value.textContent = row.scoreText;
-      const small = document.createElement("small");
-      small.className = row.state === "done" ? "mg-room__ready" : "";
-      small.textContent = row.state === "done" ? "listo" : row.state === "offline" ? "desconectado" : "jugando";
-      value.append(small);
-      list.append(this.buildRow(String(row.rank), row.player, value, row.player === me));
-    }
-    this.boxEl.append(list);
-  }
-
   /** Resultados de la ronda + tablero acumulado. */
   showResults(opts: {
     roundNo: number;
@@ -516,24 +388,48 @@ export class RoomOverlay {
     }
   }
 
-  /** Votacion del proximo juego. */
+  /** Votacion (proximo juego o tope de tiempo). */
   showVoting(opts: {
     options: VoteOption[];
-    /** Cantidad de votos por juego. */
+    /** Cantidad de votos por opcion. */
     counts: Record<string, number>;
     myVote: string | null;
-    onVote: (gameId: string) => void;
+    onVote: (optionId: string) => void;
+    /** Ronda que se vota (parte de la firma: una votacion nueva se reconstruye). */
+    round?: number;
+    /** Textos de la vista (por defecto, la votacion del proximo juego). */
+    kicker?: string;
+    title?: string;
+    hint?: string;
   }): void {
+    const sig = JSON.stringify({
+      r: opts.round ?? 0,
+      ids: opts.options.map((o) => o.id),
+      kicker: opts.kicker ?? "",
+      title: opts.title ?? "",
+    });
+
+    // Si la votacion ya esta montada con las mismas opciones, solo se actualizan
+    // contadores y resaltado. Se re-renderiza en cada sync/voto/poll; reconstruir
+    // el DOM cada vez hace titilar el modal y borra el countdown hasta el proximo
+    // tick. Actualizar in-place lo mantiene estable.
+    if (this.voteSig === sig && this.voteEls && this.root.style.display !== "none") {
+      this.updateVotes(opts.counts, opts.myVote);
+      return;
+    }
+
     this.show();
-    this.addKicker("Votacion");
-    this.addTitle("Elegi el proximo juego");
+    this.voteSig = sig;
+    this.addKicker(opts.kicker ?? "Votacion");
+    this.addTitle(opts.title ?? "Elegi el proximo juego");
     this.addTime();
 
+    const els = new Map<string, { btn: HTMLButtonElement; count: HTMLSpanElement }>();
     const wrap = document.createElement("div");
     wrap.className = "mg-room__votes";
     for (const opt of opts.options) {
       const btn = document.createElement("button");
-      btn.className = "mg-room__vote" + (opts.myVote === opt.id ? " mg-room__vote--mine" : "");
+      btn.className = "mg-room__vote";
       btn.type = "button";
       if (opt.accent) btn.style.setProperty("--accent", opt.accent);
 
@@ -542,23 +438,53 @@ export class RoomOverlay {
 
       const count = document.createElement("span");
       count.className = "mg-room__vote-count";
-      const n = opts.counts[opt.id] ?? 0;
-      count.textContent = n === 1 ? "1 voto" : `${n} votos`;
 
       btn.append(title, count);
-      btn.addEventListener("click", () => opts.onVote(opt.id));
+      btn.addEventListener("click", () => {
+        // Resaltado optimista: se marca al toque, sin esperar el round-trip a la
+        // DB. El refresh posterior lo confirma (y corrige los contadores).
+        this.voteOptimisticMine = opt.id;
+        this.updateVotes(this.voteLastCounts, this.voteLastServerMine);
+        opts.onVote(opt.id);
+      });
       wrap.append(btn);
+      els.set(opt.id, { btn, count });
     }
     this.boxEl.append(wrap);
-    this.addHint("Gana la mayoria; empate se define al azar");
+    this.addHint(opts.hint ?? "Gana la mayoria; empate se define al azar");
+
+    this.voteEls = els;
+    this.voteOptimisticMine = null;
+    this.updateVotes(opts.counts, opts.myVote);
   }
 
-  /** Tablero final con el ganador. El host puede iniciar otra partida. */
+  /** Refresca contadores y resaltado de la votacion sin tocar el resto del DOM. */
+  private updateVotes(counts: Record<string, number>, serverMine: string | null): void {
+    this.voteLastCounts = counts;
+    this.voteLastServerMine = serverMine;
+    // La DB ya registro nuestro voto: se descarta el resaltado optimista.
+    if (serverMine !== null) this.voteOptimisticMine = null;
+    const mine = serverMine ?? this.voteOptimisticMine;
+
+    if (!this.voteEls) return;
+    for (const [id, { btn, count }] of this.voteEls) {
+      let n = counts[id] ?? 0;
+      // Voto optimista que la DB todavia no cuenta: se suma 1 para feedback ya.
+      if (serverMine === null && this.voteOptimisticMine === id) n += 1;
+      count.textContent = n === 1 ? "1 voto" : `${n} votos`;
+      btn.classList.toggle("mg-room__vote--mine", mine === id);
+    }
+  }
+
+  /**
+   * Tablero final con el ganador. Todos pueden salir al inicio; el host ademas
+   * puede volver a la sala (revancha con los mismos jugadores).
+   */
   showFinal(
     totals: TotalEntry[],
     me: string,
     opts: {
-      /** Accion del host ("Jugar otra vez"), o null para los demas. */
+      /** Accion del host ("Volver a la sala"), o null para los demas. */
       hostAction: { label: string; onClick: () => void } | null;
       /** Texto de espera para los no-host. */
       waitingText: string | null;
@@ -582,14 +508,31 @@ export class RoomOverlay {
     }
     this.boxEl.append(list);
 
-    if (opts.hostAction) this.addButton(opts.hostAction.label, opts.hostAction.onClick);
-    else if (opts.waitingText) this.addHint(opts.waitingText);
+    // El no-host espera al anfitrion para volver a la sala; el "Salir" siempre esta.
+    if (!opts.hostAction && opts.waitingText) this.addHint(opts.waitingText);
 
-    const exit = document.createElement("a");
-    exit.className = "mg-room__exit";
-    exit.href = "/";
-    exit.textContent = "Salir al inicio";
-    this.boxEl.append(exit);
+    const actions = document.createElement("div");
+    actions.className = "mg-room__actions";
+    if (opts.hostAction) {
+      actions.append(this.makeButton(opts.hostAction.label, opts.hostAction.onClick, "primary"));
+    }
+    actions.append(
+      this.makeButton("Salir", () => (window.location.href = "/"), "ghost"),
+    );
+    this.boxEl.append(actions);
+  }
+
+  /**
+   * Modo espectador: el jugador entro con la partida ya empezada. No juega ni
+   * puntua, solo espera a que termine (recien ahi podra sumarse a la revancha).
+   */
+  showSpectator(): void {
+    this.show();
+    this.addKicker("Sala");
+    this.addTitle("Modo espectador");
+    this.addSubtitle(
+      "La partida ya empezo, asi que la miras desde afuera. Vas a poder jugar cuando termine y el anfitrion abra una nueva.",
+    );
   }
 
   /** Error terminal (sala inexistente, etc.). */

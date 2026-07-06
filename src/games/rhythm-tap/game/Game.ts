@@ -16,6 +16,7 @@ import { NoteField, type Judgment } from "./NoteField";
 import { Renderer } from "./Renderer";
 import { InputController } from "./InputController";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 
 type State = "ready" | "countdown" | "playing" | "dead";
@@ -48,6 +49,8 @@ export class Game {
   private deadFor = 0;
   /** Elapsed time in the pre-run countdown. */
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   private readonly laneFlash = new Array<number>(LANE_COUNT).fill(0);
 
   constructor(container: HTMLElement) {
@@ -62,7 +65,10 @@ export class Game {
     this.hud.showHud(false);
     this.hud.showStart();
 
-    this.room = initRoomMode("rhythm-tap", { getScore: () => this.score });
+    this.room = initRoomMode("rhythm-tap", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     this.input = new InputController(
       this.canvas,
@@ -116,6 +122,7 @@ export class Game {
     this.notes.reset();
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.showHud(false);
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -126,7 +133,11 @@ export class Game {
     this.countdownTime += dt;
     const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
     if (index >= COUNTDOWN_LABELS.length) this.start();
-    else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    else if (index !== this.lastCountdownIndex) {
+      this.lastCountdownIndex = index;
+      SoundEffects.playCountdownTick();
+      this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    }
   }
 
   private applyJudgment(judgment: Judgment): void {
@@ -136,6 +147,7 @@ export class Game {
       this.hud.setCombo(this.combo);
       this.hud.setHealth(this.health);
       this.hud.flashJudgment("miss");
+      SoundEffects.playMiss();
       if (this.health <= 0) this.die();
       return;
     }
@@ -144,6 +156,8 @@ export class Game {
     const bonus = Math.min(this.combo * COMBO_BONUS, COMBO_BONUS_CAP);
     this.score += base + bonus;
     this.combo += 1;
+    if (judgment === "perfect") SoundEffects.playPerfect(this.combo);
+    else SoundEffects.playGood(this.combo);
     this.health = Math.min(MAX_HEALTH, this.health + (judgment === "perfect" ? PERFECT_HEAL : GOOD_HEAL));
 
     this.hud.setScore(this.score);
@@ -169,6 +183,7 @@ export class Game {
   private die(): void {
     this.state = "dead";
     this.deadFor = 0;
+    SoundEffects.playGameOver();
     this.health = 0;
     this.hud.setHealth(0);
     this.hud.showHud(false);
@@ -210,6 +225,7 @@ export class Game {
       this.hud.setCombo(0);
       this.hud.setHealth(this.health);
       this.hud.flashJudgment("miss");
+      SoundEffects.playMiss();
       if (this.health <= 0) this.die();
     }
   }

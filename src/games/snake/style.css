@@ -1,0 +1,150 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a12;
+  font-family: "Courier New", "Consolas", monospace;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.game-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.back-link {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 30;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #555;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.back-link:hover {
+  opacity: 1;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.hud__score {
+  margin-top: 20px;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #ffffff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: radial-gradient(circle at center, rgba(10, 10, 18, 0.6) 0%, rgba(0, 0, 0, 0.9) 90%);
+  text-align: center;
+  pointer-events: auto;
+  touch-action: manipulation;
+  z-index: 20;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay__title {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: #3ce88f;
+  text-shadow: 0 0 30px rgba(60, 232, 143, 0.4);
+}
+
+.overlay__subtitle {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #888;
+  max-width: 340px;
+  line-height: 1.4;
+}
+
+.overlay__score {
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #fff;
+}
+
+.overlay__best {
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: #3ce88f;
+  text-shadow: 0 0 10px rgba(60, 232, 143, 0.3);
+}
+
+.overlay__hint {
+  margin-top: 6px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #555;
+}
+
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 25;
+  font-size: 150px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #ffffff;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+}
+
+.countdown.is-shown {
+  animation: countdown-pop 0.75s ease-out;
+}
+
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  20% { opacity: 1; transform: scale(1.12); }
+  40% { transform: scale(1); }
+  80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.3); }
+}

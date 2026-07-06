@@ -43,6 +43,18 @@ export class Ball {
     );
   }
 
+  /** Eases the ball toward an absolute target X (mouse cursor follow), capped at
+   *  the same speed as keyboard steering and without overshooting the target. */
+  steerToward(targetX: number, dt: number): void {
+    const steerSpeed = 9.5; // units per second, matches steerContinuous
+    const maxBound = LANE_X + PLATFORM_WIDTH / 2 - BALL_RADIUS;
+    const target = THREE.MathUtils.clamp(targetX, -maxBound, maxBound);
+    const diff = target - this.object.position.x;
+    const step = steerSpeed * dt;
+    this.object.position.x +=
+      Math.abs(diff) <= step ? diff : Math.sign(diff) * step;
+  }
+
   update(_dt: number, hopPhase: number): void {
     this.object.position.y = BALL_RADIUS + Math.sin(Math.PI * hopPhase) * HOP_HEIGHT;
   }

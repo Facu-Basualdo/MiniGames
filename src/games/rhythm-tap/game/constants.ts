@@ -55,14 +55,17 @@ export const GOOD_HEAL = 1;
 /** Max simulated dt per frame (s) so a hitch/tab-switch can't teleport notes. */
 export const MAX_DT = 0.032;
 
-/** The four piece figures (shapes). Each has its own key, independent of the
- *  lane it falls in: you press a figure's key to clear it wherever it is.
- *  Figure and lane are chosen independently at spawn. */
-export const FIGURES = ["circle", "triangle", "diamond", "square"] as const;
+/** The four piece figures are directional arrows: the shape of the note *is*
+ *  the arrow key you must press to clear it. Each has its own key, independent
+ *  of the lane it falls in. Figure and lane are chosen independently at spawn,
+ *  so an arrow can fall in any column and the lane never reveals the key. */
+export const FIGURES = ["left", "up", "down", "right"] as const;
 export type Figure = (typeof FIGURES)[number];
 
 /** Key (`KeyboardEvent.code`) for each figure index, and its display label. */
 export const FIGURE_KEYS = ["ArrowLeft", "ArrowUp", "ArrowDown", "ArrowRight"];
 export const FIGURE_KEY_LABELS = ["←", "↑", "↓", "→"];
-/** Accent color per figure. */
+/** Base accent color per figure, used by the figure -> key legend. The falling
+ *  notes no longer rely on color for identity (the arrow shape carries it), so
+ *  each one is given a fixed random hue at spawn that stays put as it falls. */
 export const FIGURE_COLORS = ["#ff3f81", "#7cff5c", "#3fd0ff", "#ffd23f"];

@@ -14,6 +14,29 @@ function getAudioContext(): AudioContext | null {
 }
 
 export class SoundEffects {
+  /** Countdown tick (3 / 2 / 1 / YA) — same blip as El Trile. */
+  static playCountdownTick(): void {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(750, now);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
   private static resumeContext(ctx: AudioContext): void {
     if (ctx.state === "suspended") {
       ctx.resume();

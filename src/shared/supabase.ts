@@ -21,6 +21,10 @@ export function getSupabase(): SupabaseClient | null {
 
   client = createClient(url, anonKey, {
     auth: { persistSession: false },
+    // El default de Realtime es 10 eventos/seg por cliente; los juegos online
+    // en tiempo real (Pong, car-race, rocket-arena) emiten paleta/pelota a
+    // ~20 Hz y chocaban contra ese tope (mensajes encolados = lag/teletransporte).
+    realtime: { params: { eventsPerSecond: 40 } },
   });
   return client;
 }

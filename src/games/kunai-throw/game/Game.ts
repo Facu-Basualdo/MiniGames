@@ -49,6 +49,8 @@ export class Game {
   private failAnim: FailAnim | null = null;
 
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   private lastTime = 0;
 
   constructor(container: HTMLElement) {
@@ -63,7 +65,10 @@ export class Game {
     this.hud.setBest(this.best);
     this.hud.showStart();
 
-    this.room = initRoomMode("kunai-throw", { getScore: () => this.score });
+    this.room = initRoomMode("kunai-throw", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     window.addEventListener("keydown", this.handleKeyDown);
     this.canvas.addEventListener("pointerdown", this.handlePointer);
@@ -121,6 +126,7 @@ export class Game {
     this.hud.hide();
 
     this.countdownTime = COUNTDOWN_LABELS.length * COUNTDOWN_STEP;
+    this.lastCountdownIndex = -1;
   }
 
   private startGameplay(): void {
@@ -204,7 +210,12 @@ export class Game {
       } else {
         const total = COUNTDOWN_LABELS.length * COUNTDOWN_STEP;
         const idx = Math.floor((total - this.countdownTime) / COUNTDOWN_STEP);
-        this.hud.showCountdown(COUNTDOWN_LABELS[Math.max(0, Math.min(COUNTDOWN_LABELS.length - 1, idx))]);
+        const index = Math.max(0, Math.min(COUNTDOWN_LABELS.length - 1, idx));
+        if (index !== this.lastCountdownIndex) {
+          this.lastCountdownIndex = index;
+          SoundEffects.playCountdownTick();
+        }
+        this.hud.showCountdown(COUNTDOWN_LABELS[index]);
       }
       return;
     }

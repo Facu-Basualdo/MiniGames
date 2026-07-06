@@ -1,0 +1,360 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --p0-color: #22d3ee;
+  --p1-color: #f472b6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #080810;
+  font-family: "Outfit", "Consolas", "Courier New", monospace;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at center, #141330 0%, #07070f 100%);
+}
+
+/* --- Back Link --- */
+.back-link {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 50;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-link:hover {
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+/* --- Board (7x6) --- */
+.c4-board {
+  display: flex;
+  gap: clamp(5px, 1.3vmin, 12px);
+  width: min(92vw, 620px);
+  padding: clamp(10px, 1.8vmin, 18px);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.c4-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(5px, 1.3vmin, 12px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.15s ease;
+}
+
+/* Fuera del turno propio el tablero no acepta clics. */
+.c4-board.is-locked .c4-col {
+  cursor: default;
+  pointer-events: none;
+}
+
+.c4-board:not(.is-locked) .c4-col:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.c4-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(6, 6, 15, 0.6);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.c4-disc {
+  position: absolute;
+  inset: 9%;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.c4-cell.is-p0 .c4-disc {
+  background: radial-gradient(circle at 35% 30%, #a5f3fc, var(--p0-color) 70%);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+}
+
+.c4-cell.is-p1 .c4-disc {
+  background: radial-gradient(circle at 35% 30%, #fbcfe8, var(--p1-color) 70%);
+  box-shadow: 0 0 14px rgba(244, 114, 182, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Disco fantasma: donde caeria la ficha al soltar en esta columna. */
+.c4-disc.is-ghost {
+  background: var(--ghost-color);
+  opacity: 0.22;
+}
+
+/* Caida de la ficha recien colocada. */
+.c4-disc.is-drop {
+  animation: disc-drop 0.34s cubic-bezier(0.3, 0.9, 0.4, 1);
+}
+
+/* Casillas de la linea ganadora. */
+.c4-cell.is-win {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7), 0 0 26px 4px rgba(255, 255, 255, 0.3);
+}
+
+.c4-cell.is-win .c4-disc {
+  animation: win-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes disc-drop {
+  0% { transform: translateY(-540%); }
+  70% { transform: translateY(0); }
+  82% { transform: translateY(-11%); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes win-pulse {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.5); }
+}
+
+/* --- HUD Top Bar --- */
+.hud-bar {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: calc(100% - 48px);
+  max-width: 560px;
+  padding: 14px 28px;
+  background: rgba(13, 12, 28, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.3s ease;
+}
+
+.hud-bar.hidden {
+  opacity: 0;
+}
+
+.hud-bar__score,
+.hud-bar__best {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hud-bar__status {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hud-bar__status.is-mine {
+  color: #22d3ee;
+  text-shadow: 0 0 14px rgba(34, 211, 238, 0.5);
+}
+
+/* --- Players panel (sala) --- */
+.players-panel {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.players-panel.hidden {
+  display: none;
+}
+
+.player-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(13, 12, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.player-chip.is-turn {
+  border-color: var(--player-color);
+  box-shadow: 0 0 0 1px var(--player-color), 0 0 22px -4px var(--player-color);
+}
+
+.player-chip__mark {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--player-color);
+  text-shadow: 0 0 10px var(--player-color);
+}
+
+.player-chip__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
+/* --- Overlay (Start / Game Over) --- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 6, 15, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 40;
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.hidden {
+  display: none !important;
+}
+
+.overlay__title {
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 30%, #facc15 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 30px rgba(250, 204, 21, 0.15);
+}
+
+.overlay__subtitle {
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 24px;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.overlay__score {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 24px;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.overlay__hint {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+/* --- Countdown Overlay --- */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 45;
+  font-size: 160px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(250, 204, 21, 0.4), 0 10px 40px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+}
+
+.countdown.is-shown {
+  animation: countdown-pop 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  25% { opacity: 1; transform: scale(1.1); }
+  45% { transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
+
+@media (max-width: 600px) {
+  .overlay__title {
+    font-size: 38px;
+  }
+
+  .countdown {
+    font-size: 110px;
+  }
+
+  .hud-bar {
+    padding: 12px 18px;
+    gap: 12px;
+  }
+
+  .players-panel {
+    bottom: 16px;
+  }
+}

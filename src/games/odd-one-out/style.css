@@ -90,6 +90,32 @@ body {
   animation: tile-shake 0.3s ease;
 }
 
+/* Al perder, atenua las fichas normales y resalta la distinta con un borde pulsante. */
+.board.is-revealing .tile {
+  cursor: default;
+}
+
+.board.is-revealing .tile:not(.is-odd) {
+  opacity: 0.28;
+  filter: saturate(0.7);
+}
+
+.tile.is-odd {
+  position: relative;
+  z-index: 2;
+  transform: scale(1.06);
+  animation: tile-reveal 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes tile-reveal {
+  0% {
+    box-shadow: 0 0 0 3px #fff, 0 0 18px 4px rgba(255, 255, 255, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 5px #fff, 0 0 34px 10px rgba(255, 255, 255, 0.85);
+  }
+}
+
 @keyframes tile-shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-6px); }

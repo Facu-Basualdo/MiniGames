@@ -3,6 +3,7 @@ import { Tower } from "./Tower";
 import { Renderer } from "./Renderer";
 import { InputController } from "./InputController";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 
 type State = "ready" | "countdown" | "playing" | "dead";
@@ -31,6 +32,8 @@ export class Game {
   private deadFor = 0;
   /** Elapsed time in the pre-run countdown. */
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement("canvas");
@@ -43,7 +46,10 @@ export class Game {
     this.hud.showScore(false);
     this.hud.showStart();
 
-    this.room = initRoomMode("stack-tower", { getScore: () => this.tower.score });
+    this.room = initRoomMode("stack-tower", {
+      getScore: () => this.tower.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     this.tower.reset();
 
@@ -77,6 +83,7 @@ export class Game {
     this.tower.reset();
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.showScore(false);
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -88,6 +95,8 @@ export class Game {
       this.die();
       return;
     }
+    if (result === "perfect") SoundEffects.playPerfect();
+    else SoundEffects.playPlace(this.tower.score);
     this.hud.setScore(this.tower.score);
   }
 
@@ -104,12 +113,17 @@ export class Game {
     this.countdownTime += dt;
     const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
     if (index >= COUNTDOWN_LABELS.length) this.start();
-    else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    else if (index !== this.lastCountdownIndex) {
+      this.lastCountdownIndex = index;
+      SoundEffects.playCountdownTick();
+      this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    }
   }
 
   private die(): void {
     this.state = "dead";
     this.deadFor = 0;
+    SoundEffects.playMiss();
     this.hud.showScore(false);
     const score = this.tower.score;
     if (score > this.best) {

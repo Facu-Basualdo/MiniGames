@@ -125,11 +125,20 @@ a {
 }
 
 /* ---------- Filtros ---------- */
+.filters-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 40px;
+  flex: 1 1 auto;
 }
 
 .filters__pill {
@@ -153,6 +162,101 @@ a {
   background: var(--ink);
   color: #efeee6;
   border: 1.6px solid var(--ink);
+}
+
+/* Control de orden (desplegable), a la derecha de los filtros y a su altura. */
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.sort__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sort__dropdown {
+  position: relative;
+}
+
+.sort__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: none;
+  border: 1.6px solid rgba(17, 17, 17, 0.65);
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.sort__trigger:hover,
+.sort__dropdown.is-open .sort__trigger,
+.sort__trigger:focus-visible {
+  border-color: var(--ink);
+  outline: none;
+}
+
+.sort__chevron {
+  transition: transform 0.18s ease;
+}
+
+.sort__dropdown.is-open .sort__chevron {
+  transform: rotate(180deg);
+}
+
+.sort__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 100%;
+  display: none;
+  flex-direction: column;
+  padding: 6px;
+  background: #efeee6;
+  border: 1.6px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 0 14px 30px -12px rgba(17, 17, 17, 0.5);
+}
+
+.sort__dropdown.is-open .sort__menu {
+  display: flex;
+}
+
+.sort__option {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.sort__option:hover {
+  background: rgba(17, 17, 17, 0.08);
+}
+
+.sort__option.is-active {
+  background: var(--ink);
+  color: #efeee6;
 }
 
 /* ---------- Banner de salas ---------- */
@@ -201,12 +305,10 @@ a {
 .rooms-banner__scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(10, 10, 14, 0.92) 0%,
-    rgba(10, 10, 14, 0.72) 45%,
-    rgba(10, 10, 14, 0.35) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(10, 10, 14, 0.92) 0%,
+      rgba(10, 10, 14, 0.72) 45%,
+      rgba(10, 10, 14, 0.35) 100%);
 }
 
 .rooms-banner__text {
@@ -326,14 +428,47 @@ a {
 }
 
 /* Nombre del juego debajo del recuadro. */
-.game-card__name {
+.game-card__head {
   margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-card__name {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 23px;
   font-weight: 700;
   letter-spacing: -0.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Lider (Top 1) del ranking, junto al nombre del juego. */
+.game-card__champ {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  margin-right: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #b8860b;
+}
+
+.game-card__crown {
+  flex-shrink: 0;
+  color: #e6a817;
+}
+
+.game-card__champ-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Chips superpuestos a la portada (la imagen ya trae el nombre del juego). */
@@ -385,7 +520,7 @@ a {
   background: #101014;
   color: #efeee6;
   border-radius: 34px;
-  padding: clamp(40px, 6vw, 68px) clamp(24px, 5vw, 64px) 24px;
+  padding: clamp(24px, 4vw, 44px) clamp(24px, 5vw, 64px) 20px;
 }
 
 /* Glows neon en las esquinas, a juego con el logo. */
@@ -406,11 +541,9 @@ a {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.02) 0 1px,
-    transparent 1px 4px
-  );
+  background: repeating-linear-gradient(0deg,
+      rgba(255, 255, 255, 0.02) 0 1px,
+      transparent 1px 4px);
   pointer-events: none;
 }
 
@@ -433,7 +566,7 @@ a {
   bottom: -0.32em;
   left: 50%;
   transform: translateX(-50%);
-  font-size: clamp(90px, 15vw, 210px);
+  font-size: clamp(70px, 12vw, 160px);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -451,7 +584,7 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
-  padding-bottom: clamp(48px, 7vw, 84px);
+  padding-bottom: clamp(24px, 4vw, 40px);
 }
 
 .site-footer__left {
@@ -459,29 +592,57 @@ a {
 }
 
 .site-footer__logo {
-  width: clamp(210px, 24vw, 310px);
+  width: clamp(160px, 18vw, 240px);
   height: auto;
   display: block;
   margin-left: -8px;
 }
 
 .site-footer__blurb {
-  margin-top: 14px;
-  font-size: 14.5px;
-  line-height: 1.65;
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.5;
   color: rgba(239, 238, 230, 0.72);
 }
 
 /* "Ficha" arcade parpadeante. */
+.site-footer__meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
 .site-footer__coin {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin-top: 22px;
   font-family: "Press Start 2P", "Archivo", monospace;
   font-size: 9px;
   letter-spacing: 1px;
   color: rgba(0, 240, 255, 0.85);
+}
+
+.site-footer__git {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Press Start 2P", "Archivo", monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: rgba(239, 238, 230, 0.60);
+  text-decoration: none;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.site-footer__git:hover {
+  color: #00f0ff;
+  transform: translateY(-1.5px);
+}
+
+.site-footer__git svg {
+  display: block;
 }
 
 .site-footer__coin-dot {
@@ -496,7 +657,7 @@ a {
 .site-footer__links {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   padding-top: 6px;
 }
 
@@ -513,7 +674,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: clamp(20px, 2.4vw, 26px);
+  font-size: clamp(18px, 2vw, 22px);
   font-weight: 800;
   letter-spacing: -0.4px;
   text-decoration: none;
@@ -567,16 +728,32 @@ a {
 }
 
 @keyframes marquee-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes coin-blink {
-  0%, 55% { opacity: 1; }
-  56%, 100% { opacity: 0.25; }
+
+  0%,
+  55% {
+    opacity: 1;
+  }
+
+  56%,
+  100% {
+    opacity: 0.25;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .site-footer__strip,
   .site-footer__coin-dot {
     animation: none;

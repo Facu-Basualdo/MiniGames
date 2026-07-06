@@ -1,0 +1,278 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #080810;
+  font-family: "Outfit", "Consolas", "Courier New", monospace;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at center, #17162e 0%, #07070f 100%);
+}
+
+/* --- Back Link --- */
+.back-link {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 50;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-link:hover {
+  color: #fff;
+  transform: translateX(-2px);
+}
+
+/* --- Board (2x2 pads) --- */
+.board {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(10px, 2vmin, 20px);
+  width: min(76vmin, 540px);
+  height: min(76vmin, 540px);
+  padding: clamp(12px, 2vmin, 22px);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.pad {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* En reposo cada pad es una version atenuada de su color. */
+  filter: brightness(0.42) saturate(0.85);
+  transition: filter 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+.pad--0 { background: #22c55e; --glow: 52, 211, 153; }
+.pad--1 { background: #ef4444; --glow: 248, 113, 113; }
+.pad--2 { background: #3b82f6; --glow: 96, 165, 250; }
+.pad--3 { background: #eab308; --glow: 250, 204, 21; }
+
+.pad:hover {
+  filter: brightness(0.55) saturate(0.9);
+}
+
+/* Mientras se muestra la secuencia el tablero no acepta toques. */
+.board.is-locked .pad {
+  cursor: default;
+  pointer-events: none;
+}
+
+.pad.is-lit {
+  filter: brightness(1.15) saturate(1.1);
+  transform: scale(1.02);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8),
+    0 0 40px 8px rgba(var(--glow), 0.75);
+}
+
+.pad.is-correct {
+  animation: pad-pulse 0.55s ease-in-out infinite alternate;
+}
+
+.pad.is-wrong {
+  filter: brightness(0.42) saturate(0.85);
+  animation: pad-shake 0.3s ease;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.9), 0 0 30px 6px rgba(239, 68, 68, 0.55);
+}
+
+@keyframes pad-pulse {
+  0% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7), 0 0 24px 6px rgba(var(--glow), 0.5); }
+  100% { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.95), 0 0 46px 12px rgba(var(--glow), 0.9); }
+}
+
+@keyframes pad-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+}
+
+/* --- HUD Top Bar --- */
+.hud-bar {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: calc(100% - 48px);
+  max-width: 560px;
+  padding: 14px 28px;
+  background: rgba(13, 12, 28, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.3s ease;
+}
+
+.hud-bar.hidden {
+  opacity: 0;
+}
+
+.hud-bar__score,
+.hud-bar__best {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hud-bar__status {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #818cf8;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 14px rgba(129, 140, 248, 0.5);
+}
+
+/* --- Overlay (Start / Game Over) --- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 6, 15, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 40;
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.hidden {
+  display: none !important;
+}
+
+.overlay__title {
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 30%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 30px rgba(129, 140, 248, 0.15);
+}
+
+.overlay__subtitle {
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 24px;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.overlay__score {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 24px;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.overlay__hint {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+/* --- Countdown Overlay --- */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 45;
+  font-size: 160px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(129, 140, 248, 0.4), 0 10px 40px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+}
+
+.countdown.is-shown {
+  animation: countdown-pop 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  25% { opacity: 1; transform: scale(1.1); }
+  45% { transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
+
+@media (max-width: 600px) {
+  .overlay__title {
+    font-size: 38px;
+  }
+
+  .countdown {
+    font-size: 110px;
+  }
+
+  .hud-bar {
+    padding: 12px 18px;
+    gap: 12px;
+  }
+}

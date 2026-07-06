@@ -122,6 +122,38 @@ a {
   gap: 20px;
 }
 
+/* Lobby del host: aprovecha casi todo el ancho de pantalla para las dos columnas. */
+.rooms--wide {
+  max-width: min(1400px, 95vw);
+}
+
+/* Lobby en dos columnas: ajustes (izquierda, mas ancha para la grilla de juegos)
+   + codigo/jugadores (derecha). */
+.lobby__columns {
+  display: grid;
+  grid-template-columns: 1.9fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.lobby__col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* Vista de invitado (o pantallas angostas): una sola columna. */
+.lobby__columns--solo {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 820px) {
+  .lobby__columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---------- Panel ---------- */
 .panel {
   padding: 24px;
@@ -236,6 +268,21 @@ a {
   border-color: var(--ink);
 }
 
+/* Fila Volver / Crear sala: mismo alto y ancho, sin el margen del primary. */
+.rooms__create-actions {
+  margin-top: 20px;
+  align-items: stretch;
+}
+
+.rooms__create-actions .btn {
+  flex: 1;
+}
+
+.rooms__create-actions .btn--primary {
+  width: auto;
+  margin-top: 0;
+}
+
 /* ---------- Choices (pills punteadas) ---------- */
 .choices {
   display: flex;
@@ -297,6 +344,12 @@ a {
 .playlist__item.is-picked {
   border-color: var(--ink);
   box-shadow: 0 0 0 2.5px var(--ink);
+}
+
+/* Tope de juegos alcanzado: los no elegidos quedan sin poder agregarse. */
+.playlist__item.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /* Mini pantalla del juego: cuadrada, muestra la portada completa. */
@@ -433,6 +486,33 @@ a {
   background: #d9843f;
   border-radius: 6px;
   padding: 4px 8px;
+}
+
+.lobby__kick {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #c81d4a;
+  background: transparent;
+  border: 2px solid #c81d4a;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lobby__kick:hover {
+  background: #c81d4a;
+  color: var(--card);
+}
+
+.lobby__kick:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .lobby__settings {

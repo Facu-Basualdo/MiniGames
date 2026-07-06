@@ -1,0 +1,138 @@
+import { LeaderboardPanel } from "../../../shared/LeaderboardPanel";
+
+/** DOM overlay: live score, timer bar plus start/game-over screens. */
+export class Hud {
+  private readonly scoreEl: HTMLDivElement;
+  private readonly bestEl: HTMLDivElement;
+  private readonly timerWrapEl: HTMLDivElement;
+  private readonly timerFillEl: HTMLDivElement;
+  private readonly overlayEl: HTMLDivElement;
+  private readonly titleEl: HTMLDivElement;
+  private readonly subtitleEl: HTMLDivElement;
+  private readonly scoreLineEl: HTMLDivElement;
+  private readonly hintEl: HTMLDivElement;
+  private readonly countdownEl: HTMLDivElement;
+  private readonly leaderboard = new LeaderboardPanel();
+
+  constructor(container: HTMLElement, onActivate: () => void) {
+    const hud = document.createElement("div");
+    hud.className = "hud";
+
+    this.scoreEl = document.createElement("div");
+    this.scoreEl.className = "hud__score";
+    this.scoreEl.textContent = "0";
+
+    this.bestEl = document.createElement("div");
+    this.bestEl.className = "hud__best";
+
+    this.timerWrapEl = document.createElement("div");
+    this.timerWrapEl.className = "hud__timer";
+    this.timerFillEl = document.createElement("div");
+    this.timerFillEl.className = "hud__timer-fill";
+    this.timerWrapEl.append(this.timerFillEl);
+
+    hud.append(this.scoreEl, this.bestEl, this.timerWrapEl);
+
+    this.overlayEl = document.createElement("div");
+    this.overlayEl.className = "overlay";
+
+    this.titleEl = document.createElement("div");
+    this.titleEl.className = "overlay__title";
+
+    this.subtitleEl = document.createElement("div");
+    this.subtitleEl.className = "overlay__subtitle";
+
+    this.scoreLineEl = document.createElement("div");
+    this.scoreLineEl.className = "overlay__score";
+
+    this.hintEl = document.createElement("div");
+    this.hintEl.className = "overlay__hint";
+    this.hintEl.textContent = "← → / A D / toca izquierda-derecha para talar";
+
+    this.overlayEl.append(this.titleEl, this.subtitleEl, this.scoreLineEl, this.hintEl);
+    this.leaderboard.mount(this.overlayEl);
+    this.leaderboard.clear();
+
+    this.countdownEl = document.createElement("div");
+    this.countdownEl.className = "countdown";
+
+    container.append(hud, this.overlayEl, this.countdownEl);
+
+    const activate = (e: Event): void => {
+      e.preventDefault();
+      onActivate();
+    };
+    this.overlayEl.addEventListener("pointerdown", activate);
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space" || e.code === "Enter") onActivate();
+    });
+  }
+
+  setScore(score: number): void {
+    this.scoreEl.textContent = String(score);
+    this.scoreEl.classList.remove("pop");
+    void this.scoreEl.offsetWidth; // force reflow
+    this.scoreEl.classList.add("pop");
+  }
+
+  setBest(best: number): void {
+    this.bestEl.textContent = best > 0 ? `MEJOR: ${best}` : "";
+  }
+
+  /** Updates the timer bar (0..1) and shifts its color green -> red as it drains. */
+  setTimer(fraction: number): void {
+    const f = Math.max(0, Math.min(1, fraction));
+    this.timerFillEl.style.width = `${f * 100}%`;
+    const hue = f * 110; // 0 = red, 110 = green
+    this.timerFillEl.style.background = `hsl(${hue}, 80%, 50%)`;
+    this.timerFillEl.style.setProperty('--glow-color', `hsl(${hue}, 80%, 60%)`);
+  }
+
+  showTimer(visible: boolean): void {
+    this.timerWrapEl.style.visibility = visible ? "visible" : "hidden";
+  }
+
+  /** Shows a countdown label ("3" / "2" / "1" / "YA"), or hides it when null. */
+  showCountdown(text: string | null): void {
+    if (text === null) {
+      this.countdownEl.classList.remove("is-shown");
+      this.countdownEl.textContent = "";
+      return;
+    }
+    if (this.countdownEl.textContent === text) return;
+    this.countdownEl.textContent = text;
+    this.countdownEl.classList.remove("is-shown");
+    // Force reflow so re-adding the class restarts the pop animation.
+    void this.countdownEl.offsetWidth;
+    this.countdownEl.classList.add("is-shown");
+  }
+
+  showStart(): void {
+    this.titleEl.textContent = "TIMBER!";
+    this.subtitleEl.textContent = "presiona ENTER o toca para empezar";
+    this.scoreLineEl.textContent = "";
+    this.hintEl.style.display = "block";
+    this.showTimer(false);
+    this.leaderboard.clear();
+    this.overlayEl.classList.remove("hidden");
+  }
+
+  /** Muestra el ranking global del juego en la pantalla de game-over. */
+  showRanking(gameId: string, score: number): void {
+    void this.leaderboard.render(gameId, { score });
+  }
+
+  showGameOver(score: number, best: number): void {
+    this.titleEl.textContent = "GAME OVER";
+    this.subtitleEl.textContent = "presiona ENTER o toca para reintentar";
+    this.scoreLineEl.textContent =
+      score >= best ? `TALADOS: ${score} — ¡NUEVO MEJOR!` : `TALADOS: ${score}  ·  MEJOR: ${best}`;
+    this.hintEl.style.display = "none";
+    this.showTimer(false);
+    this.overlayEl.classList.remove("hidden");
+  }
+
+  hide(): void {
+    this.overlayEl.classList.add("hidden");
+  }
+}

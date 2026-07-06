@@ -11,6 +11,7 @@ Nokia-style tower builder. A hook sweeps horizontally across the top carrying th
 - `game/Renderer.ts` — all canvas drawing (sky, clouds, ground, foundation, tilted tower with lit windows, crane jib/trolley/cable, the in-play block), in view units.
 - `game/InputController.ts` — keyboard + pointer → a single `onDrop` callback.
 - `game/Hud.ts` — DOM overlay (floor count, balance meter, start / game-over / countdown screens).
+- `game/SoundEffects.ts` — synthesized Web Audio effects: a whoosh on release, a thud when a floor lands (pitch rises with height), and a low crumble on topple/miss. No assets.
 - `game/constants.ts` — all tunable values (floor size, hook speed, drop gravity, lean/wobble, camera). **Tune here first.**
 
 ## Non-obvious decisions
@@ -21,6 +22,8 @@ Nokia-style tower builder. A hook sweeps horizontally across the top carrying th
 
 **Wobble is a damped angular spring.** Each off-center placement kicks `wobbleVel` (in `Tower.place()`) proportionally to the offset; `Tower.update()` integrates a spring back to rest (`WOBBLE_FREQ`, `WOBBLE_DAMP`). This is purely visual feedback added on top of the static lean.
 
+**Perfect placement.** A drop landing within `PERFECT_OFFSET` (view units) of the floor below snaps dead-center onto it (`Tower.place()` sets the floor's `x` to `refX()`), so it adds **no** balance drift and no wobble kick — precision is rewarded with a stable stack that can climb indefinitely. `PlaceResult.perfect` flags it; `Game.resolveDrop()` then bumps `perfectCombo`, plays the rising `SoundEffects.playPerfect(combo)` chime (pitch climbs a semitone per combo step, capped), spawns a `Renderer.spawnPerfect()` ring-and-sparkle burst at the seam, and flashes `Hud.flashPerfect(combo)` ("PERFECTO", plus `x{n}` once the streak grows). Any non-perfect (or missed) drop resets `perfectCombo` to 0. The score stays a plain floor count ("PISOS"); perfect only affects balance and feedback, not the number.
+
 **Camera pins the hook once the tower is tall.** `Game.cameraTarget()` returns `max(0, HOOK_SCREEN_Y - hangTopY)`, so while the tower is short `camY` stays 0 (ground sits at the bottom) and only once the hook would rise above `HOOK_SCREEN_Y` does the world pan down to keep the build area on screen. `updateCamera()` lerps toward it (`CAM_LERP`).
 
 **Death animations.** A missed drop (no overlap) keeps the block falling off the bottom during the `dead` state. A topple calls `Tower.collapse()`, which accelerates an extra `collapseAngle` so the whole building tips over on the game-over screen.
@@ -28,3 +31,7 @@ Nokia-style tower builder. A hook sweeps horizontally across the top carrying th
 **`dt` is clamped** (`MAX_DT`) so a tab-switch or hitch can't integrate one giant step and teleport a falling block through the stack.
 
 **Enter-to-start countdown.** From the start or game-over screen, Enter / tap / space enters a `countdown` state showing 3 / 2 / 1 / YA (`COUNTDOWN_LABELS`, `COUNTDOWN_STEP` seconds each) before play begins; the hook idle-sweeps and drop input is ignored until it finishes. After dying there's a short `deadFor` guard so the killing tap doesn't instantly restart.
+
+## Room mode (multiplayer)
+
+Wired to the shared party mode: the constructor calls `initRoomMode("city-bloxx", { getScore: () => this.score })` (see root `CLAUDE.md`, "Salas (multiplayer rooms)"). With `?room=` in the URL the game-over reports the score to the room instead of the global ranking, and the restart input is blocked (one run per round). Without the param nothing changes.

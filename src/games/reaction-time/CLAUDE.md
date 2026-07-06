@@ -7,6 +7,7 @@ A premium, glassmorphic reaction speed testing game. The game consists of 5 roun
 - `main.ts` — entry point, mounts the `Game` instance to `#app`.
 - `game/Game.ts` — controls the state machine, delta-time timers, user inputs (mouse clicks, touch events, and keyboard keys), and high-score persistence in localStorage.
 - `game/Hud.ts` — DOM overlay manager. Renders start screens, countdowns, top stats HUD (round counter, progress dots, average), state-specific screens (wait, trigger, early, result), and the game-over screen with a detailed summary table.
+- `game/SoundEffects.ts` — synthesized Web Audio effects (no assets): a sharp "go" beep the instant the card turns green, a crisp confirmation on a registered reaction, a low buzz on an early foul, and a rising flourish on the final results.
 - `game/constants.ts` — configuration tuning parameters: number of rounds, random delay range (2.0 to 5.0 seconds), storage key, and countdown steps.
 - `style.css` — modern stylesheet implementing CSS variables for card states, radial gradients for visual depth, backdrop-blur for overlays, and pop micro-animations.
 
@@ -41,4 +42,8 @@ The game moves through the following states in `Game.ts`:
 
 **Performance.now() Precision**: We use `performance.now()` for recording milliseconds, which provides sub-millisecond precision, free from local system clock adjustments.
 
-**Global ranking (lower is better)**: unlike most games, the score is the average reaction time in ms, so this game is registered in `GAME_SCORING` (see root `CLAUDE.md`) with `direction: "lower"` and a `format` that appends `ms`. `endGame()` submits the average via `hud.showRanking("reaction-time", average)`.
+**Global ranking (lower is better)**: unlike most games, the score is the average reaction time in ms, so this game declares its scoring (`export const scoring`, see root `CLAUDE.md`) in its `meta.ts` with `direction: "lower"` and a `format` that appends `ms`. `endGame()` submits the average via `hud.showRanking("reaction-time", average)`.
+
+## Room mode (multiplayer)
+
+Wired to the shared party mode: the constructor calls `initRoomMode("reaction-time", { getScore: () => this.calculateCurrentAverage() ?? 0 })` (see root `CLAUDE.md`, "Salas (multiplayer rooms)"). With `?room=` in the URL, `endGame()` reports the average to the room instead of the global ranking and the game-over restart is blocked (one run per round). The timeout partial is the average of the rounds completed so far (0 if none); since this game is `direction: "lower"`, `points.ts` ranks partials behind every finished run, so a cut-short average can never beat a completed one.

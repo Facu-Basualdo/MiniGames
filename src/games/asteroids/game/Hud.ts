@@ -109,6 +109,7 @@ export class Hud {
     this.btnEl.textContent = "Iniciar Juego";
     this.hintEl.innerHTML = `
       Controles:<br>
+      <span class="overlay__hint-keys">Mouse</span> : Apuntar · <span class="overlay__hint-keys">Clic izq.</span> Disparar · <span class="overlay__hint-keys">Clic der.</span> Propulsión<br>
       <span class="overlay__hint-keys">&larr;</span> <span class="overlay__hint-keys">&rarr;</span> o <span class="overlay__hint-keys">A</span> <span class="overlay__hint-keys">D</span> : Rotar Nave<br>
       <span class="overlay__hint-keys">&uarr;</span> o <span class="overlay__hint-keys">W</span> : Propulsión (Inercia)<br>
       <span class="overlay__hint-keys">Espacio</span> : Disparar Láser<br>

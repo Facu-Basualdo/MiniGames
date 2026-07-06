@@ -1,9 +1,11 @@
 import {
   BASE_X,
+  COLLAPSE_MAX_ANGLE,
   FLOOR_HEIGHT,
   FLOOR_WIDTH,
   GROUND_TOP,
   MAX_LEAN,
+  PERFECT_OFFSET,
   WOBBLE_DAMP,
   WOBBLE_FREQ,
   WOBBLE_IMPULSE,
@@ -22,6 +24,8 @@ export interface PlaceResult {
   offset: number;
   /** How much the floor overlaps its support; <= 0 means it fell off. */
   overlap: number;
+  /** True when the drop landed inside PERFECT_OFFSET and snapped clean. */
+  perfect: boolean;
 }
 
 /**
@@ -76,21 +80,33 @@ export class Tower {
     return this.refTopY();
   }
 
+  /** The most recently placed floor, or undefined on an empty site. */
+  topFloor(): Floor | undefined {
+    return this.floors[this.floors.length - 1];
+  }
+
   /** Tries to place a floor centered at world x. */
   place(x: number): PlaceResult {
     if (this.floors.length === 0) {
+      // Foundation floor: no alignment challenge yet, so never "perfect".
       this.floors.push({ x, topY: this.landingTopY() });
-      return { ok: true, offset: 0, overlap: FLOOR_WIDTH };
+      return { ok: true, offset: 0, overlap: FLOOR_WIDTH, perfect: false };
     }
 
     const offset = x - this.refX();
     const overlap = FLOOR_WIDTH - Math.abs(offset);
-    if (overlap <= 0) return { ok: false, offset, overlap };
+    if (overlap <= 0) return { ok: false, offset, overlap, perfect: false };
 
-    this.floors.push({ x, topY: this.landingTopY() });
-    // Kick the wobble in the direction of the misalignment.
-    this.wobbleVel += (offset / FLOOR_WIDTH) * WOBBLE_IMPULSE;
-    return { ok: true, offset, overlap };
+    // A near-flush drop snaps dead-center onto the floor below: it adds no
+    // balance drift and no wobble, rewarding precision with a stable stack.
+    const perfect = Math.abs(offset) <= PERFECT_OFFSET;
+    const placeX = perfect ? this.refX() : x;
+    this.floors.push({ x: placeX, topY: this.landingTopY() });
+    if (!perfect) {
+      // Kick the wobble in the direction of the misalignment.
+      this.wobbleVel += (offset / FLOOR_WIDTH) * WOBBLE_IMPULSE;
+    }
+    return { ok: true, offset, overlap, perfect };
   }
 
   /** Horizontal distance of the center of mass from the base (world units). */
@@ -131,9 +147,15 @@ export class Tower {
 
   update(dt: number): void {
     if (this.collapsing) {
-      // Accelerate the fall once the building goes over.
-      this.collapseVel += Math.sign(this.collapseVel || 1) * 5 * dt;
+      // Accelerate the fall once the building goes over, then rest flat on the
+      // ground instead of spinning forever like a fan.
+      const dir = Math.sign(this.collapseVel || 1);
+      this.collapseVel += dir * 5 * dt;
       this.collapseAngle += this.collapseVel * dt;
+      if (Math.abs(this.collapseAngle) >= COLLAPSE_MAX_ANGLE) {
+        this.collapseAngle = dir * COLLAPSE_MAX_ANGLE;
+        this.collapseVel = 0;
+      }
       return;
     }
     // Damped angular spring pulling the wobble back to rest.

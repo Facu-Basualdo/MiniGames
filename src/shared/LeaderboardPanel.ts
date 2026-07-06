@@ -1,7 +1,27 @@
 import { getSupabase } from "./supabase";
 import { fetchTop, submitScore, type ScoreRow } from "./leaderboard";
-import { formatScore } from "./scoring";
+import { formatScore, getDirection } from "./scoring";
 import { getNickname, setNickname, NICKNAME_MAX } from "./nickname";
+
+const TOP_LIMIT = 10;
+
+/**
+ * Decide si `score` entra al Top N ya cargado. Hay lugar si todavia no se
+ * llenaron las N filas; si estan llenas, califica cuando iguala o supera al
+ * peor puntaje del top (segun la direccion del juego).
+ */
+function qualifiesForTop(
+  gameId: string,
+  score: number,
+  variant: string | undefined,
+  rows: ScoreRow[],
+): boolean {
+  if (rows.length < TOP_LIMIT) return true;
+  const worst = rows[rows.length - 1].score;
+  return getDirection(gameId, variant) === "lower"
+    ? score <= worst
+    : score >= worst;
+}
 
 interface RenderOpts {
   /** Variante del ranking (p.ej. tamano de sliding-puzzle). */
@@ -124,33 +144,40 @@ export class LeaderboardPanel {
   }
 
   /**
-   * Renderiza el ranking del juego. Si `opts.score` viene, muestra el
-   * formulario de nombre (prellenado con el ultimo usado) y envia el puntaje
-   * recien cuando el jugador confirma.
+   * Renderiza el ranking del juego. Si `opts.score` viene y el puntaje entra
+   * al Top 10, muestra el formulario de nombre (prellenado con el ultimo
+   * usado) y envia el puntaje recien cuando el jugador confirma. Si no
+   * califica, solo muestra el ranking sin pedir el nombre.
    */
   async render(gameId: string, opts: RenderOpts = {}): Promise<void> {
     this.root.style.display = "";
+    this.pending = null;
+    this.formEl.style.display = "none";
 
     if (!getSupabase()) {
-      this.formEl.style.display = "none";
       this.listEl.innerHTML = "";
       this.statusEl.textContent = "Ranking no disponible";
       return;
     }
 
-    // Partida terminada: pedir/confirmar el nombre antes de enviar. El nombre
-    // usado la vez anterior aparece prellenado como sugerencia editable.
-    if (opts.score !== undefined && Number.isFinite(opts.score)) {
-      this.pending = { gameId, score: opts.score, variant: opts.variant };
+    this.statusEl.textContent = "Cargando...";
+    this.listEl.innerHTML = "";
+
+    const rows = await fetchTop(gameId, { variant: opts.variant });
+
+    // Partida terminada: pedir/confirmar el nombre solo si el puntaje entra al
+    // Top 10. El nombre usado la vez anterior aparece prellenado como
+    // sugerencia editable.
+    const hasScore = opts.score !== undefined && Number.isFinite(opts.score);
+    if (hasScore && qualifiesForTop(gameId, opts.score!, opts.variant, rows)) {
+      this.pending = { gameId, score: opts.score!, variant: opts.variant };
       this.formEl.style.display = "flex";
       this.inputEl.value = getNickname() ?? "";
       this.inputEl.focus();
       this.inputEl.select();
-    } else {
-      this.formEl.style.display = "none";
     }
 
-    await this.renderList(gameId, opts.variant, opts.score);
+    this.renderRows(gameId, rows, opts.variant, hasScore ? opts.score : undefined);
   }
 
   private async renderList(
@@ -160,8 +187,17 @@ export class LeaderboardPanel {
   ): Promise<void> {
     this.statusEl.textContent = "Cargando...";
     this.listEl.innerHTML = "";
-
     const rows = await fetchTop(gameId, { variant });
+    this.renderRows(gameId, rows, variant, highlightScore);
+  }
+
+  private renderRows(
+    gameId: string,
+    rows: ScoreRow[],
+    variant: string | undefined,
+    highlightScore: number | undefined,
+  ): void {
+    this.listEl.innerHTML = "";
     if (rows.length === 0) {
       this.statusEl.textContent = "Todavia no hay puntajes. Se el primero.";
       return;
@@ -178,11 +214,17 @@ export class LeaderboardPanel {
         highlightScore !== undefined &&
         row.score === highlightScore;
       if (isMe) highlighted = true;
-      this.listEl.append(this.buildRow(gameId, row, i + 1, isMe));
+      this.listEl.append(this.buildRow(gameId, row, i + 1, isMe, variant));
     });
   }
 
-  private buildRow(gameId: string, row: ScoreRow, rank: number, isMe: boolean): HTMLLIElement {
+  private buildRow(
+    gameId: string,
+    row: ScoreRow,
+    rank: number,
+    isMe: boolean,
+    variant: string | undefined,
+  ): HTMLLIElement {
     const li = document.createElement("li");
     li.className = "mg-lb__row" + (isMe ? " mg-lb__row--me" : "");
 
@@ -196,7 +238,7 @@ export class LeaderboardPanel {
 
     const valueEl = document.createElement("span");
     valueEl.className = "mg-lb__value";
-    valueEl.textContent = formatScore(gameId, row.score);
+    valueEl.textContent = formatScore(gameId, row.score, variant);
 
     li.append(rankEl, nameEl, valueEl);
     return li;

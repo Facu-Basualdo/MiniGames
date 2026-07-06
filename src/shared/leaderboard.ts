@@ -1,5 +1,5 @@
 import { getSupabase } from "./supabase";
-import { getScoring } from "./scoring";
+import { getDirection } from "./scoring";
 import { getNickname } from "./nickname";
 
 export interface ScoreRow {
@@ -62,7 +62,7 @@ export async function fetchTop(
   const supabase = getSupabase();
   if (!supabase) return [];
 
-  const ascending = getScoring(gameId).direction === "lower";
+  const ascending = getDirection(gameId, opts.variant) === "lower";
   const limit = opts.limit ?? 10;
 
   const { data, error } = await supabase

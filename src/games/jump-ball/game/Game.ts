@@ -3,6 +3,7 @@ import { Ball } from "./Ball";
 import { Track } from "./Track";
 import { InputController } from "./InputController";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 import {
   BACKGROUND_COLOR,
@@ -58,6 +59,8 @@ export class Game {
   private lastLandedRow = 0;
   private deadFor = 0;
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   private lastTime = performance.now();
 
   constructor(container: HTMLElement) {
@@ -110,7 +113,10 @@ export class Game {
     this.hud.setBest(this.best);
     this.hud.showStart();
 
-    this.room = initRoomMode("jump-ball", { getScore: () => this.score });
+    this.room = initRoomMode("jump-ball", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     this.updateCamera(1);
     window.addEventListener("resize", this.onResize);
@@ -135,6 +141,7 @@ export class Game {
     this.track.landOn(0, 1);
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
   }
@@ -145,7 +152,11 @@ export class Game {
     this.countdownTime += dt;
     const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
     if (index >= COUNTDOWN_LABELS.length) this.startGame();
-    else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    else if (index !== this.lastCountdownIndex) {
+      this.lastCountdownIndex = index;
+      SoundEffects.playCountdownTick();
+      this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+    }
   }
 
   private startGame(): void {
@@ -167,6 +178,7 @@ export class Game {
   private die(): void {
     this.state = "gameover";
     this.deadFor = 0;
+    SoundEffects.playFall();
     if (this.score > this.best) {
       this.best = this.score;
       localStorage.setItem(BEST_SCORE_KEY, String(this.best));
@@ -197,6 +209,9 @@ export class Game {
     const steerDir = this.input.getSteerDir();
     if (steerDir !== 0) {
       this.ball.steerContinuous(steerDir, dt);
+    } else {
+      const pointerTargetX = this.input.getPointerTargetX();
+      if (pointerTargetX !== null) this.ball.steerToward(pointerTargetX, dt);
     }
 
     this.worldScroll += this.speed * dt;
@@ -220,6 +235,7 @@ export class Game {
         2
       );
       this.track.landOn(currentRow, closestLane);
+      SoundEffects.playHop();
       this.score = currentRow;
       this.hud.setScore(this.score);
     }

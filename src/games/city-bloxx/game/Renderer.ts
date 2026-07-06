@@ -22,9 +22,18 @@ export interface BlockView {
   topY: number;
 }
 
+/** A short-lived burst drawn where a floor snapped perfectly into place. */
+interface PerfectBurst {
+  x: number;
+  y: number;
+  t: number;
+}
+
 /** Draws the whole Skyline scene into the 2D canvas context (view units). */
 export class Renderer {
   private readonly clouds: Cloud[] = [];
+  private readonly bursts: PerfectBurst[] = [];
+  private static readonly BURST_DUR = 0.5;
 
   constructor() {
     for (let i = 0; i < 4; i++) {
@@ -45,6 +54,15 @@ export class Renderer {
         cloud.y = 30 + Math.random() * (VIEW_HEIGHT * 0.35);
       }
     }
+    for (let i = this.bursts.length - 1; i >= 0; i--) {
+      this.bursts[i].t += dt;
+      if (this.bursts[i].t > Renderer.BURST_DUR) this.bursts.splice(i, 1);
+    }
+  }
+
+  /** Spawns a perfect-placement burst at a floor's top-center seam (world). */
+  spawnPerfect(x: number, topY: number): void {
+    this.bursts.push({ x, y: topY, t: 0 });
   }
 
   /**
@@ -85,6 +103,36 @@ export class Renderer {
     this.drawCrane(ctx, craneX, craneY, hangTopY);
     if (block) this.drawFloor(ctx, block.x, block.topY, tower.count);
 
+    for (const burst of this.bursts) this.drawPerfect(ctx, burst);
+
+    ctx.restore();
+  }
+
+  private drawPerfect(ctx: CanvasRenderingContext2D, burst: PerfectBurst): void {
+    const k = burst.t / Renderer.BURST_DUR; // 0 -> 1 over the burst's life
+    const alpha = 1 - k;
+    const { x: cx, y: cy } = burst;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Expanding ring at the seam.
+    ctx.strokeStyle = "#fff3b0";
+    ctx.lineWidth = 4 * (1 - k) + 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 14 + k * 44, 0, Math.PI * 2);
+    ctx.stroke();
+    // Sparkles flying outward.
+    ctx.fillStyle = "#ffe9a8";
+    const count = 6;
+    for (let i = 0; i < count; i++) {
+      const ang = (i / count) * Math.PI * 2 - Math.PI / 2;
+      const dist = 10 + k * 42;
+      const sx = cx + Math.cos(ang) * dist;
+      const sy = cy + Math.sin(ang) * dist;
+      ctx.beginPath();
+      ctx.arc(sx, sy, Math.max(0.5, 3 * (1 - k)), 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 

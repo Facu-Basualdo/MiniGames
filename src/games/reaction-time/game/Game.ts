@@ -8,6 +8,7 @@ import {
   MAX_DT 
 } from "./constants";
 import { Hud, type RoundStatus } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 
 type State = "ready" | "countdown" | "waitingForTrigger" | "triggerActive" | "earlyClick" | "roundFinished" | "gameOver";
@@ -27,6 +28,8 @@ export class Game {
   
   // Timers
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   private triggerDelay = 0;
   private triggerTimestamp = 0;
   
@@ -48,6 +51,7 @@ export class Game {
     // Parcial por timeout: promedio de las rondas completadas hasta ahora.
     this.room = initRoomMode("reaction-time", {
       getScore: () => this.calculateCurrentAverage() ?? 0,
+      onStart: () => this.beginCountdown(),
     });
     
     // Retrieve reference to the reaction card for input binding
@@ -141,6 +145,7 @@ export class Game {
     this.roundTimes = [];
     this.roundStatuses = Array(TOTAL_ROUNDS).fill("empty");
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     
     this.hud.hideOverlay();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -164,7 +169,8 @@ export class Game {
   private handleEarlyClick(): void {
     this.state = "earlyClick";
     this.roundStatuses[this.currentRound - 1] = "foul";
-    
+    SoundEffects.playFoul();
+
     this.hud.showEarlyClickState();
     this.hud.updateRoundProgress(this.currentRound, this.roundStatuses);
   }
@@ -177,6 +183,7 @@ export class Game {
     this.roundStatuses[this.currentRound - 1] = "success";
     
     this.state = "roundFinished";
+    SoundEffects.playReaction();
     this.hud.showResultState(reactionTime);
     this.hud.updateRoundProgress(this.currentRound, this.roundStatuses);
   }
@@ -193,6 +200,7 @@ export class Game {
     }
     
     this.state = "gameOver";
+    SoundEffects.playFinish();
     this.hud.showGameOver(this.roundTimes, average, isNewBest, this.bestAverage);
     if (this.room) this.room.reportScore(average);
     else this.hud.showRanking("reaction-time", average);
@@ -221,7 +229,9 @@ export class Game {
       if (index >= COUNTDOWN_LABELS.length) {
         this.hud.showCountdown(null);
         this.startRound();
-      } else {
+      } else if (index !== this.lastCountdownIndex) {
+        this.lastCountdownIndex = index;
+        SoundEffects.playCountdownTick();
         this.hud.showCountdown(COUNTDOWN_LABELS[index]);
       }
     } else if (this.state === "waitingForTrigger") {
@@ -230,6 +240,7 @@ export class Game {
         this.state = "triggerActive";
         this.triggerTimestamp = performance.now();
         this.hud.showTriggerState();
+        SoundEffects.playGo();
       }
     }
   }

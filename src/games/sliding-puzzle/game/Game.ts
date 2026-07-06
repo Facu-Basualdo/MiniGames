@@ -8,6 +8,7 @@ import {
 import { Hud } from "./Hud";
 import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, ROOM_VARIANTS, type RoomMode } from "../../../shared/room/roomMode";
+import { encodeTimeMoves } from "../../../shared/scoring";
 
 type State = "ready" | "countdown" | "playing" | "victory";
 
@@ -30,14 +31,19 @@ export class Game {
   
   // Timers
   private countdownTime: number = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
 
   constructor(container: HTMLElement) {
     this.hud = new Hud(container);
     this.hud.showStart(this.handleSelectSize);
 
-    // Parcial por timeout: movimientos hechos (points.ts sabe que un parcial
-    // "lower" sin resolver no es comparable con una victoria).
-    this.room = initRoomMode("sliding-puzzle", { getScore: () => this.moves });
+    // Parcial por timeout: tiempo + movimientos codificados (points.ts sabe que
+    // un parcial "lower" sin resolver no es comparable con una victoria).
+    this.room = initRoomMode("sliding-puzzle", {
+      getScore: () => encodeTimeMoves(this.elapsedTime, this.moves),
+      onStart: () => this.beginCountdown(),
+    });
     if (this.room) {
       // En sala todos juegan el mismo tablero: tamano fijo, sin selector.
       this.size = parseInt(ROOM_VARIANTS["sliding-puzzle"], 10);
@@ -105,6 +111,7 @@ export class Game {
   private beginCountdown(): void {
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.hideOverlay();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
     
@@ -283,8 +290,11 @@ export class Game {
       bestTime,
       this.size
     );
-    if (this.room) this.room.reportScore(this.moves);
-    else this.hud.showRanking("sliding-puzzle", this.moves, this.size);
+    // El ranking global se ordena por tiempo; el puntaje enviado codifica el
+    // tiempo (orden) junto con los movimientos (desempate / se muestran al lado).
+    const rankedScore = encodeTimeMoves(this.elapsedTime, this.moves);
+    if (this.room) this.room.reportScore(rankedScore);
+    else this.hud.showRanking("sliding-puzzle", rankedScore, this.size);
   }
 
   private tick = (now: number): void => {
@@ -308,7 +318,9 @@ export class Game {
         this.elapsedTime = 0;
         this.hud.hideOverlay();
         this.hud.updateStats(this.moves, this.elapsedTime);
-      } else {
+      } else if (index !== this.lastCountdownIndex) {
+        this.lastCountdownIndex = index;
+        SoundEffects.playCountdownTick();
         this.hud.showCountdown(COUNTDOWN_LABELS[index]);
       }
     } else if (this.state === "playing") {

@@ -17,9 +17,17 @@ Built with **Three.js** (see the repo's `threejs-*` skills).
 - `game/Track.ts` — the streaming stepping-stone track: a pool of platform rows
   that scroll toward the camera and recycle to the back, plus lane-occupancy
   generation and the `laneOccupied(row, lane)` query.
-- `game/InputController.ts` — keyboard + pointer → discrete lane-change steps
-  (`consumeSteer`) and an `onAnyInput` start/restart signal.
+- `game/InputController.ts` — steering input plus an `onAnyInput` start/restart
+  signal. Keyboard: hold Left/A or Right/D (`getSteerDir` returns -1/0/1).
+  Mouse/touch: the ball follows the cursor's horizontal position
+  (`getPointerTargetX` maps screen X to a target lane X; screen edges map to the
+  outer lanes). **Last input wins**: pressing a steer key nulls `pointerTargetX`
+  so mouse-follow stops until the mouse moves again — otherwise releasing a key
+  snapped the ball back to the cursor and keyboard steering felt dead. `Game.ts`
+  uses `getSteerDir` while a key is held, else follows the pointer target if set.
 - `game/Hud.ts` — DOM overlay (live score, start / game-over screens).
+- `game/SoundEffects.ts` — synthesized Web Audio effects (bounce on each
+  landing, descending swoop on the death-fall), no assets.
 - `game/constants.ts` — all tunable values (layout, speeds, camera, colors).
   **Tune here first** before touching logic.
 
@@ -74,3 +82,7 @@ before play begins. During the countdown the ball idle-bobs and the track is
 frozen (no scroll) so `worldScroll` / `lastLandedRow` don't drift; `startGame()`
 resets them to 0 at the transition. `Hud.showCountdown(text | null)` renders the
 big centered label (styled by `.countdown` in `style.css`).
+
+## Room mode (multiplayer)
+
+Wired to the shared party mode: the constructor calls `initRoomMode("jump-ball", { getScore: () => this.score })` (see root `CLAUDE.md`, "Salas (multiplayer rooms)"). With `?room=` in the URL the game-over reports the score to the room instead of the global ranking, and the restart input is blocked (one run per round). Without the param nothing changes.

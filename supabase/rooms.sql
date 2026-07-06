@@ -11,29 +11,23 @@
 create table if not exists public.rooms (
   code          text primary key,                 -- 6 chars, alfabeto A-Z2-9 sin ambiguos (sin O/0/I/1)
   host          text not null,                    -- nickname del anfitrion
-  status        text not null default 'lobby',    -- lobby|playing|results|voting|finished
-  settings      jsonb not null default '{}',      -- { totalRounds, playlist: string[]|null, roundTimeLimitSec }
+  status        text not null default 'lobby',    -- lobby|playing|results|voting|time_voting|finished
+  settings      jsonb not null default '{}',      -- { totalRounds, playlist: string[]|null, roundTimeLimitSec, timeVote }
   current_round int  not null default 0,
   current_game  text,
-  vote_options  text[],                           -- candidatos durante 'voting'
-  deadline      timestamptz,                      -- fin de la ronda / votacion / auto-inicio del briefing
+  vote_options  text[],                           -- candidatos durante 'voting' (ids de juego) o 'time_voting' (segundos)
+  deadline      timestamptz,                      -- fin aproximado de la ronda o votacion en curso
   created_at    timestamptz not null default now(),
   constraint code_format check (code ~ '^[A-Z2-9]{6}$'),
   constraint host_len    check (char_length(host) between 1 and 12),
-  -- 'briefing' = instrucciones antes de jugar; todos dan OK y recien ahi corre el reloj.
-  constraint status_ok   check (status in ('lobby','briefing','playing','results','voting','finished'))
+  constraint status_ok   check (status in ('lobby','playing','results','voting','time_voting','finished'))
 );
 
--- Confirmaciones de "estoy listo" en la pantalla de instrucciones (fase briefing).
--- Efimeras: se borran en cada "Jugar otra vez" (resetRoom) igual que el resto del
--- historial. Una fila por jugador y ronda; el upsert sobre la PK es idempotente.
-create table if not exists public.room_ready (
-  code     text not null references public.rooms(code) on delete cascade,
-  round_no int  not null,
-  player   text not null,
-  primary key (code, round_no, player),
-  constraint player_len check (char_length(player) between 1 and 12)
-);
+-- Migracion idempotente del CHECK de status para salas ya creadas (agrega
+-- 'time_voting'). create table ... if not exists no toca tablas existentes.
+alter table public.rooms drop constraint if exists status_ok;
+alter table public.rooms add constraint status_ok
+  check (status in ('lobby','playing','results','voting','time_voting','finished'));
 
 -- Jugadores registrados en cada sala. El upsert sobre la PK es el rejoin.
 create table if not exists public.room_players (
@@ -78,12 +72,27 @@ create table if not exists public.room_votes (
   constraint player_len check (char_length(player) between 1 and 12)
 );
 
+-- Estado de partida compartido (juegos de tablero comun, p.ej. Memoria): una
+-- fila por (sala, ronda) con el estado completo del juego en jsonb. La columna
+-- version implementa concurrencia optimista: cada escritura hace
+-- update ... where version = <esperada> e incrementa; si no matchea, el
+-- cliente refetchea. Solo escribe el jugador de turno (o el host para
+-- destrabar), por convencion del cliente como todo lo demas.
+create table if not exists public.room_match_state (
+  code       text not null references public.rooms(code) on delete cascade,
+  round_no   int  not null,
+  state      jsonb not null,
+  version    int  not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (code, round_no)
+);
+
 alter table public.rooms enable row level security;
 alter table public.room_players enable row level security;
 alter table public.room_rounds enable row level security;
 alter table public.room_round_scores enable row level security;
 alter table public.room_votes enable row level security;
-alter table public.room_ready enable row level security;
+alter table public.room_match_state enable row level security;
 
 -- Lectura publica de todo (los codigos de sala son el unico "secreto").
 drop policy if exists "rooms_select_public" on public.rooms;
@@ -106,8 +115,8 @@ drop policy if exists "room_votes_select_public" on public.room_votes;
 create policy "room_votes_select_public" on public.room_votes
   for select using (true);
 
-drop policy if exists "room_ready_select_public" on public.room_ready;
-create policy "room_ready_select_public" on public.room_ready
+drop policy if exists "room_match_state_select_public" on public.room_match_state;
+create policy "room_match_state_select_public" on public.room_match_state
   for select using (true);
 
 -- Escritura anonima con validaciones minimas (los checks de tabla ya cubren
@@ -154,6 +163,14 @@ drop policy if exists "room_votes_update_public" on public.room_votes;
 create policy "room_votes_update_public" on public.room_votes
   for update using (true) with check (true);
 
+drop policy if exists "room_match_state_insert_public" on public.room_match_state;
+create policy "room_match_state_insert_public" on public.room_match_state
+  for insert with check (true);
+
+drop policy if exists "room_match_state_update_public" on public.room_match_state;
+create policy "room_match_state_update_public" on public.room_match_state
+  for update using (true) with check (true);
+
 -- "Jugar otra vez": al terminar, el host resetea la sala al lobby borrando el
 -- historial de rondas/puntajes/votos (los jugadores registrados se conservan).
 drop policy if exists "room_rounds_delete_public" on public.room_rounds;
@@ -168,29 +185,11 @@ drop policy if exists "room_votes_delete_public" on public.room_votes;
 create policy "room_votes_delete_public" on public.room_votes
   for delete using (true);
 
--- room_ready: cada jugador upserta su propia confirmacion; resetRoom las borra.
-drop policy if exists "room_ready_insert_public" on public.room_ready;
-create policy "room_ready_insert_public" on public.room_ready
-  for insert with check (true);
-
-drop policy if exists "room_ready_update_public" on public.room_ready;
-create policy "room_ready_update_public" on public.room_ready
-  for update using (true) with check (true);
-
-drop policy if exists "room_ready_delete_public" on public.room_ready;
-create policy "room_ready_delete_public" on public.room_ready
+drop policy if exists "room_match_state_delete_public" on public.room_match_state;
+create policy "room_match_state_delete_public" on public.room_match_state
   for delete using (true);
 
 -- Limpieza opcional: las filas son minusculas, pero si algun dia molesta se
 -- puede correr a mano (o con pg_cron):
 --   delete from public.rooms where created_at < now() - interval '2 days';
--- El on delete cascade arrastra players/rounds/scores/votes/ready.
-
--- ---------------------------------------------------------------------------
--- MIGRACION para una base ya creada (la fase 'briefing' y la tabla room_ready
--- son nuevas). Correr una vez; el resto del archivo es idempotente (if not
--- exists / drop-create), pero el CHECK de status hay que reemplazarlo a mano:
---   alter table public.rooms drop constraint if exists status_ok;
---   alter table public.rooms add constraint status_ok
---     check (status in ('lobby','briefing','playing','results','voting','finished'));
--- (La creacion de public.room_ready + sus policies de arriba ya cubren el resto.)
+-- El on delete cascade arrastra players/rounds/scores/votes.

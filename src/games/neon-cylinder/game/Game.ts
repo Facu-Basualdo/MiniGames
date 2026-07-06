@@ -9,6 +9,7 @@ import { Player } from "./Player";
 import { ObstacleSpawner } from "./ObstacleSpawner";
 import { InputController } from "./InputController";
 import { Hud } from "./Hud";
+import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 import {
   BACKGROUND_COLOR,
@@ -48,6 +49,8 @@ export class Game {
   private best = 0;
   private elapsed = 0;
   private countdownTime = 0;
+  /** Last countdown index that played a tick, so each number sounds once. */
+  private lastCountdownIndex = -1;
   private lastTime = performance.now();
 
   constructor(container: HTMLElement) {
@@ -90,7 +93,10 @@ export class Game {
     this.hud.setBest(this.best);
     this.hud.showStart();
 
-    this.room = initRoomMode("neon-cylinder", { getScore: () => this.score });
+    this.room = initRoomMode("neon-cylinder", {
+      getScore: () => this.score,
+      onStart: () => this.beginCountdown(),
+    });
 
     window.addEventListener("resize", this.onResize);
     this.renderer.setAnimationLoop(this.tick);
@@ -109,6 +115,7 @@ export class Game {
     this.spawner.reset();
     this.state = "countdown";
     this.countdownTime = 0;
+    this.lastCountdownIndex = -1;
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
   }
@@ -127,6 +134,7 @@ export class Game {
 
   private endGame(): void {
     this.state = "gameover";
+    SoundEffects.playHit();
     if (this.score > this.best) {
       this.best = this.score;
       localStorage.setItem(BEST_SCORE_KEY, String(this.best));
@@ -147,7 +155,10 @@ export class Game {
       const speed = Math.min(BASE_SPEED + this.elapsed * SPEED_RAMP_PER_SEC, MAX_SPEED);
       const dz = speed * dt;
 
-      if (this.input.consumeFlip()) this.player.flip();
+      if (this.input.consumeFlip()) {
+        this.player.flip();
+        SoundEffects.playFlip();
+      }
       this.player.update(dt, this.input.direction);
       this.tunnel.scroll(dz);
 
@@ -158,6 +169,7 @@ export class Game {
           break;
         }
         this.score++;
+        SoundEffects.playScore();
       }
       this.hud.setScore(this.score);
     } else if (this.state === "countdown") {
@@ -165,7 +177,11 @@ export class Game {
       this.countdownTime += dt;
       const index = Math.floor(this.countdownTime / COUNTDOWN_STEP);
       if (index >= COUNTDOWN_LABELS.length) this.startGame();
-      else this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+      else if (index !== this.lastCountdownIndex) {
+        this.lastCountdownIndex = index;
+        SoundEffects.playCountdownTick();
+        this.hud.showCountdown(COUNTDOWN_LABELS[index]);
+      }
     } else {
       this.tunnel.scroll(dt * 4);
     }
