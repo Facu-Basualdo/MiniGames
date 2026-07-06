@@ -70,6 +70,8 @@ export class Game {
   private sectors = [false, false, false];
   /** Mejor tiempo local del circuito actual (se recarga en setupTrack). */
   private best = 0;
+  /** Resultado de la ultima carrera, para reponer su ranking al volver a el. */
+  private lastResult: { trackId: string; ms: number } | null = null;
 
   private readonly keys: CarInput = { up: false, down: false, left: false, right: false };
   private lastTime = 0;
@@ -169,6 +171,7 @@ export class Game {
       this.state = "ready";
       this.hud.showStart(this.track.def.name, this.track.def.laps, this.bestText());
       this.hud.setSelectedMap(this.selectedTrack);
+      this.hud.showRankingReadonly("car-race", this.track.def.id);
     }
   }
 
@@ -193,6 +196,13 @@ export class Game {
     this.setupTrack(idx, (Math.random() * 0xffffffff) >>> 0);
     this.hud.setStartInfo(this.track.def.name, this.track.def.laps, this.bestText());
     this.hud.setSelectedMap(this.selectedTrack);
+    // El ranking sigue al circuito elegido. Si es el que acabo de correr, se
+    // muestra con el puntaje logrado (formulario de nombre); si no, solo lectura.
+    if (this.lastResult && this.lastResult.trackId === this.track.def.id) {
+      this.hud.showRanking("car-race", this.lastResult.ms, this.track.def.id);
+    } else {
+      this.hud.showRankingReadonly("car-race", this.track.def.id);
+    }
   }
 
   /** Clave de localStorage del mejor tiempo, por circuito. */
@@ -229,6 +239,7 @@ export class Game {
   private beginCountdown(): void {
     this.state = "countdown";
     this.countdownLeft = COUNTDOWN_SEC;
+    this.lastResult = null;
     this.hud.hideOverlay();
   }
 
@@ -397,6 +408,7 @@ export class Game {
     }
     this.hud.showGameOver(formatRaceTime(ms), this.bestText(), isRecord, true);
     // Ranking por circuito: cada pista tiene su propia tabla (variante).
+    this.lastResult = { trackId: this.track.def.id, ms };
     this.hud.showRanking("car-race", ms, this.track.def.id);
   }
 

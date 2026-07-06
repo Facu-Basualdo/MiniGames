@@ -216,9 +216,14 @@ export class Hud {
     this.overlayEl.classList.remove("hidden");
   }
 
-  /** Ranking global por circuito (solo fuera del modo sala). */
+  /** Ranking global por circuito con envio del puntaje recien logrado. */
   showRanking(gameId: string, score: number, variant?: string): void {
     void this.leaderboard.render(gameId, { score, variant });
+  }
+
+  /** Ranking global por circuito en solo lectura (al ojear otro circuito). */
+  showRankingReadonly(gameId: string, variant: string): void {
+    void this.leaderboard.render(gameId, { variant });
   }
 
   hideOverlay(): void {

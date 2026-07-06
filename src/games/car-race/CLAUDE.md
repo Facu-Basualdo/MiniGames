@@ -65,8 +65,11 @@ tiempo local); modo sala = todos corren el mismo circuito con posiciones en vivo
 - **Ranking por circuito**: cada pista tiene su propia tabla global. `car-race`
   declara `variants` (los 6 `id` de pista) en [scoring.ts](../../shared/scoring.ts);
   `finishRace` llama `hud.showRanking("car-race", ms, track.def.id)` y la landing
-  ofrece el selector de variante automaticamente. El **mejor tiempo local**
-  tambien es por circuito (`car-race:best:<id>`, ver `bestKey()`).
+  ofrece el selector de variante automaticamente. En el overlay, el ranking
+  **sigue al circuito elegido en el selector**: `onSelectMap` re-renderiza el
+  ranking de esa pista (solo lectura, salvo el circuito recien corrido, que
+  muestra el puntaje via `lastResult`). El **mejor tiempo local** tambien es por
+  circuito (`car-race:best:<id>`, ver `bestKey()`).
 - **Colisiones y derrape** ([Game.ts](game/Game.ts)): `handleCollisions` maneja
   boost (envion en el flanco de entrada), barreras (capsula: empuje fuera +
   `Car.bounce`) y conos (`Car.slowDown` con cooldown + golpe visual).
