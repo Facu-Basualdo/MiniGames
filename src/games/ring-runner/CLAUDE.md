@@ -49,9 +49,14 @@ on hits, so the pressure comes from the ever-faster, ever-smaller target, not
 from a stall timer. In room mode the round time limit bounds any stalling.
 
 **Black arc, haloed so it reads.** A pure-black arc on the dark background would
-look like a gap, so the target is stroked in near-black with an accent-colored
-`shadowBlur` glow (brighter while the marker overlaps it). The marker flashes
-green briefly on a successful hit (`hitFlash`).
+look like a gap, so the target is stroked in near-black with a neon magenta (`#ff007f`)
+`shadowBlur` glow (brighter while the marker overlaps it). Additionally, radial caps
+border the target segment to define its edges cleanly. The marker is a bright neon cyan
+`#00f3ff` that flashes white with a green shadow on a successful hit (`hitFlash`).
+
+**Visual juice (trail).** The marker leaves a trailing motion blur effect
+consisting of faded, thinner markers behind it. The game UI and background use dynamic
+radial gradients, cyberpunk background grids, and Orbitron and Outfit Google Fonts.
 
 **`dt` is clamped** (`MAX_DT`) so a tab-switch/hitch can't advance the marker a
 huge angular step past the target.

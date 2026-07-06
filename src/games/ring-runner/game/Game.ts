@@ -28,9 +28,9 @@ type State = "ready" | "countdown" | "playing" | "dead";
 const TAU = Math.PI * 2;
 const CENTER_X = VIEW_WIDTH / 2;
 const CENTER_Y = VIEW_HEIGHT / 2;
-const ACCENT = "#ffcf4d";
-/** The orbiting marker: a distinct color so it never blends into the amber halo. */
-const MARKER_COLOR = "#ff3b3b";
+const ACCENT = "#ff007f";
+/** The orbiting marker: neon cyan so it stands out against the magenta target arc. */
+const MARKER_COLOR = "#00f3ff";
 
 /** Shortest absolute angular distance between two angles (0..PI). */
 function angDiff(a: number, b: number): number {
@@ -60,8 +60,9 @@ export class Game {
   private targetCenter = Math.PI / 2;
   private targetHalf = BASE_TARGET_HALF;
 
-  // Transient visual feedback.
+  // Visual effects state.
   private hitFlash = 0;
+  private markerHistory: { angle: number }[] = [];
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement("canvas");
@@ -133,6 +134,7 @@ export class Game {
     this.targetHalf = BASE_TARGET_HALF;
     this.relocateTarget();
     this.hitFlash = 0;
+    this.markerHistory = [];
     this.hud.showScore(false);
     this.hud.hide();
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
@@ -201,8 +203,16 @@ export class Game {
     if (this.hitFlash > 0) this.hitFlash = Math.max(0, this.hitFlash - dt * 4);
 
     if (this.state === "playing") {
+      this.markerHistory.push({ angle: this.markerAngle });
+      if (this.markerHistory.length > 10) {
+        this.markerHistory.shift();
+      }
       this.markerAngle = (this.markerAngle + this.direction * this.angularSpeed * dt + TAU) % TAU;
-    } else if (this.state === "countdown") {
+    } else {
+      this.markerHistory = [];
+    }
+
+    if (this.state === "countdown") {
       this.updateCountdown(dt);
     } else if (this.state === "dead") {
       this.deadFor += dt;
@@ -225,51 +235,142 @@ export class Game {
     const w = this.canvas.width;
     const h = this.canvas.height;
 
-    ctx.fillStyle = "#0a0a12";
+    // Dark background base color
+    ctx.fillStyle = "#030208";
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
     ctx.scale(this.scale, this.scale);
     ctx.translate(this.offsetX, this.offsetY);
 
+    // Dynamic, deep ambient radial gradient centering on the ring.
+    const pulseFactor = 1.0 + Math.sin(performance.now() * 0.003) * 0.03;
+    const bgGrad = ctx.createRadialGradient(
+      CENTER_X,
+      CENTER_Y,
+      10,
+      CENTER_X,
+      CENTER_Y,
+      VIEW_WIDTH * 0.75 * pulseFactor
+    );
+    bgGrad.addColorStop(0, "#0c0721");
+    bgGrad.addColorStop(0.4, "#060312");
+    bgGrad.addColorStop(1, "#030208");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+    // Subtle background mesh/grid effect (cyberpunk vibes)
+    ctx.strokeStyle = "rgba(0, 243, 255, 0.02)";
+    ctx.lineWidth = 1;
+    const gridSpacing = 40;
+    for (let x = 0; x < VIEW_WIDTH; x += gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, VIEW_HEIGHT);
+      ctx.stroke();
+    }
+    for (let y = 0; y < VIEW_HEIGHT; y += gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(VIEW_WIDTH, y);
+      ctx.stroke();
+    }
+
     const overlapping = angDiff(this.markerAngle, this.targetCenter) <= this.targetHalf;
 
-    // Groove: a dark recessed track under the white ring.
+    // Groove: a semi-transparent dark recessed track.
     ctx.lineCap = "butt";
     ctx.beginPath();
     ctx.arc(CENTER_X, CENTER_Y, RING_RADIUS, 0, TAU);
-    ctx.lineWidth = RING_WIDTH + 8;
-    ctx.strokeStyle = "#161622";
+    ctx.lineWidth = RING_WIDTH + 6;
+    ctx.strokeStyle = "rgba(14, 14, 28, 0.6)";
     ctx.stroke();
 
-    // The white ring.
+    // The frosted glass-like main ring.
     ctx.beginPath();
     ctx.arc(CENTER_X, CENTER_Y, RING_RADIUS, 0, TAU);
     ctx.lineWidth = RING_WIDTH;
-    ctx.strokeStyle = "#f4f4fb";
+    ctx.strokeStyle = "rgba(244, 244, 251, 0.06)";
     ctx.stroke();
 
-    // The black target arc, haloed in accent so it reads against the dark bg.
+    // Double concentric border rings (cyberpunk borders)
+    ctx.save();
+    ctx.strokeStyle = "rgba(0, 243, 255, 0.25)";
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = "#00f3ff";
+    ctx.shadowBlur = 8;
+    // Outer border
+    ctx.beginPath();
+    ctx.arc(CENTER_X, CENTER_Y, RING_RADIUS + RING_WIDTH / 2, 0, TAU);
+    ctx.stroke();
+    // Inner border
+    ctx.beginPath();
+    ctx.arc(CENTER_X, CENTER_Y, RING_RADIUS - RING_WIDTH / 2, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+
+    // The target arc: pitch-black track with bright neon magenta edges and intense shadow glow.
     ctx.save();
     ctx.beginPath();
     ctx.arc(CENTER_X, CENTER_Y, RING_RADIUS, this.targetCenter - this.targetHalf, this.targetCenter + this.targetHalf);
     ctx.lineWidth = RING_WIDTH;
-    ctx.strokeStyle = "#05050a";
+    ctx.strokeStyle = "#020205";
     ctx.shadowColor = ACCENT;
-    ctx.shadowBlur = overlapping ? 34 : 18;
+    ctx.shadowBlur = overlapping ? 38 : 20;
     ctx.stroke();
     ctx.restore();
+
+    // Radial magenta borders/caps at target edges
+    ctx.save();
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = ACCENT;
+    ctx.shadowBlur = overlapping ? 12 : 6;
+    const halfWidth = RING_WIDTH / 2;
+    for (const angle of [this.targetCenter - this.targetHalf, this.targetCenter + this.targetHalf]) {
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      ctx.beginPath();
+      ctx.moveTo(CENTER_X + cosA * (RING_RADIUS - halfWidth), CENTER_Y + sinA * (RING_RADIUS - halfWidth));
+      ctx.lineTo(CENTER_X + cosA * (RING_RADIUS + halfWidth), CENTER_Y + sinA * (RING_RADIUS + halfWidth));
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Draw Marker Motion Blur / Trail
+    const trailLen = this.markerHistory.length;
+    this.markerHistory.forEach((hist, i) => {
+      const ratio = (i + 1) / (trailLen + 1);
+      const alpha = ratio * 0.45;
+      const cosH = Math.cos(hist.angle);
+      const sinH = Math.sin(hist.angle);
+      const trailHalfLen = RING_WIDTH / 2 + MARKER_OVERHANG - 2;
+      
+      ctx.save();
+      ctx.strokeStyle = `rgba(0, 243, 255, ${alpha})`;
+      ctx.lineWidth = (MARKER_THICKNESS - 1.5) * ratio;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(CENTER_X + cosH * (RING_RADIUS - trailHalfLen), CENTER_Y + sinH * (RING_RADIUS - trailHalfLen));
+      ctx.lineTo(CENTER_X + cosH * (RING_RADIUS + trailHalfLen), CENTER_Y + sinH * (RING_RADIUS + trailHalfLen));
+      ctx.stroke();
+      ctx.restore();
+    });
 
     // Marker: a thin radial bar ("|") crossing the ring at the current angle.
     const dirX = Math.cos(this.markerAngle);
     const dirY = Math.sin(this.markerAngle);
     const halfLen = RING_WIDTH / 2 + MARKER_OVERHANG;
     ctx.save();
-    const markerColor = this.hitFlash > 0 ? "#3ce88b" : MARKER_COLOR;
+    
+    // Sparkly hit flash or sleek neon cyan
+    const markerColor = this.hitFlash > 0 ? "#ffffff" : MARKER_COLOR;
+    const shadowColor = this.hitFlash > 0 ? "#3ce88b" : MARKER_COLOR;
+    
     ctx.strokeStyle = markerColor;
-    ctx.shadowColor = markerColor;
-    ctx.shadowBlur = 16 + this.hitFlash * 24;
-    ctx.lineWidth = MARKER_THICKNESS + this.hitFlash * 2;
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = 18 + this.hitFlash * 28;
+    ctx.lineWidth = MARKER_THICKNESS + this.hitFlash * 2.5;
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(CENTER_X + dirX * (RING_RADIUS - halfLen), CENTER_Y + dirY * (RING_RADIUS - halfLen));
@@ -277,14 +378,18 @@ export class Game {
     ctx.stroke();
     ctx.restore();
 
-    // Combo count in the middle.
-    ctx.fillStyle = "rgba(244, 244, 251, 0.9)";
-    ctx.font = "700 72px 'Courier New', monospace";
+    // Combo count in the middle: upgraded font (Orbitron) and neon shadow
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 84px 'Orbitron', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.shadowColor = overlapping ? "#ff007f" : "#00f3ff";
+    ctx.shadowBlur = overlapping ? 22 : 12;
     if (this.state === "playing" || this.state === "dead") {
       ctx.fillText(String(this.score), CENTER_X, CENTER_Y);
     }
+    ctx.restore();
 
     ctx.restore();
   }
