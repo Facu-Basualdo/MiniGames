@@ -194,8 +194,8 @@ export class Game {
       players.push({ name, isBot: true });
     }
     this.state = createGame(players);
-    // El humano usa la ficha elegida; los bots, las siguientes.
-    const order = [this.setup.token, ...Array.from({ length: 8 }, (_, i) => i).filter((i) => i !== this.setup.token)];
+    // El humano usa la ficha elegida; los bots, las siguientes (6 fichas max).
+    const order = [this.setup.token, ...Array.from({ length: 6 }, (_, i) => i).filter((i) => i !== this.setup.token)];
     this.state.players.forEach((p, i) => (p.token = order[i % order.length]));
     this.lastFxSeq = this.state.fxSeq - 1;
     this.renderState();

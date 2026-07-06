@@ -1,6 +1,7 @@
 import { LeaderboardPanel } from "../../../shared/LeaderboardPanel";
 import { isMuted, toggleMute } from "./audio";
 import { Dice3D } from "./Dice3D";
+import { Tokens3D, type TokenView } from "./Tokens3D";
 import { GAME_ID, GROUP_COLORS, GROUP_TILES, JAIL_FINE, TILES, TOKENS } from "./constants";
 import { netWorth, rentFor, tradeValid } from "./engine";
 import type { Action, Difficulty, GameState, TradeOffer } from "./types";
@@ -24,7 +25,7 @@ const RULES_PAGES: { title: string; body: string }[] = [
     title: "El objetivo",
     body: `<p><strong>Junta la mayor fortuna del Mundial 2026 y funde a tus rivales.</strong></p>
       <p>Ficha selecciones, compra los estadios sede y cobra la entrada cada vez que un rival caiga en tu territorio. El ultimo director tecnico solvente gana el torneo.</p>
-      <p>En modo solitario jugas contra 1 a 7 rivales manejados por la maquina, con tres dificultades: <strong>Debutante</strong> (el mas facil), <strong>Profesional</strong> y <strong>Campeon del Mundo</strong> (el mas dificil). En salas online juegan hasta 8 personas.</p>`,
+      <p>En modo solitario jugas contra 1 a 5 rivales manejados por la maquina, con tres dificultades: <strong>Debutante</strong> (el mas facil), <strong>Profesional</strong> y <strong>Campeon del Mundo</strong> (el mas dificil). En salas online juegan hasta 6 personas.</p>`,
   },
   {
     title: "Tirar los dados",
@@ -78,29 +79,17 @@ const RULES_PAGES: { title: string; body: string }[] = [
   },
 ];
 
-/**
- * Arte generado por IA para casillas especiales (public/monopoly/). Las
- * casillas VAR/FIFA se resuelven por kind; estas, por indice. Si el archivo
- * no existe el tile queda con su fondo CSS de siempre (degradacion sana).
- */
-const TILE_ART: Record<number, string> = {
-  0: "corner-saque.png",
-  1: "sel-nueva-zelanda.jpg",
-  3: "sel-panama.jpg",
-  4: "icon-tasa.png",
-  5: "estadio-azteca.jpg",
-  6: "sel-japon.jpg",
-  8: "sel-corea.jpg",
-  9: "sel-australia.jpg",
-  10: "corner-vestuario.png",
-  11: "sel-marruecos.jpg",
-  15: "estadio-sofi.jpg",
-  19: "sel-eeuu.jpg",
-  20: "corner-fanfest.png",
-  25: "estadio-att.jpg",
-  30: "corner-roja.png",
-  35: "estadio-metlife.jpg",
-  38: "icon-fichaje.png",
+/** Etiqueta corta por tipo de casilla especial (sin imagenes: puro CSS Panini). */
+const KIND_TAG: Partial<Record<string, string>> = {
+  go: "SAQUE",
+  jail: "VESTUARIO",
+  fanfest: "FAN FEST",
+  gotojail: "TARJETA ROJA",
+  tax: "TASA",
+  var: "VAR",
+  fifa: "FIFA",
+  stadium: "SEDE",
+  utility: "SERVICIO",
 };
 
 /** Posicion (fila, columna) de cada casilla en la grilla 11x11. */
@@ -136,6 +125,20 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: 
   return node;
 }
 
+/** Celda de estadistica para el panel "Mi equipo". */
+function teamStat(label: string, value: string): HTMLElement {
+  const cell = document.createElement("div");
+  cell.className = "team-stat";
+  const v = document.createElement("span");
+  v.className = "team-stat-val";
+  v.textContent = value;
+  const l = document.createElement("span");
+  l.className = "team-stat-label";
+  l.textContent = label;
+  cell.append(v, l);
+  return cell;
+}
+
 export class Hud {
   private readonly cb: HudCallbacks;
 
@@ -144,6 +147,9 @@ export class Hud {
   private diceEl!: HTMLDivElement;
   private dice3dHost!: HTMLDivElement;
   private dice3d: Dice3D | null = null;
+  private tokens3dHost!: HTMLDivElement;
+  private tokens3d: Tokens3D | null = null;
+  private tokenKey = "";
   private turnBannerEl!: HTMLDivElement;
   private toastEl!: HTMLDivElement;
   private playersEl!: HTMLDivElement;
@@ -187,15 +193,13 @@ export class Hud {
       const node = el("div", `tile tile-${tile.kind} tile-side-${side(i)}`);
       node.style.gridRow = String(row);
       node.style.gridColumn = String(col);
-      const art = TILE_ART[i] ?? (tile.kind === "var" ? "icon-var.png" : tile.kind === "fifa" ? "icon-fifa.png" : null);
-      if (art) {
-        node.classList.add("tile-art");
-        node.style.backgroundImage = `url(/monopoly/${art})`;
-      }
       if (tile.kind === "street") {
         const band = el("div", "tile-band");
         band.style.background = GROUP_COLORS[tile.group!];
         node.appendChild(band);
+      } else {
+        const tag = KIND_TAG[tile.kind];
+        if (tag) node.appendChild(el("div", "tile-tag", tag));
       }
       node.appendChild(el("div", "tile-name", tile.short));
       if (tile.price) node.appendChild(el("div", "tile-price", `$${tile.price}`));
@@ -222,6 +226,22 @@ export class Hud {
     } catch {
       this.dice3d = null;
       this.dice3dHost.remove();
+    }
+
+    // Fichas 3D: canvas transparente que cubre todo el tablero (pointer-events
+    // none). Si WebGL no arranca, se cae a los discos DOM en cada casilla.
+    this.tokens3dHost = el("div", "tokens-3d");
+    this.boardEl.appendChild(this.tokens3dHost);
+    try {
+      this.tokens3d = new Tokens3D(this.tokens3dHost);
+      const ro = new ResizeObserver(() => {
+        const r = this.boardEl.getBoundingClientRect();
+        this.tokens3d?.resize(r.width, r.height);
+      });
+      ro.observe(this.boardEl);
+    } catch {
+      this.tokens3d = null;
+      this.tokens3dHost.remove();
     }
 
     // Panel lateral
@@ -263,7 +283,7 @@ export class Hud {
     const rivalRow = el("div", "setup-row");
     rivalRow.appendChild(el("span", "setup-label", "Rivales"));
     const rivalOpts = el("div", "setup-opts");
-    for (let n = 1; n <= 7; n++) {
+    for (let n = 1; n <= 5; n++) {
       const btn = el("button", `opt${setup.rivals === n ? " active" : ""}`, String(n));
       btn.addEventListener("click", () => onChange({ ...setup, rivals: n }));
       rivalOpts.appendChild(btn);
@@ -316,7 +336,7 @@ export class Hud {
   showRoomWait(players: string[], me: string, isHost: boolean): void {
     const box = el("div", "overlay-box");
     box.appendChild(el("h1", "overlay-title", "MUNDIALOPOLY"));
-    box.appendChild(el("p", "overlay-sub", `Partida online (${players.length}/8 jugadores)`));
+    box.appendChild(el("p", "overlay-sub", `Partida online (${players.length}/6 jugadores)`));
     const list = el("div", "wait-list");
     players.forEach((p, i) => {
       const token = TOKENS[i % TOKENS.length];
@@ -446,17 +466,46 @@ export class Hud {
       } else {
         housesEl.style.display = "none";
       }
+      // Discos DOM solo como fallback (sin WebGL); con fichas 3D quedan vacios.
       const tokensEl = node.querySelector<HTMLDivElement>(".tile-tokens")!;
       tokensEl.innerHTML = "";
-      for (const player of state.players) {
-        if (player.bankrupt || player.pos !== i) continue;
-        const token = TOKENS[player.token % TOKENS.length];
-        const disc = el("span", `token-disc small${state.players[state.turn] === player ? " current" : ""}`, token.abbr);
-        disc.style.setProperty("--token-color", token.color);
-        disc.title = player.name;
-        tokensEl.appendChild(disc);
+      if (!this.tokens3d) {
+        for (const player of state.players) {
+          if (player.bankrupt || player.pos !== i) continue;
+          const token = TOKENS[player.token % TOKENS.length];
+          const disc = el("span", `token-disc small${state.players[state.turn] === player ? " current" : ""}`, token.abbr);
+          disc.style.setProperty("--token-color", token.color);
+          disc.title = player.name;
+          tokensEl.appendChild(disc);
+        }
       }
     }
+
+    this.syncTokens3D(state);
+  }
+
+  /** Coloca las fichas 3D sobre el centro (en px) de la casilla de cada jugador. */
+  private syncTokens3D(state: GameState): void {
+    if (!this.tokens3d) return;
+    const key = state.players.map((p) => p.token).join("-");
+    if (key !== this.tokenKey) {
+      this.tokenKey = key;
+      this.tokens3d.setTokens(state.players.map((p) => TOKENS[p.token % TOKENS.length].color));
+      const r = this.boardEl.getBoundingClientRect();
+      this.tokens3d.resize(r.width, r.height);
+    }
+    const br = this.boardEl.getBoundingClientRect();
+    const views: TokenView[] = state.players.map((p) => {
+      const tr = this.tileEls[p.pos].getBoundingClientRect();
+      return {
+        color: TOKENS[p.token % TOKENS.length].color,
+        x: tr.left - br.left + tr.width / 2,
+        y: tr.top - br.top + tr.height / 2,
+        current: state.turn === state.players.indexOf(p) && state.phase !== "over",
+        bankrupt: p.bankrupt,
+      };
+    });
+    this.tokens3d.sync(views);
   }
 
   private renderPlayers(state: GameState, me: string): void {
@@ -563,6 +612,8 @@ export class Hud {
     }
 
     const utils = el("div", "actions-utils");
+    const team = el("button", "btn btn-small btn-team", "MI EQUIPO");
+    team.addEventListener("click", () => this.openTeamModal(state, me));
     const rules = el("button", "btn btn-small", "REGLAS");
     rules.addEventListener("click", () => this.openRulesModal());
     const mute = el("button", "btn btn-small", isMuted() ? "SONIDO: OFF" : "SONIDO: ON");
@@ -570,8 +621,80 @@ export class Hud {
       toggleMute();
       mute.textContent = isMuted() ? "SONIDO: OFF" : "SONIDO: ON";
     });
-    utils.append(rules, mute);
+    utils.append(team, rules, mute);
     this.actionsEl.appendChild(utils);
+  }
+
+  /** Panel "Mi equipo": patrimonio, cartas guardadas y propiedades detalladas. */
+  private openTeamModal(state: GameState, me: string): void {
+    const player = state.players.find((p) => p.name === me);
+    if (!player) return;
+    const box = el("div", "modal-box team-modal");
+    box.appendChild(el("h2", "team-title", "MI EQUIPO"));
+
+    // Resumen de patrimonio.
+    const owned = Object.keys(state.own).map(Number).filter((i) => state.own[i].owner === me);
+    const groupsDone = Object.entries(GROUP_TILES).filter(([, tiles]) =>
+      tiles.every((t) => state.own[t]?.owner === me)).length;
+    const summary = el("div", "team-summary");
+    summary.append(
+      teamStat("Efectivo", `$${player.money}`),
+      teamStat("Patrimonio", `$${netWorth(state, me)}`),
+      teamStat("Propiedades", String(owned.length)),
+      teamStat("Grupos completos", String(groupsDone)),
+    );
+    box.appendChild(summary);
+
+    // Cartas guardadas (apelaciones).
+    const cards = el("div", "team-cards");
+    cards.appendChild(el("h3", "team-sub", "Cartas guardadas"));
+    if (player.pardons > 0) {
+      const row = el("div", "card-hand");
+      for (let k = 0; k < player.pardons; k++) {
+        const c = el("div", "hand-card", "APELACIÓN<span>Salí del Vestuario gratis</span>");
+        row.appendChild(c);
+      }
+      cards.appendChild(row);
+    } else {
+      cards.appendChild(el("div", "team-empty", "No tenés cartas guardadas."));
+    }
+    box.appendChild(cards);
+
+    // Propiedades agrupadas.
+    const props = el("div", "team-props");
+    props.appendChild(el("h3", "team-sub", "Mis propiedades"));
+    if (owned.length === 0) {
+      props.appendChild(el("div", "team-empty", "Todavía no fichaste ninguna propiedad."));
+    } else {
+      const order = [...Object.entries(GROUP_TILES).flatMap(([, t]) => t),
+        ...TILES.flatMap((t, i) => (t.kind === "stadium" || t.kind === "utility" ? [i] : []))];
+      for (const idx of order) {
+        const own = state.own[idx];
+        if (own?.owner !== me) continue;
+        const tile = TILES[idx];
+        const row = el("div", `team-prop${own.mortgaged ? " mortgaged" : ""}`);
+        const chip = el("span", "chip");
+        chip.style.background = tile.kind === "street" ? GROUP_COLORS[tile.group!] : "#2a3550";
+        const info = el("div", "team-prop-info");
+        info.append(
+          el("span", "team-prop-name", tile.name),
+          el("span", "team-prop-meta",
+            (tile.kind === "street"
+              ? (own.houses === 5 ? "Estadio completo" : own.houses > 0 ? `${own.houses} tribuna(s)` : "Sin tribunas")
+              : tile.kind === "stadium" ? "Estadio sede" : "Servicio")
+            + (own.mortgaged ? " · hipotecada" : ` · entrada $${rentFor(state, idx, 7)}`)),
+        );
+        row.append(chip, info, el("span", "team-prop-go", "VER"));
+        row.addEventListener("click", () => { this.closeModal(); this.openTileModal(idx); });
+        props.appendChild(row);
+      }
+    }
+    box.appendChild(props);
+
+    const close = el("button", "btn btn-small modal-close", "CERRAR");
+    close.addEventListener("click", () => this.closeModal());
+    box.appendChild(close);
+    this.openModal(box, "team");
   }
 
   private renderDice(state: GameState): void {

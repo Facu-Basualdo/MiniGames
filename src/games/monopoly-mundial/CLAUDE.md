@@ -1,6 +1,6 @@
 # Mundialopoly 2026 (monopoly-mundial)
 
-Monopoly clasico retematizado como Mundial 2026 (Mexico / EE.UU. / Canada). DOM puro (sin canvas ni Three.js): tablero CSS grid 11x11 + panel lateral con jugadores, acciones e historial, calcado del Monopoly de consola que el usuario paso como referencia.
+Monopoly clasico retematizado como Mundial 2026 (Mexico / EE.UU. / Canada). Tablero CSS grid 11x11 + panel lateral (jugadores, acciones, historial). Estetica **album Panini vintage** 100% CSS (papel crema con semitono, foil dorado, bandas de bandera, tipografia Anton + Archivo Narrow) — **sin imagenes**. Las unicas piezas 3D (Three.js) son los **dados** y las **fichas** de los jugadores. Maximo **6 jugadores**.
 
 ## Tematica (mapeo 1:1 con el tablero clasico)
 
@@ -16,7 +16,8 @@ Monopoly clasico retematizado como Mundial 2026 (Mexico / EE.UU. / Canada). DOM 
 - `game/engine.ts` - motor de reglas puro y host-autoritativo: `createGame` + `applyAction(state, actor, action)` muta el `GameState` y emite `log` + `fx` (cola de efectos con seq; los clientes reproducen los que no vieron). Sin DOM ni red.
 - `game/Bot.ts` - IA por dificultad (`debutante`/`profesional`/`campeon`, equivalente a First Time Buyer/Entrepreneur/Tycoon): reserva de efectivo y agresividad compradora; liquida activos ante deudas; evalua canjes por valor percibido (propiedad que completa grupo vale x2).
 - `game/Game.ts` - orquestador. Modo solitario: humano + 1-7 bots (una accion de bot cada ~950 ms). Modo sala (`?room=`): el host corre el motor y difunde el `GameState` entero por broadcast (`MonopolyChannel`, patron ArenaChannel); los clientes solo mandan acciones. El host auto-juega con logica de bot al jugador que supere `TURN_TIMEOUT_MS` (30 s) sin actuar, asi una desconexion no cuelga la partida.
-- `game/Hud.ts` - todo el DOM: tablero, fichas, panel de jugadores, botonera contextual por fase, historial con reloj, modales (ficha de propiedad con construir/hipotecar, compra, canje, reglas paginadas estilo manual de consola) y overlays. `showRanking` monta `LeaderboardPanel`.
+- `game/Hud.ts` - todo el DOM: tablero, panel de jugadores, botonera contextual por fase, historial con reloj, modales (ficha de propiedad, compra, canje, reglas paginadas, y **Mi equipo**: patrimonio + cartas guardadas + propiedades detalladas con acceso a la ficha de cada una) y overlays. Monta `Dice3D` y `Tokens3D` como overlays sobre el tablero. `showRanking` monta `LeaderboardPanel`.
+- `game/Tokens3D.ts` - fichas 3D de los jugadores (Three.js), overlay de canvas transparente que cubre todo el tablero. Camara ortografica top-down en "espacio de pixeles del tablero" (mundo = px del tablero) para alinear exacto con cada casilla aunque la grilla no sea uniforme (las esquinas son 1.6fr). El HUD pasa el centro en px de la casilla de cada jugador (`getBoundingClientRect`) en `syncTokens3D`. Cada ficha es un peon (base + cuerpo + cabeza + aro dorado) del color del jugador, inclinado (`LEAN`) para leerse como 3D desde arriba. Como la altura no se ve en top-down, el salto al moverse y el bob del jugador de turno se simulan desplazando la ficha hacia arriba en pantalla (eje -Z). Fallback a discos DOM `.token-disc` si WebGL no arranca.
 - `game/audio.ts` - SFX 100% procedurales con Web Audio (patron de audio de la skill threejs-gameplay-systems: el motor emite eventos fx, este modulo los sintetiza). Mute en localStorage `mg:monopoly-mundial:mute`.
 - `game/Dice3D.ts` - dados 3D con Three.js (unica pieza 3D del juego, DOM en lo demas). Overlay de canvas transparente sobre el centro; fisica de caja simulada a mano (gravedad + rebotes + slerp de asentado), NO Rapier. Caras generadas con canvas 2D (sin assets). Se apaga al asentarse (ultimo frame queda pintado, `preserveDrawingBuffer`). El Hud detecta una tirada nueva por el `seq` del fx "dice" (valores iguales en tiradas distintas no confunden) y llama `roll(d1,d2)`; `showStatic` es idempotente (guarda `shownKey`) para no saltar en re-renders; si WebGL no arranca cae al render DOM `.die`. Mapeo valor→cara: BoxGeometry grupos +X/-X/+Y/-Y/+Z/-Z = 3/4/1/6/2/5, y `baseQuat(v)` rota la cara `v` a +Y. Suena `sfx.diceTap` en cada rebote.
 
@@ -33,17 +34,23 @@ Sigue el reglamento oficial en espanol (dobles, 3 dobles = roja, vestuario con 3
 
 Score = patrimonio (`netWorth`: efectivo + precio de propiedades, hipotecadas al 50%, + costo de tribunas). Ranking global `higher`; best local en `mg:monopoly-mundial:best`. En salas el parcial por timeout reporta el patrimonio del momento, asi la ronda corta de las salas (60-180 s) tiene ganador igual.
 
-## Arte
+## Arte / estilo
 
-`PROMPTS.md` (en esta carpeta) tiene el pack completo de prompts de IA. Los archivos van a `public/monopoly/` (portada en `public/covers/monopoly-mundial.jpg`). Cableado: `TILE_ART` en `Hud.ts` mapea indice de casilla a imagen (VAR/FIFA se resuelven por kind) y agrega la clase `tile-art` (arte a sangre + nombre en pastilla); `bg.jpg` y `board-center.jpg` van por CSS en `style.css`. Los PNG del pack vinieron con fondo pintado (no transparente), por eso se usan como fondo cover y no como icono suelto.
+**El juego no usa imagenes** (se quitaron a pedido): el look es 100% CSS estilo
+album Panini en `style.css`. Paleta y fuentes por variables (`--paper`, `--gold`,
+`--flag-*`; `--font-display` Anton, `--font-cond` Archivo Narrow, `--font-body`
+Archivo — cargadas en `games/monopoly-mundial/index.html`). Casillas de calle con
+banda de color de grupo; casillas especiales tinte por tipo + etiqueta (`KIND_TAG`
+en `Hud.ts`). Centro del tablero = "cromo" con rayos de estadio. Modales tipo
+ficha/sticker. Las fichas de jugador son 3D (`Tokens3D`), no imagenes.
 
-Los escudos de seleccion se generan con la **bandera real del pais** flameando de fondo + escudo generico de fantasia (las banderas son dominio publico; los escudos oficiales de federacion no se imitan). Formato de casilla: vertical 2:3 a sangre completa, sujeto centrado (las casillas laterales recortan arriba/abajo). Los archivos con extension se guardan en `TILE_ART` con extension incluida (jpg para arte opaco comprimido, png para las esquinas).
-
-**Ya generado y cableado**: portada, bg, board-center, 4 esquinas, icon-var/fifa/tasa/fichaje, los 4 estadios (azteca/sofi/att/metlife) y 7 selecciones (nueva-zelanda, panama, japon, corea, australia, marruecos, eeuu). **Pendiente**: icon-cabina, icon-tv, 15 escudos de seleccion restantes, 8 fichas token, 2 dorsos de tarjeta, hero del setup. Al llegar cada archivo, agregar su indice a `TILE_ART` (no pre-mapear archivos inexistentes: el 404 silencioso deja la casilla con pastilla blanca sobre fondo crema).
+La portada de la landing sigue en `public/covers/monopoly-mundial.jpg`. Los PNG/JPG
+viejos en `public/monopoly/` quedaron **sin usar** (se pueden borrar); `PROMPTS.md`
+es historico. No reintroducir `TILE_ART` ni fondos de imagen salvo pedido expreso.
 
 ## Gotchas
 
 - El estado viaja entero por broadcast en cada cambio (~pocos KB): no agregar campos gigantes al `GameState`.
 - Si el host online se va, no hay migracion del motor: el resto queda esperando y la ronda muere por el deadline de la sala (roomMode reporta parciales). Aceptado por ahora.
-- Los jugadores de la sala por encima de 8 no entran a la partida (se toman los primeros 8 por orden de ingreso).
+- Los jugadores de la sala por encima de 6 no entran a la partida (se toman los primeros 6 por orden de ingreso).
 - El countdown 3/2/1/YA es obligatorio en ambos modos; en online lo dispara el evento `go` del host y los clientes bufferizan el primer estado hasta terminarlo.

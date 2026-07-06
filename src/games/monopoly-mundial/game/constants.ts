@@ -10,24 +10,22 @@ export const STARTING_MONEY = 1500;
 export const GO_SALARY = 200;
 export const JAIL_FINE = 50;
 export const JAIL_POS = 10;
-export const MAX_PLAYERS = 8;
+export const MAX_PLAYERS = 6;
 
 /** Tope por decision en modo online: el host auto-juega al que se cuelga. */
 export const TURN_TIMEOUT_MS = 30000;
 
-/** Fichas: color + sigla que se dibuja en el disco. */
+/** Fichas: color + sigla que se dibuja en el disco/ficha 3D. Maximo 6 jugadores. */
 export const TOKENS = [
-  { name: "Balon", abbr: "BA", color: "#f2c94c" },
-  { name: "Botin", abbr: "BO", color: "#56ccf2" },
+  { name: "Balon de Oro", abbr: "BA", color: "#f2c94c" },
+  { name: "Botin", abbr: "BO", color: "#42b8e8" },
   { name: "Copa", abbr: "CO", color: "#eb5757" },
-  { name: "Guante", abbr: "GU", color: "#6fcf97" },
-  { name: "Silbato", abbr: "SI", color: "#bb6bd9" },
-  { name: "Camiseta", abbr: "CA", color: "#f2994a" },
-  { name: "Escudo", abbr: "ES", color: "#2f80ed" },
-  { name: "Mascota", abbr: "MA", color: "#e0e0e0" },
+  { name: "Guante", abbr: "GU", color: "#5ecb7e" },
+  { name: "Silbato", abbr: "SI", color: "#b06bd9" },
+  { name: "Camiseta 10", abbr: "10", color: "#f2994a" },
 ] as const;
 
-export const BOT_NAMES = ["Tata", "Loco", "Mister", "Profe", "Vasco", "Flaco", "Pipa"];
+export const BOT_NAMES = ["Tata", "Loco", "Mister", "Profe", "Vasco"];
 
 export const GROUP_COLORS: Record<string, string> = {
   marron: "#8d5b3f",
@@ -100,39 +98,62 @@ TILES.forEach((t, i) => {
 export const STADIUM_TILES = TILES.flatMap((t, i) => (t.kind === "stadium" ? [i] : []));
 export const UTILITY_TILES = TILES.flatMap((t, i) => (t.kind === "utility" ? [i] : []));
 
-/** Mazo Tarjeta VAR (equivale a Suerte). */
+/**
+ * Mazo Tarjeta VAR (equivale a Suerte): cargado a traslados por el tablero y
+ * golpes de fortuna. Guinos al Mundial 2026 y al album Panini.
+ */
 export const VAR_CARDS: CardDef[] = [
   { text: "El VAR convalida tu gol de mitad de cancha. Avanza hasta el Saque Inicial y cobra $200.", effect: { type: "goto", tile: 0 } },
-  { text: "Te convocan a la Albiceleste. Avanza hasta Argentina.", effect: { type: "goto", tile: 39 } },
-  { text: "Gira con la Azzurra. Avanza hasta Italia. Si pasas por el Saque Inicial cobra $200.", effect: { type: "goto", tile: 29 } },
-  { text: "Amistoso en el Azteca. Avanza hasta Mexico. Si pasas por el Saque Inicial cobra $200.", effect: { type: "goto", tile: 18 } },
-  { text: "Avanza hasta el estadio sede mas cercano. Si tiene dueno, paga el doble de la entrada.", effect: { type: "nearest", kind: "stadium" } },
-  { text: "Avanza hasta el servicio mas cercano (Cabina VAR o Transmision TV). Si tiene dueno, paga 10 veces los dados.", effect: { type: "nearest", kind: "utility" } },
-  { text: "Fuera de juego milimetrico: retrocede 3 casillas.", effect: { type: "back", steps: 3 } },
+  { text: "Te convocan a la Albiceleste para la gran final. Avanza hasta Argentina.", effect: { type: "goto", tile: 39 } },
+  { text: "Gira de amistosos con la Azzurra. Avanza hasta Italia. Si pasas por el Saque Inicial cobra $200.", effect: { type: "goto", tile: 29 } },
+  { text: "Partido inaugural en el Azteca. Avanza hasta Mexico. Si pasas por el Saque Inicial cobra $200.", effect: { type: "goto", tile: 18 } },
+  { text: "Clasificas al Mundial con Marruecos. Avanza hasta Marruecos.", effect: { type: "goto", tile: 11 } },
+  { text: "Te llevan a la gran final. Avanza hasta el MetLife.", effect: { type: "goto", tile: 35 } },
+  { text: "Corre la banda: avanza hasta el estadio sede mas cercano. Si tiene dueno, paga el doble de la entrada.", effect: { type: "nearest", kind: "stadium" } },
+  { text: "Vas a la sala VAR: avanza hasta el servicio mas cercano (Cabina VAR o Transmision TV). Si tiene dueno, paga 10 veces los dados.", effect: { type: "nearest", kind: "utility" } },
+  { text: "Fuera de juego milimetrico marcado por las lineas del VAR: retrocede 3 casillas.", effect: { type: "back", steps: 3 } },
   { text: "Entrada criminal de planchazo. Tarjeta roja directa: ve al Vestuario sin pasar por el Saque Inicial.", effect: { type: "gotojail" } },
   { text: "Apelacion ganada ante el Tribunal de Disciplina. Conserva esta tarjeta para salir del Vestuario gratis.", effect: { type: "pardon" } },
-  { text: "Multa por protestar al arbitro: paga $15.", effect: { type: "money", amount: -15 } },
+  { text: "Multa de la FIFA por protestar al arbitro: paga $15.", effect: { type: "money", amount: -15 } },
   { text: "Ganas la tanda de penales y el premio de la fecha: cobra $50.", effect: { type: "money", amount: 50 } },
-  { text: "Mantenimiento de tus canchas: paga $25 por tribuna y $100 por estadio.", effect: { type: "repairs", perHouse: 25, perHotel: 100 } },
-  { text: "Te nombran capitan y pagas el asado del plantel: paga $50 a cada jugador.", effect: { type: "each", amount: -50 } },
+  { text: "Mantenimiento de tus canchas antes del Mundial: paga $25 por tribuna y $100 por estadio.", effect: { type: "repairs", perHouse: 25, perHotel: 100 } },
+  { text: "Te nombran capitan y pagas el asado del plantel: dale $50 a cada jugador.", effect: { type: "each", amount: -50 } },
+  { text: "Sos la figura de la fecha: cada rival te paga $20 de admiracion.", effect: { type: "each", amount: 20 } },
   { text: "Firmas contrato con un sponsor deportivo: cobra $150.", effect: { type: "money", amount: 150 } },
-  { text: "Encuentras un cromo dorado edicion limitada del album del Mundial: cobra $100.", effect: { type: "money", amount: 100 } },
+  { text: "Encuentras el cromo dorado de la estrella, edicion limitada del album: cobra $100.", effect: { type: "money", amount: 100 } },
+  { text: "Amonestacion por perder tiempo: paga $25.", effect: { type: "money", amount: -25 } },
+  { text: "Premio a la valla menos vencida del torneo: cobra $75.", effect: { type: "money", amount: 75 } },
+  { text: "Te lesionas y pagas la rehabilitacion: paga $100.", effect: { type: "money", amount: -100 } },
+  { text: "Subasta de tu camiseta usada en la final: cobra $120.", effect: { type: "money", amount: 120 } },
+  { text: "Bono por clasificar a octavos: cobra $40.", effect: { type: "money", amount: 40 } },
+  { text: "Bronca en el tunel del vestuario: retrocede 3 casillas.", effect: { type: "back", steps: 3 } },
 ];
 
-/** Mazo Tarjeta FIFA (equivale a Arca Comunal). */
+/**
+ * Mazo Tarjeta FIFA (equivale a Arca Comunal): mas cargado a premios, multas y
+ * gestion del club/seleccion.
+ */
 export const FIFA_CARDS: CardDef[] = [
   { text: "La FIFA revisa el fixture: avanza hasta el Saque Inicial y cobra $200.", effect: { type: "goto", tile: 0 } },
   { text: "Error del banco de fichajes a tu favor: cobra $200.", effect: { type: "money", amount: 200 } },
   { text: "Pagas la inscripcion de la escuelita de futbol: paga $50.", effect: { type: "money", amount: -50 } },
-  { text: "Venta record de camisetas de tu equipo: cobra $50.", effect: { type: "money", amount: 50 } },
+  { text: "Venta record de camisetas de tu seleccion: cobra $50.", effect: { type: "money", amount: 50 } },
   { text: "Apelacion ganada ante la FIFA. Conserva esta tarjeta para salir del Vestuario gratis.", effect: { type: "pardon" } },
   { text: "Doping positivo por el mate del utilero. Ve al Vestuario sin pasar por el Saque Inicial.", effect: { type: "gotojail" } },
   { text: "Dia de cobro de premios FIFA: cobra $100.", effect: { type: "money", amount: 100 } },
   { text: "Devolucion de impuestos de la federacion: cobra $20.", effect: { type: "money", amount: 20 } },
   { text: "Es tu cumpleanos y todo el plantel colabora: cada jugador te da $10.", effect: { type: "each", amount: 10 } },
   { text: "Vence el seguro medico del plantel: paga $100.", effect: { type: "money", amount: -100 } },
-  { text: "Completas el album del Mundial y ganas el concurso: cobra $100.", effect: { type: "money", amount: 100 } },
+  { text: "Completas el album del Mundial y ganas el gran concurso: cobra $100.", effect: { type: "money", amount: 100 } },
   { text: "Gastos de clinica tras una entrada dura: paga $50.", effect: { type: "money", amount: -50 } },
   { text: "Reparaciones en tus estadios: paga $40 por tribuna y $115 por estadio.", effect: { type: "repairs", perHouse: 40, perHotel: 115 } },
   { text: "Tu gol gana el premio al mejor de la fecha: cobra $10.", effect: { type: "money", amount: 10 } },
+  { text: "Derechos de television repartidos entre clubes: cobra $150.", effect: { type: "money", amount: 150 } },
+  { text: "Multa por indisciplina del plantel: paga $40.", effect: { type: "money", amount: -40 } },
+  { text: "Ganas el sorteo del palco VIP en la final: cobra $60.", effect: { type: "money", amount: 60 } },
+  { text: "El fisco te descubre un bono no declarado: paga $75.", effect: { type: "money", amount: -75 } },
+  { text: "Homenaje de los hinchas: cada jugador te regala $15.", effect: { type: "each", amount: 15 } },
+  { text: "Renovas contrato con prima de fichaje: cobra $130.", effect: { type: "money", amount: 130 } },
+  { text: "Suspenden un partido por la lluvia y perdes la taquilla: paga $60.", effect: { type: "money", amount: -60 } },
+  { text: "Premio Fair Play de la FIFA: cobra $80.", effect: { type: "money", amount: 80 } },
 ];
