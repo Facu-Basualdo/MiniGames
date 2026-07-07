@@ -1,0 +1,499 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap");
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  background: #e7e4de;
+  font-family: "Archivo", "Segoe UI", system-ui, sans-serif;
+  color: #14110d;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Back link (kept, muted, above the card) */
+.back-link {
+  position: fixed;
+  top: 20px;
+  left: 22px;
+  z-index: 50;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: rgba(20, 17, 13, 0.5);
+  text-decoration: none;
+  text-transform: lowercase;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.back-link:hover {
+  color: #14110d;
+  transform: translateX(-2px);
+}
+
+/* ---------- The card ---------- */
+.cm-card {
+  position: relative;
+  width: min(93vw, 460px);
+  min-height: min(86vh, 648px);
+  border-radius: 30px;
+  background: #f6f4f0;
+  box-shadow: 0 40px 80px -30px rgba(20, 17, 13, 0.45), 0 12px 30px -12px rgba(20, 17, 13, 0.25);
+  overflow: hidden;
+  --ink: #14110d;
+  --muted: rgba(20, 17, 13, 0.5);
+}
+.cm-card[data-tone="light"] {
+  --ink: #faf8f5;
+  --muted: rgba(255, 255, 255, 0.62);
+}
+.cm-card.phase-idle,
+.cm-card.phase-gameover {
+  overflow-y: auto;
+}
+
+/* Hide everything by default; each phase opts its pieces back in. */
+.cm-top,
+.cm-bignum,
+.cm-sliders,
+.cm-readout,
+.cm-brand--bl,
+.cm-fab,
+.cm-reveal-bottom,
+.cm-countdown,
+.cm-start,
+.cm-gameover {
+  display: none;
+}
+.cm-brand--tr {
+  display: none;
+}
+
+.phase-idle .cm-start {
+  display: flex;
+}
+.phase-countdown .cm-countdown {
+  display: flex;
+}
+.phase-memorize .cm-top {
+  display: flex;
+}
+.phase-memorize .cm-bignum,
+.phase-memorize .cm-brand--bl {
+  display: block;
+}
+.phase-guess .cm-top {
+  display: flex;
+}
+.phase-guess .cm-brand--tr {
+  display: block;
+}
+.phase-guess .cm-sliders,
+.phase-guess .cm-fab {
+  display: flex;
+}
+.phase-reveal .cm-top {
+  display: flex;
+}
+.phase-reveal .cm-bignum,
+.phase-reveal .cm-reveal-bottom,
+.phase-reveal .cm-readout {
+  display: block;
+}
+.phase-reveal .cm-fab {
+  display: flex;
+}
+.phase-gameover .cm-gameover {
+  display: flex;
+}
+
+/* ---------- Top row ---------- */
+.cm-top {
+  position: absolute;
+  top: 26px;
+  left: 28px;
+  right: 28px;
+  z-index: 3;
+  align-items: baseline;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.cm-counter {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cm-brand {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+}
+.cm-brand--bl {
+  position: absolute;
+  left: 28px;
+  bottom: 26px;
+  z-index: 3;
+}
+
+/* ---------- Big number (memorize countdown / reveal score) ---------- */
+.cm-bignum {
+  position: absolute;
+  top: 22px;
+  right: 28px;
+  left: 28px;
+  z-index: 2;
+  text-align: right;
+}
+.cm-bignum__value {
+  font-size: clamp(70px, 21vw, 128px);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.cm-bignum__label {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cm-bignum__sub {
+  margin-top: 10px;
+  margin-left: auto;
+  max-width: 62%;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* ---------- Sliders (H / S / B) ---------- */
+.cm-sliders {
+  position: absolute;
+  left: 24px;
+  top: 78px;
+  bottom: 24px;
+  z-index: 2;
+  gap: 16px;
+}
+.cm-slider {
+  position: relative;
+  width: 26px;
+  height: 100%;
+}
+.cm-slider__input {
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 26px;
+  height: 100%;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12), 0 8px 20px -6px rgba(0, 0, 0, 0.35);
+}
+.cm-slider__input::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+}
+.cm-slider__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  cursor: grab;
+}
+.cm-slider__input::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+.cm-slider__input::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+.cm-slider__input::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- Reveal ---------- */
+.cm-reveal-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  z-index: 1;
+  border-radius: 0 0 30px 30px;
+  --ink: #14110d;
+  --muted: rgba(20, 17, 13, 0.5);
+}
+.cm-reveal-bottom[data-tone="light"] {
+  --ink: #faf8f5;
+  --muted: rgba(255, 255, 255, 0.62);
+}
+.cm-readout {
+  z-index: 3;
+}
+.cm-readout--sel {
+  position: absolute;
+  left: 28px;
+  bottom: calc(50% + 18px);
+}
+.cm-readout--orig {
+  position: absolute;
+  left: 28px;
+  bottom: 26px;
+}
+.cm-readout__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cm-readout__val {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- FAB ---------- */
+.cm-fab {
+  position: absolute;
+  right: 26px;
+  bottom: 26px;
+  z-index: 4;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  border: none;
+  background: #fbfaf8;
+  color: #14110d;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 14px 30px -8px rgba(20, 17, 13, 0.5);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.cm-fab:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 20px 38px -10px rgba(20, 17, 13, 0.55);
+}
+.cm-fab:active {
+  transform: translateY(0) scale(0.97);
+}
+.cm-fab svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* ---------- Countdown ---------- */
+.cm-countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: clamp(96px, 30vw, 190px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #14110d;
+  opacity: 0;
+}
+.cm-countdown.is-shown {
+  animation: countdown-pop 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+}
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: scale(0.35); }
+  25% { opacity: 1; transform: scale(1.08); }
+  45% { transform: scale(1); }
+  80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+/* ---------- Start ---------- */
+.cm-start {
+  flex-direction: column;
+  min-height: min(86vh, 648px);
+  padding: 40px 36px;
+  gap: 0;
+  justify-content: flex-end;
+}
+.cm-kicker {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(20, 17, 13, 0.5);
+  margin-bottom: 14px;
+}
+.cm-title {
+  font-size: clamp(40px, 12vw, 60px);
+  font-weight: 800;
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  color: #14110d;
+}
+.cm-lead {
+  margin-top: 18px;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(20, 17, 13, 0.62);
+  max-width: 34ch;
+}
+.cm-best {
+  margin-top: 22px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #14110d;
+  font-variant-numeric: tabular-nums;
+}
+.cm-pill {
+  margin-top: 22px;
+  align-self: flex-start;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #f6f4f0;
+  background: #14110d;
+  border: none;
+  border-radius: 999px;
+  padding: 15px 34px;
+  cursor: pointer;
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+.cm-pill:hover {
+  transform: translateY(-2px);
+  background: #241f18;
+}
+.cm-pill:active {
+  transform: translateY(0);
+}
+.cm-hint {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(20, 17, 13, 0.42);
+  text-transform: lowercase;
+}
+
+/* ---------- Game over ---------- */
+.cm-gameover {
+  flex-direction: column;
+  min-height: min(86vh, 648px);
+  padding: 40px 36px;
+  justify-content: center;
+}
+.cm-gameover__big {
+  font-size: clamp(72px, 22vw, 116px);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: #14110d;
+  font-variant-numeric: tabular-nums;
+}
+.cm-gameover__sub {
+  margin-top: 10px;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #14110d;
+  max-width: 24ch;
+}
+.cm-gameover__table {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cm-result {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(20, 17, 13, 0.1);
+}
+.cm-result__idx {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(20, 17, 13, 0.4);
+  width: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.cm-result__swatches {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+.cm-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px rgba(20, 17, 13, 0.12);
+}
+.cm-result__pct {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.cm-gameover .cm-best {
+  margin-top: 22px;
+}
+.cm-gameover .cm-pill {
+  align-self: flex-start;
+}
+/* The shared leaderboard is styled for dark overlays; give it a dark
+   container so its light text stays legible on this cream card. */
+.cm-lb:not(:empty) {
+  margin-top: 26px;
+  background: #14110d;
+  border-radius: 20px;
+  padding: 20px 18px;
+}
+
+@media (max-width: 420px) {
+  .cm-bignum__value {
+    font-size: clamp(58px, 20vw, 96px);
+  }
+  .cm-sliders {
+    gap: 12px;
+  }
+}
