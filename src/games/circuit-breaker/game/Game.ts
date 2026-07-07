@@ -360,6 +360,12 @@ export class Game {
     for (let i = 0; i < steps; i++) {
       this.pos.x += sx;
       this.pos.y += sy;
+      // Llegar a B tiene prioridad sobre chocar: entrar por un borde del conector
+      // (pegado a la pared) cuenta como nivel superado, no como choque.
+      if (this.reachedEnd()) {
+        this.reachEnd();
+        return;
+      }
       if (this.hitsWall(this.pos.x, this.pos.y)) {
         this.crash();
         return;
@@ -404,16 +410,20 @@ export class Game {
       p.life -= dt;
     }
     if (this.particles.length) this.particles = this.particles.filter((p) => p.life > 0);
+  }
 
-    // La deteccion de llegada solo corre mientras se juega. Si no, tras ganar la
-    // senal queda sobre el destino y reachEnd()/win() se dispararian cada frame
-    // (inundando el ranking con fetch/insert -> ERR_INSUFFICIENT_RESOURCES).
-    if (
-      this.state === "playing" &&
-      Math.hypot(this.endCenter.x - this.pos.x, this.endCenter.y - this.pos.y) < CELL * 0.7
-    ) {
-      this.reachEnd();
-    }
+  /** true si la senal esta dentro del conector B. Su hitbox cubre las 3 celdas de
+   *  largo (eje perpendicular a `endFacing`, a lo largo de la pared) y ~1 celda de
+   *  fondo (eje `endFacing`), de modo que llegar por cualquier borde cuenta. */
+  private reachedEnd(): boolean {
+    // Eje largo del conector = perpendicular a la pared a la que se pega.
+    const ax = -this.endFacing.y;
+    const ay = this.endFacing.x;
+    const rx = this.pos.x - this.endCenter.x;
+    const ry = this.pos.y - this.endCenter.y;
+    const along = rx * ax + ry * ay; // a lo largo de las 3 celdas
+    const depth = rx * this.endFacing.x + ry * this.endFacing.y; // hacia/desde la pared
+    return Math.abs(along) < CELL * 1.5 && Math.abs(depth) < CELL * 0.7;
   }
 
   private reachEnd(): void {

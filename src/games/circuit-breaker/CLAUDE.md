@@ -17,7 +17,10 @@ paredes**. Si tocas una pared = choque: la senal vuelve al inicio y se cuenta.
   flash rojo + sacudida + banner "CHOQUE" durante `CRASH_FREEZE`, `crashes++`, y
   la senal vuelve a `startCenter`. El tiempo de la corrida sigue corriendo durante
   el choque (penaliza chocar).
-- **Llegar a B** (`< CELL*0.7` del centro) => `win`.
+- **Llegar a B**: el conector mide **3 celdas** a lo largo de la pared, asi que la
+  zona de llegada (`reachedEnd`) es un rectangulo que cubre las 3 celdas (eje
+  perpendicular a `endFacing`, +-`CELL*1.5`) con `CELL*0.7` de fondo — no solo un
+  circulo en la celda central. Entrar por cualquier borde cuenta como superado.
 - Movimiento por substeps dentro de `updatePlaying` para no atravesar paredes finas
   en frames largos.
 - Controles: flechas / WASD para girar (la senal avanza sola) o swipe en tactil.
@@ -43,14 +46,15 @@ paredes**. Si tocas una pared = choque: la senal vuelve al inicio y se cuenta.
   Llegar a B en el ultimo nivel cierra la corrida (`reachEnd` -> `win`); en los
   intermedios muestra el cartel "NIVEL N" (estado `clear`, `LEVEL_FLASH`, timer en
   pausa) y carga el siguiente.
-- **Gotcha (deteccion de llegada):** la deteccion de B esta dentro de
-  `updateParticles`, que corre **todos los frames en cualquier estado**. Por eso el
-  chequeo `hypot(...) < CELL*0.7 -> reachEnd()` esta guardado con
-  `this.state === "playing"`: sin ese guard, tras ganar la senal queda sobre B y
-  `reachEnd()`/`win()` se disparaban cada frame, inundando el ranking con
-  `fetch`/`insert` (`ERR_INSUFFICIENT_RESOURCES` + panel trabado en "Cargando..."
-  porque se re-renderiza cada 16 ms). `win()` ademas tiene un guard anti-reentrada
-  (`if (this.state === "won") return`). `startDir` se recalcula por nivel (`computeStartDir`:
+- **Gotcha (deteccion de llegada):** la deteccion de B corre dentro del bucle de
+  substeps de `updatePlaying` (solo mientras `state === "playing"`), **antes** del
+  `hitsWall`, para que llegar a B tenga prioridad sobre chocar (entrar por un borde
+  del conector, que esta pegado a la pared, cuenta como superado y no como choque).
+  Solo se evalua en `playing`, asi que tras ganar la senal queda sobre B pero
+  `reachEnd()`/`win()` no se re-disparan cada frame (antes la deteccion vivia en
+  `updateParticles`, que corre en cualquier estado, e inundaba el ranking con
+  `fetch`/`insert` -> `ERR_INSUFFICIENT_RESOURCES`). `win()` ademas tiene un guard
+  anti-reentrada (`if (this.state === "won") return`). `startDir` se recalcula por nivel (`computeStartDir`:
   primer vecino de A que sea corredor). Conviene verificar A->B (el editor lo hace por
   BFS en vivo con el radio real de la senal).
 
