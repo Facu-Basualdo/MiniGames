@@ -16,6 +16,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Beat Fever | Ritmo | Tocá las notas justo al cruzar la línea y encadená combos. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Bounce Rush | Arcade | Saltá entre plataformas y cambiá de carril a tiempo. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Reflex | Reflejos | Poné a prueba tus reflejos en 5 rondas de tiempo de reacción. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Al Centro | Reflejos | Frená la regla que barre de lado a lado y acelera cada ronda; cuanto más al centro, más puntos. El puntaje final es el promedio de 5 rondas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Skyline | Precisión | Levantá el rascacielos más alto sin perder el equilibrio. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Numerix | Puzzle | Ordená los números deslizando filas o columnas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
 | Asteroides | Arcade | El clásico: navegá con inercia y dispará a las rocas. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
