@@ -34,8 +34,13 @@ const AI_SPEED = 310;
 const AI_MARGIN = 30;
 // ---- Reglas / timing del server ----
 const SCORE_LIMIT = 7;
-const TICK_MS = 33; // ~30 fps: fisica + broadcast
-const MAX_STEP_DT = 0.05; // corte de dt si el intervalo se atrasa
+const TICK_MS = 16; // ~60 fps: fisica + broadcast (mas suave y menos lag de input)
+const MAX_STEP_DT = 0.034; // corte de dt si el intervalo se atrasa
+/** Maximo avance de la pelota por sub-paso de colision (px). La fisica se integra
+ *  en sub-pasos de a lo sumo este tamano para que una pelota rapida NUNCA salte
+ *  por encima de la paleta sin rebotar (tunneling). Menor que la ventana de
+ *  colision de la paleta. */
+const SUBSTEP_MAX_PX = 5;
 /** La pelota queda congelada al centro este tiempo tras crear el match, para que
  *  coincida con el countdown 3/2/1/YA del cliente y nadie pierda puntos sin ver. */
 const PREROLL_MS = 3000;
@@ -182,32 +187,28 @@ class PongSim implements RoomSim {
     match.p1Y = clampPaddle(match.p1Y);
     match.p2Y = clampPaddle(match.p2Y);
 
-    updateBall(match.ball, dt);
-    this.resolveCollisions(match);
+    // Sub-stepping: se integra la pelota en pasos chicos (<= SUBSTEP_MAX_PX) y se
+    // chequea la colision en cada uno, asi una pelota rapida no atraviesa la
+    // paleta. Se corta al primer gol/relanzamiento del tick.
+    const dist = Math.hypot(match.ball.vx, match.ball.vy) * dt;
+    const steps = Math.max(1, Math.ceil(dist / SUBSTEP_MAX_PX));
+    const sub = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      updateBall(match.ball, sub);
+      if (this.resolveCollisions(match)) break;
+    }
   }
 
-  private resolveCollisions(match: Match): void {
+  /** Devuelve true si hubo gol/relanzamiento o el match termino (corta el sub-step). */
+  private resolveCollisions(match: Match): boolean {
     const ball = match.ball;
     const left = ball.x - BALL_RADIUS;
     const right = ball.x + BALL_RADIUS;
     const top = ball.y - BALL_RADIUS;
     const bottom = ball.y + BALL_RADIUS;
 
-    // Punto: la pelota paso una paleta. Se relanza hacia el que recibio el gol.
-    if (left <= 0) {
-      match.p2Score += 1;
-      if (this.reachedLimit(match)) return;
-      launchBall(ball, true); // sirve hacia la izquierda (p1)
-      return;
-    }
-    if (right >= VIEW_WIDTH) {
-      match.p1Score += 1;
-      if (this.reachedLimit(match)) return;
-      launchBall(ball, false); // sirve hacia la derecha (p2)
-      return;
-    }
-
-    // Rebote en la paleta izquierda (p1).
+    // Rebote en la paleta izquierda (p1). Se evalua ANTES del gol para que una
+    // pelota que toca la paleta rebote en vez de contar como punto.
     if (
       ball.vx < 0 &&
       left <= P1_RIGHT &&
@@ -217,6 +218,7 @@ class PongSim implements RoomSim {
     ) {
       ball.x = P1_RIGHT + BALL_RADIUS;
       bouncePaddle(ball, match.p1Y);
+      return false;
     }
     // Rebote en la paleta derecha (p2).
     if (
@@ -228,7 +230,25 @@ class PongSim implements RoomSim {
     ) {
       ball.x = P2_LEFT - BALL_RADIUS;
       bouncePaddle(ball, match.p2Y);
+      return false;
     }
+
+    // Punto: la pelota paso una paleta (no la toco). Se relanza hacia el que
+    // recibio el gol.
+    if (left <= 0) {
+      match.p2Score += 1;
+      if (this.reachedLimit(match)) return true;
+      launchBall(ball, true); // sirve hacia la izquierda (p1)
+      return true;
+    }
+    if (right >= VIEW_WIDTH) {
+      match.p1Score += 1;
+      if (this.reachedLimit(match)) return true;
+      launchBall(ball, false); // sirve hacia la derecha (p2)
+      return true;
+    }
+
+    return false;
   }
 
   private reachedLimit(match: Match): boolean {

@@ -23,8 +23,10 @@ type State = "ready" | "countdown" | "playing" | "dead";
 
 const BEST_KEY = "pong:best";
 const SCORE_LIMIT = 7;
-/** 25 Hz: cada cliente manda su paleta 1 vez por tick. */
-const BROADCAST_INTERVAL = 0.04;
+/** 50 Hz: cada cliente manda su paleta al server. Frecuente a proposito: cuanto
+ *  antes llega tu Y, menos chance de que la pelota "pase" por donde ves tu paleta
+ *  (la colision la resuelve el server con la Y que tiene). */
+const BROADCAST_INTERVAL = 0.02;
 
 const COUNTDOWN_LABELS = ["3", "2", "1", "YA"];
 const COUNTDOWN_STEP = 0.75;
