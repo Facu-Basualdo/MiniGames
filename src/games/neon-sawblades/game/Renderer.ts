@@ -11,6 +11,7 @@ import {
 import type { Player } from "./Player";
 import type { SawbladeField } from "./SawbladeField";
 import type { Particles } from "./Particles";
+import { bakeSprite, glowDot, GLOW_DOT_RADIUS, SPRITE_SCALE, type Sprite } from "./sprites";
 
 const BG_TOP = "#0a0b1e";
 const BG_BOTTOM = "#141033";
@@ -31,13 +32,21 @@ interface TrailNode {
   y: number;
 }
 
-/** All canvas drawing for Neon Sawblades, in view units. */
+/** All canvas drawing for Neon Sawblades, in view units. Every glow is baked
+ *  once into an offscreen sprite/layer (see `sprites.ts`); the frame loop only
+ *  does `drawImage` plus a handful of unblurred strokes, so it stays smooth
+ *  on integrated GPUs. */
 export class Renderer {
   private time = 0;
   private readonly stars: Star[] = [];
   private readonly trail: TrailNode[] = [];
-  /** The city skyline, rendered once to an offscreen canvas and blitted dim. */
-  private readonly cityCanvas: HTMLCanvasElement;
+  /** Static sky gradient, under the stars. */
+  private readonly skyCanvas: HTMLCanvasElement;
+  /** Static city + columns + scanlines + floor line/grid rows, over the stars. */
+  private readonly overlayCanvas: HTMLCanvasElement;
+  private readonly sawSprite: Sprite;
+  private readonly coinSprite: Sprite;
+  private readonly playerSprite: Sprite;
 
   constructor() {
     for (let i = 0; i < 60; i++) {
@@ -48,19 +57,117 @@ export class Renderer {
         z: Math.random(),
       });
     }
-    this.cityCanvas = document.createElement("canvas");
-    this.cityCanvas.width = VIEW_WIDTH;
-    this.cityCanvas.height = FLOOR_Y;
-    this.buildCity();
+    this.skyCanvas = this.buildSky();
+    this.overlayCanvas = this.buildOverlay(this.buildCity());
+    this.sawSprite = this.buildSawSprite();
+    this.coinSprite = this.buildCoinSprite();
+    this.playerSprite = this.buildPlayerSprite();
   }
 
-  /** Draws the neon city once into `cityCanvas` (static, cached). Built as
-   *  atmosphere, not scenery: a horizon "light pollution" glow that the dark
-   *  building silhouettes cut into, plus a few soft signs — the same read as
-   *  the neon ambience in Keepers! / Barra Libre, kept dim on purpose. */
-  private buildCity(): void {
-    const c = this.cityCanvas.getContext("2d");
-    if (!c) return;
+  /** The background gradient, baked once (smooth, so 1x resolution is enough). */
+  private buildSky(): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.width = VIEW_WIDTH;
+    canvas.height = VIEW_HEIGHT;
+    const c = canvas.getContext("2d")!;
+    // Two stops darker than it wants to be — restraint in the field is what
+    // lets the figures burn (DESIGN.md).
+    const grad = c.createLinearGradient(0, 0, 0, VIEW_HEIGHT);
+    grad.addColorStop(0, "#06070f");
+    grad.addColorStop(0.55, BG_TOP);
+    grad.addColorStop(1, BG_BOTTOM);
+    c.fillStyle = grad;
+    c.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    return canvas;
+  }
+
+  /** Everything static that sits *over* the stars, baked once: the dim city,
+   *  the neon columns, the scanlines, and the floor's glow line + grid rows
+   *  (only the scrolling skew lines stay dynamic, in `drawFloor`). */
+  private buildOverlay(city: HTMLCanvasElement): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.width = VIEW_WIDTH * SPRITE_SCALE;
+    canvas.height = VIEW_HEIGHT * SPRITE_SCALE;
+    const c = canvas.getContext("2d")!;
+    c.scale(SPRITE_SCALE, SPRITE_SCALE);
+
+    // City skyline, kept dim so it stays a backdrop.
+    c.globalAlpha = 0.7;
+    c.drawImage(city, 0, 0);
+    c.globalAlpha = 1;
+
+    // Faint vertical neon columns for depth.
+    c.globalAlpha = 0.05;
+    c.strokeStyle = CYAN;
+    c.lineWidth = 2;
+    const cols = 8;
+    for (let i = 1; i < cols; i++) {
+      const x = (VIEW_WIDTH / cols) * i;
+      c.beginPath();
+      c.moveTo(x, 0);
+      c.lineTo(x, FLOOR_Y);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+
+    // Subtle scanlines across the whole view.
+    c.globalAlpha = 0.03;
+    c.fillStyle = "#000";
+    for (let y = 0; y < VIEW_HEIGHT; y += 4) c.fillRect(0, y, VIEW_WIDTH, 2);
+    c.globalAlpha = 1;
+
+    // Glowing floor line.
+    c.shadowColor = CYAN;
+    c.shadowBlur = 24;
+    c.strokeStyle = CYAN;
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(0, FLOOR_Y);
+    c.lineTo(VIEW_WIDTH, FLOOR_Y);
+    c.stroke();
+    c.shadowBlur = 0;
+
+    // The floor answers the emitter: light spill fading down from the line.
+    const spill = c.createLinearGradient(0, FLOOR_Y, 0, FLOOR_Y + 44);
+    spill.addColorStop(0, "rgba(34, 224, 255, 0.14)");
+    spill.addColorStop(1, "rgba(34, 224, 255, 0)");
+    c.fillStyle = spill;
+    c.fillRect(0, FLOOR_Y, VIEW_WIDTH, 44);
+
+    // Horizontal rows of the floor grid, fading as they leave the light.
+    c.lineWidth = 1;
+    const rows = 5;
+    for (let i = 1; i <= rows; i++) {
+      const y = FLOOR_Y + (FLOOR_HEIGHT / rows) * i;
+      c.strokeStyle = `rgba(34, 224, 255, ${0.2 - (i - 1) * 0.035})`;
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(VIEW_WIDTH, y);
+      c.stroke();
+    }
+
+    // Vignette: the corners recede so the centre of play carries the eye.
+    const vig = c.createRadialGradient(
+      VIEW_WIDTH / 2, VIEW_HEIGHT * 0.44, VIEW_HEIGHT * 0.36,
+      VIEW_WIDTH / 2, VIEW_HEIGHT * 0.44, VIEW_HEIGHT * 0.82,
+    );
+    vig.addColorStop(0, "rgba(4, 5, 12, 0)");
+    vig.addColorStop(1, "rgba(4, 5, 12, 0.4)");
+    c.fillStyle = vig;
+    c.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+    return canvas;
+  }
+
+  /** Draws the neon city once into an offscreen canvas. Built as atmosphere,
+   *  not scenery: a horizon "light pollution" glow that the dark building
+   *  silhouettes cut into, plus a few soft signs — the same read as the neon
+   *  ambience in Keepers! / Barra Libre, kept dim on purpose. */
+  private buildCity(): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.width = VIEW_WIDTH;
+    canvas.height = FLOOR_Y;
+    const c = canvas.getContext("2d")!;
     const horizonY = FLOOR_Y - 30;
 
     // 1. Horizon glow — additive coloured blooms rising off the skyline.
@@ -146,6 +253,216 @@ export class Renderer {
     haze.addColorStop(1, "rgba(123,60,255,0.16)");
     c.fillStyle = haze;
     c.fillRect(0, horizonY - 60, VIEW_WIDTH, FLOOR_Y - (horizonY - 60));
+
+    return canvas;
+  }
+
+  /** A machined circular blade (see DESIGN.md): hooked asymmetric teeth, a
+   *  gunmetal disc, a bolt circle of lightening holes and a layered arbor —
+   *  the silhouette of a cutting tool, not a star shape. */
+  private buildSawSprite(): Sprite {
+    const pad = 22; // room for shadowBlur + the rim stroke
+    const size = (SAW_RADIUS + pad) * 2;
+    return bakeSprite(size, size, (c) => {
+      const R = SAW_RADIUS;
+      const teeth = 11;
+      const step = (Math.PI * 2) / teeth;
+
+      // Blade silhouette: flat-topped hooked teeth (root, leading corner,
+      // sloped top, gullet) — machined, not a needle starburst.
+      const blade = new Path2D();
+      for (let i = 0; i < teeth; i++) {
+        const a = i * step;
+        const pt = (rel: number, r: number) =>
+          blade.lineTo(Math.cos(a + step * rel) * R * r, Math.sin(a + step * rel) * R * r);
+        pt(0, 0.8);
+        pt(0.12, 1);
+        pt(0.4, 0.95);
+        pt(0.58, 0.78);
+      }
+      blade.closePath();
+
+      // Disc body: dark gunmetal turning warmer toward the rim.
+      c.shadowColor = MAGENTA;
+      c.shadowBlur = 16;
+      const body = c.createRadialGradient(0, 0, R * 0.1, 0, 0, R);
+      body.addColorStop(0, "#241631");
+      body.addColorStop(0.62, "#180e24");
+      body.addColorStop(1, "#3c1733");
+      c.fillStyle = body;
+      c.fill(blade);
+
+      // Rim light: a thin hot edge instead of a thick outline.
+      c.lineWidth = 1.8;
+      c.strokeStyle = MAGENTA;
+      c.stroke(blade);
+      c.shadowBlur = 0;
+
+      // Machining groove just inside the gullets.
+      c.beginPath();
+      c.arc(0, 0, R * 0.66, 0, Math.PI * 2);
+      c.lineWidth = 1;
+      c.strokeStyle = "rgba(255, 45, 120, 0.28)";
+      c.stroke();
+
+      // Bolt circle of lightening holes.
+      const holes = 5;
+      for (let i = 0; i < holes; i++) {
+        const a = (i / holes) * Math.PI * 2 + step * 0.5;
+        const hx = Math.cos(a) * R * 0.46;
+        const hy = Math.sin(a) * R * 0.46;
+        c.beginPath();
+        c.arc(hx, hy, R * 0.1, 0, Math.PI * 2);
+        c.fillStyle = "#0d0616";
+        c.fill();
+        c.lineWidth = 1;
+        c.strokeStyle = "rgba(255, 45, 120, 0.35)";
+        c.stroke();
+      }
+
+      // Layered arbor: ring, hub face, dark axle hole.
+      c.beginPath();
+      c.arc(0, 0, R * 0.3, 0, Math.PI * 2);
+      c.lineWidth = 2;
+      c.strokeStyle = "rgba(255, 45, 120, 0.85)";
+      c.stroke();
+      c.beginPath();
+      c.arc(0, 0, R * 0.22, 0, Math.PI * 2);
+      const hub = c.createRadialGradient(-R * 0.06, -R * 0.06, 0, 0, 0, R * 0.22);
+      hub.addColorStop(0, "#ff6ba0");
+      hub.addColorStop(1, "#b81b56");
+      c.fillStyle = hub;
+      c.fill();
+      c.beginPath();
+      c.arc(0, 0, R * 0.08, 0, Math.PI * 2);
+      c.fillStyle = "#0d0616";
+      c.fill();
+    });
+  }
+
+  /** A minted token (see DESIGN.md): beveled edge catching the light from
+   *  above, a slightly darker face, a struck ring groove and one specular
+   *  arc — not two flat concentric circles. */
+  private buildCoinSprite(): Sprite {
+    const pad = 16; // room for shadowBlur
+    const size = (COIN_RADIUS + pad) * 2;
+    return bakeSprite(size, size, (c) => {
+      const R = COIN_RADIUS;
+
+      // Edge: bright where the light hits (top-left), darker below.
+      c.shadowColor = GOLD;
+      c.shadowBlur = 13;
+      const edge = c.createLinearGradient(-R, -R, R * 0.7, R);
+      edge.addColorStop(0, "#ffe9a3");
+      edge.addColorStop(0.5, GOLD);
+      edge.addColorStop(1, "#b9860e");
+      c.beginPath();
+      c.arc(0, 0, R, 0, Math.PI * 2);
+      c.fillStyle = edge;
+      c.fill();
+      c.shadowBlur = 0;
+
+      // Face, one step darker than the edge so the bevel reads.
+      const face = c.createLinearGradient(-R, -R, R, R);
+      face.addColorStop(0, "#f5c93e");
+      face.addColorStop(1, "#cf9d18");
+      c.beginPath();
+      c.arc(0, 0, R * 0.78, 0, Math.PI * 2);
+      c.fillStyle = face;
+      c.fill();
+
+      // Struck ring groove.
+      c.beginPath();
+      c.arc(0, 0, R * 0.58, 0, Math.PI * 2);
+      c.lineWidth = 1.2;
+      c.strokeStyle = "rgba(122, 84, 8, 0.55)";
+      c.stroke();
+
+      // One specular arc along the lit edge.
+      c.beginPath();
+      c.arc(0, 0, R * 0.86, Math.PI * 1.05, Math.PI * 1.55);
+      c.lineWidth = 1.6;
+      c.lineCap = "round";
+      c.strokeStyle = "rgba(255, 250, 224, 0.85)";
+      c.stroke();
+    });
+  }
+
+  private buildPlayerSprite(): Sprite {
+    const pad = 26; // room for shadowBlur 20 + the stroke
+    return bakeSprite(PLAYER_WIDTH + pad * 2, PLAYER_HEIGHT + pad * 2, (c) => {
+      const w = PLAYER_WIDTH;
+      const h = PLAYER_HEIGHT;
+      const footH = 7;
+      const bodyH = h - footH;
+      const x = -w / 2;
+      const yTop = -h / 2;
+      const bodyBottom = yTop + bodyH;
+
+      // Little stubby feet under the body, in shade (they face the floor).
+      c.shadowColor = CYAN;
+      c.shadowBlur = 8;
+      c.fillStyle = "#2aa4c2";
+      const footW = 9;
+      const footGap = 4;
+      roundRect(c, -footGap - footW, bodyBottom, footW, footH, 2);
+      c.fill();
+      roundRect(c, footGap, bodyBottom, footW, footH, 2);
+      c.fill();
+
+      // Body: machined corners, lit from above.
+      c.shadowColor = CYAN;
+      c.shadowBlur = 18;
+      roundRect(c, x, yTop, w, bodyH, 7);
+      const grad = c.createLinearGradient(x, yTop, x, bodyBottom);
+      grad.addColorStop(0, "#9dfdff");
+      grad.addColorStop(0.55, CYAN);
+      grad.addColorStop(1, "#14b5d6");
+      c.fillStyle = grad;
+      c.fill();
+      c.shadowBlur = 0;
+
+      // Rim light along the top edge only (no full sticker outline), plus a
+      // soft shade seating the body's lower edge.
+      c.beginPath();
+      c.moveTo(x + 5, yTop + 1.2);
+      c.lineTo(x + w - 5, yTop + 1.2);
+      c.lineWidth = 1.6;
+      c.lineCap = "round";
+      c.strokeStyle = "rgba(240, 255, 255, 0.75)";
+      c.stroke();
+      c.beginPath();
+      c.moveTo(x + 5, bodyBottom - 1.6);
+      c.lineTo(x + w - 5, bodyBottom - 1.6);
+      c.lineWidth = 2.4;
+      c.strokeStyle = "rgba(8, 42, 64, 0.28)";
+      c.stroke();
+
+      // --- Face: solid black eyes and angry brows, centred in the body ---
+      const ink = "#0a111f";
+      const eyeY = yTop + bodyH * 0.6;
+      const eyeDX = 7;
+
+      // Solid black eyes (no sclera, no glint).
+      c.fillStyle = ink;
+      for (const s of [-1, 1]) {
+        c.beginPath();
+        c.ellipse(s * eyeDX, eyeY, 3.1, 4.2, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      // Angry eyebrows, sloping down toward the centre, set a bit above the
+      // eyes — drawn thinner so they read as intent, not cartoon.
+      c.strokeStyle = ink;
+      c.lineWidth = 2.6;
+      c.lineCap = "round";
+      c.beginPath();
+      c.moveTo(-11, eyeY - 11);
+      c.lineTo(-3, eyeY - 7.5);
+      c.moveTo(11, eyeY - 11);
+      c.lineTo(3, eyeY - 7.5);
+      c.stroke();
+    });
   }
 
   update(dt: number): void {
@@ -162,7 +479,6 @@ export class Renderer {
     player: Player,
     field: SawbladeField,
     particles: Particles,
-    timeRatio: number,
   ): void {
     this.drawBackground(ctx);
     this.drawFloor(ctx);
@@ -172,17 +488,12 @@ export class Renderer {
     for (const saw of field.saws) this.drawSaw(ctx, saw.x, saw.y, saw.spin);
     this.drawPlayer(ctx, player);
     particles.draw(ctx);
-    this.drawTimeBar(ctx, timeRatio);
   }
 
   private drawBackground(ctx: CanvasRenderingContext2D): void {
-    const grad = ctx.createLinearGradient(0, 0, 0, VIEW_HEIGHT);
-    grad.addColorStop(0, BG_TOP);
-    grad.addColorStop(1, BG_BOTTOM);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    ctx.drawImage(this.skyCanvas, 0, 0, VIEW_WIDTH, VIEW_HEIGHT);
 
-    // Twinkling parallax starfield.
+    // Twinkling parallax starfield (the only dynamic background layer).
     ctx.save();
     for (const s of this.stars) {
       const tw = 0.5 + 0.5 * Math.sin(this.time * (1 + s.z * 2) + s.x);
@@ -194,59 +505,16 @@ export class Renderer {
     }
     ctx.restore();
 
-    // City skyline, kept dim so it stays a backdrop.
-    ctx.save();
-    ctx.globalAlpha = 0.7;
-    ctx.drawImage(this.cityCanvas, 0, 0);
-    ctx.restore();
-
-    // Faint vertical neon columns for depth.
-    ctx.save();
-    ctx.globalAlpha = 0.05;
-    ctx.strokeStyle = CYAN;
-    ctx.lineWidth = 2;
-    const cols = 8;
-    for (let i = 1; i < cols; i++) {
-      const x = (VIEW_WIDTH / cols) * i;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, FLOOR_Y);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    // Subtle scanlines across the whole view.
-    ctx.save();
-    ctx.globalAlpha = 0.04;
-    ctx.fillStyle = "#000";
-    for (let y = 0; y < VIEW_HEIGHT; y += 4) ctx.fillRect(0, y, VIEW_WIDTH, 2);
-    ctx.restore();
+    // City, columns, scanlines and floor line/rows, baked once.
+    ctx.drawImage(this.overlayCanvas, 0, 0, VIEW_WIDTH, VIEW_HEIGHT);
   }
 
+  /** Only the animated part of the floor: the skew lines scrolling toward the
+   *  viewer (the glow line and grid rows live in the baked overlay). */
   private drawFloor(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    // Glowing floor line.
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 24;
-    ctx.strokeStyle = CYAN;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, FLOOR_Y);
-    ctx.lineTo(VIEW_WIDTH, FLOOR_Y);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Perspective grid on the floor strip, scrolling toward the viewer.
-    ctx.strokeStyle = "rgba(34, 224, 255, 0.18)";
+    ctx.strokeStyle = "rgba(34, 224, 255, 0.12)";
     ctx.lineWidth = 1;
-    const rows = 5;
-    for (let i = 1; i <= rows; i++) {
-      const y = FLOOR_Y + (FLOOR_HEIGHT / rows) * i;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(VIEW_WIDTH, y);
-      ctx.stroke();
-    }
     const scroll = (this.time * 40) % 64;
     for (let x = -scroll; x < VIEW_WIDTH + 64; x += 64) {
       const skew = (x - VIEW_WIDTH / 2) * 0.28;
@@ -269,159 +537,42 @@ export class Renderer {
   }
 
   private drawTrail(ctx: CanvasRenderingContext2D): void {
+    const dot = glowDot(CYAN);
     ctx.save();
     for (let i = 0; i < this.trail.length - 1; i++) {
       const t = i / this.trail.length;
       const node = this.trail[i];
-      ctx.globalAlpha = t * 0.35;
-      ctx.fillStyle = CYAN;
-      ctx.shadowColor = CYAN;
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, PLAYER_WIDTH * 0.4 * t, 0, Math.PI * 2);
-      ctx.fill();
+      const d = ((PLAYER_WIDTH * 0.4 * t) / GLOW_DOT_RADIUS) * dot.w;
+      if (d < 1) continue;
+      ctx.globalAlpha = t * 0.26;
+      ctx.drawImage(dot.canvas, node.x - d / 2, node.y - d / 2, d, d);
     }
     ctx.restore();
   }
 
   private drawSaw(ctx: CanvasRenderingContext2D, x: number, y: number, spin: number): void {
-    const teeth = 10;
+    const s = this.sawSprite;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(spin);
-    ctx.shadowColor = MAGENTA;
-    ctx.shadowBlur = 18;
-
-    // Toothed disc.
-    ctx.beginPath();
-    for (let i = 0; i < teeth; i++) {
-      const a0 = (i / teeth) * Math.PI * 2;
-      const a1 = ((i + 0.5) / teeth) * Math.PI * 2;
-      ctx.lineTo(Math.cos(a0) * SAW_RADIUS, Math.sin(a0) * SAW_RADIUS);
-      ctx.lineTo(Math.cos(a1) * SAW_RADIUS * 0.72, Math.sin(a1) * SAW_RADIUS * 0.72);
-    }
-    ctx.closePath();
-    ctx.fillStyle = "#2a0a1c";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = MAGENTA;
-    ctx.stroke();
-
-    // Hub.
-    ctx.shadowBlur = 0;
-    ctx.beginPath();
-    ctx.arc(0, 0, SAW_RADIUS * 0.32, 0, Math.PI * 2);
-    ctx.fillStyle = MAGENTA;
-    ctx.fill();
+    ctx.drawImage(s.canvas, -s.w / 2, -s.h / 2, s.w, s.h);
     ctx.restore();
   }
 
   private drawCoin(ctx: CanvasRenderingContext2D, x: number, y: number, life: number): void {
     // Blink out over the last stretch of the coin's life.
     if (life < 1.5 && Math.floor(life * 10) % 2 === 0) return;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.shadowColor = GOLD;
-    ctx.shadowBlur = 16;
-    ctx.beginPath();
-    ctx.arc(0, 0, COIN_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = GOLD;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.beginPath();
-    ctx.arc(0, 0, COIN_RADIUS * 0.55, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff6cf";
-    ctx.fill();
-    ctx.restore();
+    const s = this.coinSprite;
+    // Minted-token spin: the width oscillates like a coin turning on its
+    // axis (phase offset by position so coins don't spin in unison).
+    const spin = Math.abs(Math.cos(this.time * 2.6 + x * 0.045));
+    const w = s.w * (0.3 + 0.7 * spin);
+    ctx.drawImage(s.canvas, x - w / 2, y - s.h / 2, w, s.h);
   }
 
   private drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
-    const w = PLAYER_WIDTH;
-    const h = PLAYER_HEIGHT;
-    const footH = 7;
-    const bodyH = h - footH;
-    const x = player.x - w / 2;
-    const yTop = player.top;
-    const bodyBottom = yTop + bodyH;
-
-    ctx.save();
-
-    // Little stubby feet under the body (they still rest on player.y = floor).
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = "#3ec4e0";
-    const footW = 9;
-    const footGap = 4;
-    roundRect(ctx, player.x - footGap - footW, bodyBottom, footW, footH, 3);
-    ctx.fill();
-    roundRect(ctx, player.x + footGap, bodyBottom, footW, footH, 3);
-    ctx.fill();
-
-    // Body.
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 20;
-    roundRect(ctx, x, yTop, w, bodyH, 10);
-    const grad = ctx.createLinearGradient(x, yTop, x, bodyBottom);
-    grad.addColorStop(0, "#8dfcff");
-    grad.addColorStop(1, CYAN);
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#d6ffff";
-    ctx.stroke();
-
-    // --- Face: just solid black eyes and angry brows, centred in the body ---
-    const cx = player.x;
-    const ink = "#0a111f";
-    const eyeY = yTop + bodyH * 0.6;
-    const eyeDX = 7;
-
-    // Solid black eyes (no sclera, no glint).
-    ctx.fillStyle = ink;
-    for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.ellipse(cx + s * eyeDX, eyeY, 3.6, 4.6, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Thick angry eyebrows, sloping down toward the centre, set a bit above
-    // the eyes (separated from them).
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 3.4;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(cx - 11, eyeY - 11.5);
-    ctx.lineTo(cx - 3, eyeY - 7.5);
-    ctx.moveTo(cx + 11, eyeY - 11.5);
-    ctx.lineTo(cx + 3, eyeY - 7.5);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  private drawTimeBar(ctx: CanvasRenderingContext2D, ratio: number): void {
-    const w = VIEW_WIDTH * 0.7;
-    const h = 14;
-    const x = (VIEW_WIDTH - w) / 2;
-    const y = 92;
-    const r = Math.max(0, Math.min(1, ratio));
-
-    ctx.save();
-    roundRect(ctx, x, y, w, h, h / 2);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fill();
-
-    const color = r > 0.5 ? CYAN : r > 0.25 ? GOLD : MAGENTA;
-    // Pulse the glow when time is running out.
-    const pulse = r < 0.28 ? 0.6 + 0.4 * Math.sin(this.time * 12) : 1;
-    ctx.globalAlpha = r < 0.28 ? 0.7 + 0.3 * pulse : 1;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 14 + (r < 0.28 ? pulse * 18 : 0);
-    roundRect(ctx, x, y, Math.max(h, w * r), h, h / 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.restore();
+    const s = this.playerSprite;
+    ctx.drawImage(s.canvas, player.x - s.w / 2, player.centerY - s.h / 2, s.w, s.h);
   }
 }
 

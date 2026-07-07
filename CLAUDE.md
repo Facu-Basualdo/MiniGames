@@ -8,6 +8,7 @@ Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rh
 - **Keep `CLAUDE.md` files up to date with every change.** When structure, commands, conventions, or the game roster change, update the relevant `CLAUDE.md` (this root file and/or the per-game one) in the same change.
 - **Never add yourself (Claude) as a co-author on commits.** Do not append `Co-Authored-By` trailers or any AI attribution to commit messages.
 - **Use the installed `threejs-*` skills when building 3D games.** For any game using Three.js (scenes, cameras, geometry, materials, lighting, textures, animation, model loaders, shaders, postprocessing, raycasting/interaction), consult the matching `threejs-*` skill for accurate APIs and patterns instead of relying on memory.
+- **Every game gets a `DESIGN.md` (art direction) next to its `CLAUDE.md`.** Before building or reworking a game's visuals, write that game's design philosophy there and make every visual decision answer to it — see `src/games/neon-sawblades/DESIGN.md` ("Machined Light") for the reference format. The principles are medium-agnostic (they apply to plain canvas and to Three.js games alike); the concrete palette and vocabulary are per-game. **If the programmer has not specified the aesthetic direction (palette, mood, references, how the game should feel), ask for those details before inventing them.** When the `canvas-design` skill is installed, invoke it to generate the philosophy (`npx skills add https://github.com/anthropics/skills --skill canvas-design`); when it is not, write the `DESIGN.md` by hand following the reference format anyway — the committed document is the requirement, not the tool. Like the `threejs-*` skills it is installed locally per collaborator (`.claude`/`.agents` are gitignored).
 - Every game must have the Enter-to-start 3 / 2 / 1 / YA countdown. No game may jump straight from the start / game-over screen into play — it must go through the shared countdown described below. New games are required to implement it.
 - This repo uses Git Flow. Branch off `develop` for work: features on `feature/*`, releases on `release/*`, hotfixes on `hotfix/*`. `main` holds only tagged releases; `develop` is the integration branch. Do not commit straight to `main` or `develop` — merge via the appropriate branch.
 - **Always add credits for new games in `README.md`.** When a new game is registered, append it to the games table in the root-level [README.md](file:///c:/ReposGit/Game/README.md) with its title, category, description (adapted to localized Spanish "voseo" style), and the creator's GitHub profile link.
@@ -23,7 +24,7 @@ Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rh
 - `rooms/index.html` + `src/rooms/` — the multiplayer rooms page (create / join / lobby) at `/rooms/`. Not a game, so it lives outside `games/`.
 - `vite.config.ts` — auto-discovers every `games/*/index.html` via `node:fs` at config-load time and feeds them into `build.rollupOptions.input`. New games are picked up automatically; **no edit needed here** when adding a game. The only hand-registered extra entry is `rooms/index.html`.
 - `public/` — static assets shared across all games (favicon, icons).
-- Each game folder under `src/games/<id>/` has its own `CLAUDE.md` with game-specific context (mechanics, gotchas, tuning knobs).
+- Each game folder under `src/games/<id>/` has its own `CLAUDE.md` with game-specific context (mechanics, gotchas, tuning knobs) and its `DESIGN.md` with the art direction (see Conventions).
 
 ## Commands
 
@@ -37,11 +38,12 @@ Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rh
 2. Create `games/<id>/index.html` mirroring `games/neon-cylinder/index.html` (script `src="/src/games/<id>/main.ts"`; optional `.back-link` anchor to `/` to return to the landing page).
 3. Create `src/games/<id>/meta.ts` exporting `const meta: GameEntry` (see `src/games/blind-time/meta.ts`). Give it an `order` (multiples of 10) to place its card. **Do not touch `src/games.ts`** — the glob picks the new `meta.ts` up automatically.
 4. Add a `CLAUDE.md` inside `src/games/<id>/` documenting that game's mechanics and any non-obvious decisions.
-5. Implement the mandatory Enter-to-start 3 / 2 / 1 / YA countdown (see "Shared UX pattern" below).
-6. Wire the global ranking (see "Global rankings" below): if the game's scoring is non-default, add `export const scoring: GameScoring` to its `meta.ts` (omit it for a plain `{ direction: "higher" }` board); then call `hud.showRanking(...)` on game over.
-7. Wire the multiplayer room mode (see "Salas (multiplayer rooms)" below): `initRoomMode(<id>, { getScore })` in the constructor, block the restart input on game over when `this.room` is set, and call `this.room.reportScore(score)` instead of `hud.showRanking(...)`.
-8. Run `npm run build` to confirm the new entry is discovered.
-9. Add the game and its author/credits to the games table in the root-level [README.md](file:///c:/ReposGit/Game/README.md).
+5. Add a `DESIGN.md` inside `src/games/<id>/` with the game's art direction (see the Conventions rule above) — asking the programmer for the aesthetic direction first if they did not specify it.
+6. Implement the mandatory Enter-to-start 3 / 2 / 1 / YA countdown (see "Shared UX pattern" below).
+7. Wire the global ranking (see "Global rankings" below): if the game's scoring is non-default, add `export const scoring: GameScoring` to its `meta.ts` (omit it for a plain `{ direction: "higher" }` board); then call `hud.showRanking(...)` on game over.
+8. Wire the multiplayer room mode (see "Salas (multiplayer rooms)" below): `initRoomMode(<id>, { getScore })` in the constructor, block the restart input on game over when `this.room` is set, and call `this.room.reportScore(score)` instead of `hud.showRanking(...)`.
+9. Run `npm run build` to confirm the new entry is discovered.
+10. Add the game and its author/credits to the games table in the root-level [README.md](file:///c:/ReposGit/Game/README.md).
 
 Games are intentionally decoupled — no shared game-engine code between them. Don't introduce a shared abstraction across games unless a second game actually needs it. The lone exception is `src/shared/` (global rankings), which is deliberately cross-cutting infra, not gameplay logic.
 

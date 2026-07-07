@@ -213,7 +213,7 @@ export class Game {
     ctx.beginPath();
     ctx.rect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
     ctx.clip();
-    this.renderer.draw(ctx, this.player, this.field, this.particles, this.timeLeft / MAX_TIME);
+    this.renderer.draw(ctx, this.player, this.field, this.particles);
     ctx.restore();
   }
 

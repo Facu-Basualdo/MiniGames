@@ -1,3 +1,5 @@
+import { glowDot, GLOW_DOT_RADIUS } from "./sprites";
+
 interface Particle {
   x: number;
   y: number;
@@ -54,13 +56,14 @@ export class Particles {
     ctx.save();
     for (const p of this.items) {
       const a = Math.max(0, p.life / p.maxLife);
+      // Pre-baked glow sprite scaled to the spark's current size: one cheap
+      // drawImage per spark instead of a shadowBlur'd arc (the burst of those
+      // is what made integrated GPUs hitch).
+      const dot = glowDot(p.color);
+      const d = ((p.size * a) / GLOW_DOT_RADIUS) * dot.w;
+      if (d < 1) continue;
       ctx.globalAlpha = a;
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.drawImage(dot.canvas, p.x - d / 2, p.y - d / 2, d, d);
     }
     ctx.restore();
   }
