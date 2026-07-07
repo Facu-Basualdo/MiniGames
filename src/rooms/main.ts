@@ -347,6 +347,21 @@ function buildSettingsForm(
   playlistLabel.className = "panel__label";
   playlistLabel.textContent = "Elegir los juegos (opcional)";
 
+  // Fila del titulo con un boton para desmarcar todos los juegos elegidos.
+  const playlistHead = document.createElement("div");
+  playlistHead.className = "playlist-head";
+  const playlistClear = document.createElement("button");
+  playlistClear.type = "button";
+  playlistClear.className = "playlist-clear";
+  playlistClear.textContent = "Desmarcar todos";
+  playlistClear.addEventListener("click", () => {
+    if (playlist.length === 0) return;
+    playlist.length = 0;
+    refreshPlaylistUI();
+    emit();
+  });
+  playlistHead.append(playlistLabel, playlistClear);
+
   // Buscador + filtros por categoria de la grilla (solo esconden/muestran; los
   // juegos ya elegidos siguen en el playlist aunque el filtro los oculte).
   let playlistCategory = "Todos";
@@ -417,6 +432,7 @@ function buildSettingsForm(
       playlist.length > 0
         ? `Elegir los juegos (${playlist.length}/${totalRounds})`
         : "Elegir los juegos (opcional)";
+    playlistClear.style.display = playlist.length > 0 ? "" : "none";
   };
 
   for (const game of roomGames) {
@@ -470,7 +486,7 @@ function buildSettingsForm(
     timeVoteChoices,
     timeSelector,
     timeVoteHint,
-    playlistLabel,
+    playlistHead,
     playlistSearch,
     playlistFilters,
     playlistGrid,
