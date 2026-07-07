@@ -9,6 +9,7 @@ import {
   SOLO_RESULT_MS,
 } from "./constants";
 import { Hud } from "./Hud";
+import { humanBoards, pairFor } from "./pairing";
 import { SharedMatch } from "./sharedMatch";
 import {
   applyMove,
@@ -29,8 +30,14 @@ export class Game {
   private readonly hud: Hud;
   /** Modo sala (multijugador PvP): activo solo con ?room= en la URL. */
   private readonly room: RoomMode | null;
-  /** Tablero compartido; existe solo en modo sala y tras el countdown. */
+  /** Mi tablero compartido; existe solo en modo sala (PvP) y tras el countdown. */
   private shared: SharedMatch | null = null;
+  /** Tableros que el host administra sin jugar (las otras parejas de la ronda). */
+  private shadowMatches: SharedMatch[] = [];
+  /** En sala, me toco jugar contra la IA (jugador impar): partida local que puntua. */
+  private aiRoomMatch = false;
+  /** Resultado de esa partida vs IA (1 gane / 0 perdi-empate), para el parcial. */
+  private aiRoomScore = 0;
 
   private state: State = "ready";
 
@@ -58,7 +65,7 @@ export class Game {
     this.hud.bindColumns(this.handleColumn);
 
     this.room = initRoomMode("connect-four", {
-      getScore: () => this.shared?.myScore() ?? 0,
+      getScore: () => this.shared?.myScore() ?? this.aiRoomScore,
       onStart: () => this.beginCountdown(),
     });
 
@@ -114,12 +121,47 @@ export class Game {
   private startPlay(): void {
     this.state = "playing";
     if (this.room) {
-      this.shared = new SharedMatch(this.room, this.hud, () => {
-        this.state = "over";
-      });
-      this.shared.start();
+      this.startRoomMatches();
     } else {
       this.renderSolo();
+    }
+  }
+
+  /**
+   * Reparte a los jugadores de la sala en duelos 1v1 (ver `pairing.ts`): juego mi
+   * tablero (PvP con mi pareja, o contra la IA si soy el jugador impar que sobra),
+   * y si soy el host ademas administro los demas tableros humanos (los creo y les
+   * destrabo el AFK) sin jugarlos.
+   */
+  private startRoomMatches(): void {
+    const room = this.room!;
+    const pairing = pairFor(room.players(), room.me);
+    if (!pairing) return; // espectador: RoomMode ya lo maneja, no arranca partida
+
+    if (pairing.vsAI) {
+      // Jugador impar: partida local contra la IA que igual reporta 1/0 a la sala.
+      this.aiRoomMatch = true;
+      this.aiRoomScore = 0;
+      this.newSoloMatch();
+    } else {
+      this.shared = new SharedMatch(room, this.hud, () => {
+        this.state = "over";
+      }, { boardNo: pairing.boardNo, seats: pairing.seats });
+      this.shared.start();
+    }
+
+    // El host crea y destraba (AFK) los tableros de las otras parejas.
+    if (room.isHost()) {
+      for (const board of humanBoards(room.players())) {
+        if (!pairing.vsAI && board.boardNo === pairing.boardNo) continue; // ese lo juego yo
+        const shadow = new SharedMatch(room, this.hud, () => {}, {
+          boardNo: board.boardNo,
+          seats: board.seats,
+          passive: true,
+        });
+        shadow.start();
+        this.shadowMatches.push(shadow);
+      }
     }
   }
 
@@ -134,9 +176,10 @@ export class Game {
   }
 
   private handleColumn = (col: number): void => {
-    // En modo sala el clic se delega al tablero compartido.
-    if (this.room) {
-      this.shared?.handleColumn(col);
+    // En sala PvP el clic va al tablero compartido; en solo (y en sala vs IA,
+    // donde no hay tablero compartido) va al tablero local de aca abajo.
+    if (this.room && this.shared) {
+      this.shared.handleColumn(col);
       return;
     }
     const state = this.soloState;
@@ -187,6 +230,11 @@ export class Game {
   }
 
   private onMatchWin(): void {
+    if (this.aiRoomMatch) {
+      SoundEffects.playWin();
+      this.finishAiRoom(1);
+      return;
+    }
     this.streak++;
     SoundEffects.playWin();
     this.busy = true;
@@ -197,13 +245,32 @@ export class Game {
 
   /** Empate (tablero lleno): no rompe la racha, se juega otra partida. */
   private onMatchDraw(): void {
+    if (this.aiRoomMatch) {
+      SoundEffects.playDraw();
+      this.finishAiRoom(0);
+      return;
+    }
     SoundEffects.playDraw();
     this.busy = true;
     this.renderSolo();
     this.schedule(() => this.newSoloMatch(), SOLO_RESULT_MS);
   }
 
+  /** Sala vs IA: cierra la partida local y reporta el resultado (1/0) a la sala. */
+  private finishAiRoom(score: number): void {
+    this.state = "over";
+    this.busy = true;
+    this.aiRoomScore = score;
+    this.renderSolo();
+    this.room!.reportScore(score);
+  }
+
   private onMatchLose(): void {
+    if (this.aiRoomMatch) {
+      SoundEffects.playLose();
+      this.finishAiRoom(0);
+      return;
+    }
     this.state = "over";
     this.busy = true;
     SoundEffects.playLose();
@@ -236,8 +303,13 @@ export class Game {
     this.hud.setInteractive(myTurn);
     this.hud.setPreviewColor(myTurn ? HUMAN : null);
 
-    this.hud.setScore(`RACHA: ${this.streak}`);
-    this.hud.setBest(this.best !== null ? `MEJOR: ${this.best}` : "MEJOR: --");
+    if (this.aiRoomMatch) {
+      this.hud.setScore("VS IA");
+      this.hud.setBest("");
+    } else {
+      this.hud.setScore(`RACHA: ${this.streak}`);
+      this.hud.setBest(this.best !== null ? `MEJOR: ${this.best}` : "MEJOR: --");
+    }
 
     if (state.winner === HUMAN) this.hud.setStatus("GANASTE", true);
     else if (state.winner === AI) this.hud.setStatus("PERDISTE");

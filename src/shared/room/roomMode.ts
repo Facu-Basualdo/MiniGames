@@ -1,4 +1,4 @@
-import { games, roomGames } from "../../games";
+import { games, roomGames, coverUrl } from "../../games";
 import { formatScore } from "../scoring";
 import { getNickname } from "../nickname";
 import { getSupabase } from "../supabase";
@@ -19,7 +19,7 @@ import {
   updateDeadline,
 } from "./api";
 import { RoomChannel } from "./channel";
-import { RoomOverlay, type WaitingEntry } from "./RoomOverlay";
+import { RoomOverlay, type StripLight, type WaitingEntry } from "./RoomOverlay";
 import { computeTotals, rankRound } from "./points";
 import {
   formatRoundTimeLimit,
@@ -599,7 +599,25 @@ class RoomModeController implements RoomMode {
     const time = deadline !== null ? ` - ${formatClock(deadline - Date.now())}` : "";
     this.overlay.setStrip(
       `SALA ${this.code} - Ronda ${room.current_round}/${this.totalRounds()}${time}`,
+      this.stripLights(),
     );
+  }
+
+  /**
+   * Una luz por jugador para el strip: verde mientras sigue vivo (presente y sin
+   * reportar), roja cuando muere / termina su partida (reporto su puntaje) y gris
+   * cuando se fue de la partida (desconectado). Solo tiene sentido mientras se
+   * juega la ronda vigente.
+   */
+  private stripLights(): StripLight[] {
+    const state = this.state;
+    if (!state) return [];
+    const present = this.channel?.presentPlayers() ?? [];
+    const done = new Set(this.roundScores().map((s) => s.player));
+    return state.players.map((player) => ({
+      me: player === this.me,
+      state: done.has(player) ? "dead" : present.includes(player) ? "alive" : "left",
+    }));
   }
 
   // ---------- Vistas ----------
@@ -684,7 +702,7 @@ class RoomModeController implements RoomMode {
       round: voteRound,
       options: optionIds.map((id) => {
         const game = games.find((g) => g.id === id);
-        return { id, title: game?.title ?? id, accent: game?.accent };
+        return { id, title: game?.title ?? id, accent: game?.accent, cover: coverUrl(id) };
       }),
       counts,
       myVote,

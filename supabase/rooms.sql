@@ -73,19 +73,29 @@ create table if not exists public.room_votes (
 );
 
 -- Estado de partida compartido (juegos de tablero comun, p.ej. Memoria): una
--- fila por (sala, ronda) con el estado completo del juego en jsonb. La columna
--- version implementa concurrencia optimista: cada escritura hace
+-- fila por (sala, ronda, tablero) con el estado completo del juego en jsonb. La
+-- columna version implementa concurrencia optimista: cada escritura hace
 -- update ... where version = <esperada> e incrementa; si no matchea, el
 -- cliente refetchea. Solo escribe el jugador de turno (o el host para
--- destrabar), por convencion del cliente como todo lo demas.
+-- destrabar), por convencion del cliente como todo lo demas. La columna board
+-- permite varios tableros simultaneos en una misma ronda (Conecta 4 empareja a
+-- todos los jugadores en duelos 1v1: un tablero por pareja). Los juegos de un
+-- solo tablero (Memoria, Ta-Te-Ti, Topos) usan siempre board = 0.
 create table if not exists public.room_match_state (
   code       text not null references public.rooms(code) on delete cascade,
   round_no   int  not null,
+  board      int  not null default 0,
   state      jsonb not null,
   version    int  not null default 0,
   updated_at timestamptz not null default now(),
-  primary key (code, round_no)
+  primary key (code, round_no, board)
 );
+
+-- Migracion idempotente para salas creadas antes de la columna board: la agrega
+-- y reescribe la PK para incluirla (los tableros multiples de Conecta 4).
+alter table public.room_match_state add column if not exists board int not null default 0;
+alter table public.room_match_state drop constraint if exists room_match_state_pkey;
+alter table public.room_match_state add constraint room_match_state_pkey primary key (code, round_no, board);
 
 alter table public.rooms enable row level security;
 alter table public.room_players enable row level security;

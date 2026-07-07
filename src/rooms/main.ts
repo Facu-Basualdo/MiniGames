@@ -3,19 +3,23 @@ import { roomGames, coverUrl } from "../games";
 import { isLeaderboardEnabled } from "../shared/supabase";
 import { getNickname, setNickname, NICKNAME_MAX } from "../shared/nickname";
 import {
+  castVote,
   createRoom,
   fetchRoomState,
   joinRoom,
   kickPlayer,
+  openVote,
   sanitizeCode,
   startBriefing,
   updateSettings,
 } from "../shared/room/api";
 import { RoomChannel } from "../shared/room/channel";
+import { RoomOverlay } from "../shared/room/RoomOverlay";
 import {
   BRIEFING_SECONDS,
-  randomGameId,
+  pickVoteOptions,
   roomGameUrl,
+  VOTE_SECONDS,
 } from "../shared/room/roomMode";
 import {
   DEFAULT_ROUND_TIME_LIMIT,
@@ -599,6 +603,14 @@ function probePresence(code: string, player: string): Promise<string[]> {
 
 // ---------- Lobby ----------
 
+/** "1:07" de milisegundos restantes (piso 0:00), para el countdown de votacion. */
+function formatMMSS(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function renderLobby(code: string, player: string): void {
   history.replaceState(null, "", `/rooms/?code=${code}`);
   stack.innerHTML = "";
@@ -680,6 +692,11 @@ function renderLobby(code: string, player: string): void {
   // Ajustes que edita el host en el lobby (autoritativos mientras edita).
   let hostSettings: RoomSettings | null = null;
   let hostFormBuilt = false;
+  // Votacion del primer juego (sin playlist): corre dentro del lobby, con el
+  // mismo overlay que usan las rondas siguientes en la pagina del juego.
+  let voteOverlay: RoomOverlay | null = null;
+  let voteTickId: number | null = null;
+  let closingVote = false;
 
   const buildHostForm = (initial: RoomSettings): void => {
     hostSettings = { ...initial };
@@ -761,12 +778,114 @@ function renderLobby(code: string, player: string): void {
     }
   };
 
+  const stopVoteTick = (): void => {
+    if (voteTickId !== null) {
+      window.clearInterval(voteTickId);
+      voteTickId = null;
+    }
+  };
+
+  // Cierre de la votacion del primer juego (solo el host): elige el ganador por
+  // mayoria (empate al azar) y arranca su briefing, igual que las rondas siguientes.
+  const closeFirstVote = async (): Promise<void> => {
+    if (!state || state.room.status !== "voting" || closingVote) return;
+    if (state.room.host !== player) return;
+    closingVote = true;
+    const options = state.room.vote_options ?? [];
+    const voteRound = state.room.current_round + 1;
+    const counts = new Map<string, number>();
+    for (const v of state.votes) {
+      if (v.round_no === voteRound && options.includes(v.game_id)) {
+        counts.set(v.game_id, (counts.get(v.game_id) ?? 0) + 1);
+      }
+    }
+    const max = Math.max(0, ...counts.values());
+    const top = max > 0 ? options.filter((id) => counts.get(id) === max) : options;
+    const winner = top[Math.floor(Math.random() * top.length)];
+    const ok = await startBriefing(
+      code,
+      voteRound,
+      winner,
+      new Date(Date.now() + BRIEFING_SECONDS * 1000),
+    );
+    if (!ok) {
+      closingVote = false;
+      return;
+    }
+    channel.ping();
+    location.href = roomGameUrl(winner, code);
+  };
+
+  // Tick del countdown de la votacion; ademas el host la cierra al vencer el tope
+  // o apenas votaron todos los presentes (a los ausentes no se los espera).
+  const startVoteTick = (): void => {
+    if (voteTickId !== null) return;
+    voteTickId = window.setInterval(() => {
+      if (!state || state.room.status !== "voting") {
+        stopVoteTick();
+        return;
+      }
+      const room = state.room;
+      const deadline = room.deadline ? new Date(room.deadline).getTime() : null;
+      const now = Date.now();
+      if (deadline !== null && voteOverlay) voteOverlay.setTimeText(formatMMSS(deadline - now));
+      if (room.host !== player) return;
+      const options = room.vote_options ?? [];
+      const voteRound = room.current_round + 1;
+      const present = channel.presentPlayers();
+      const registeredPresent = state.players.filter((p) => present.includes(p));
+      const voters = new Set(
+        state.votes
+          .filter((v) => v.round_no === voteRound && options.includes(v.game_id))
+          .map((v) => v.player),
+      );
+      const allPresentVoted =
+        registeredPresent.length > 0 && registeredPresent.every((p) => voters.has(p));
+      if (allPresentVoted || (deadline !== null && now >= deadline)) void closeFirstVote();
+    }, 500);
+  };
+
+  // Muestra la votacion del primer juego en el lobby (todos), con las portadas.
+  const renderFirstVote = (): void => {
+    if (!state) return;
+    const room = state.room;
+    const options = room.vote_options ?? [];
+    const voteRound = room.current_round + 1;
+    const votes = state.votes.filter(
+      (v) => v.round_no === voteRound && options.includes(v.game_id),
+    );
+    const counts: Record<string, number> = {};
+    for (const v of votes) counts[v.game_id] = (counts[v.game_id] ?? 0) + 1;
+    const myVote = votes.find((v) => v.player === player)?.game_id ?? null;
+
+    if (!voteOverlay) voteOverlay = new RoomOverlay();
+    voteOverlay.showVoting({
+      round: voteRound,
+      kicker: "Primera ronda",
+      title: "Elegi el primer juego",
+      options: options.map((id) => {
+        const game = roomGames.find((g) => g.id === id);
+        return { id, title: game?.title ?? id, accent: game?.accent, cover: coverUrl(id) };
+      }),
+      counts,
+      myVote,
+      onVote: (id) => {
+        void castVote(code, voteRound, player, id).then((ok) => {
+          if (ok) channel.ping();
+          void refresh();
+        });
+      },
+    });
+    startVoteTick();
+  };
+
   const refresh = async (): Promise<void> => {
     const fresh = await fetchRoomState(code);
     if (!fresh) return;
     // El anfitrion me expulso: ya no estoy en la sala, vuelvo al inicio.
     if (!fresh.players.includes(player)) {
       window.clearInterval(pollId);
+      stopVoteTick();
       channel.dispose();
       renderHome("El anfitrion te saco de la sala.");
       return;
@@ -777,6 +896,14 @@ function renderLobby(code: string, player: string): void {
       location.href = roomGameUrl(fresh.room.current_game, code);
       return;
     }
+    // Votacion del primer juego (sin playlist): se resuelve en el lobby, sin
+    // juego fijado todavia (current_game nulo), asi que nadie navega aun.
+    if (fresh.room.status === "voting") {
+      renderFirstVote();
+      return;
+    }
+    if (voteOverlay) voteOverlay.hide();
+    stopVoteTick();
     render();
   };
 
@@ -802,15 +929,34 @@ function renderLobby(code: string, player: string): void {
       // Persistir por las dudas antes de arrancar (el guardado al vuelo pudo
       // no haber terminado el round-trip).
       if (isHost && hostSettings) await updateSettings(code, hostSettings);
-      const firstGame = settings.playlist ? settings.playlist[0] : randomGameId();
-      // La primera ronda arranca por su briefing (de que va el juego + controles):
-      // se pasa a 'briefing' y todo el resto (votacion de tiempo si esta activa, o
-      // el arranque de la partida) corre ya en la pagina del juego.
-      const ok = await startBriefing(
+
+      if (settings.playlist) {
+        // Playlist fija: el primer juego ya esta decidido, va directo al briefing
+        // (de que va el juego + controles). El resto del flujo (votacion de tiempo
+        // si esta activa, o el arranque de la partida) corre en la pagina del juego.
+        const firstGame = settings.playlist[0];
+        const ok = await startBriefing(
+          code,
+          1,
+          firstGame,
+          new Date(Date.now() + BRIEFING_SECONDS * 1000),
+        );
+        if (!ok) {
+          starting = false;
+          render();
+          return;
+        }
+        channel.ping();
+        location.href = roomGameUrl(firstGame, code);
+        return;
+      }
+
+      // Sin playlist: se vota el primer juego aca en el lobby (mismo mecanismo que
+      // las rondas siguientes). Al cerrar la votacion, el ganador va a su briefing.
+      const ok = await openVote(
         code,
-        1,
-        firstGame,
-        new Date(Date.now() + BRIEFING_SECONDS * 1000),
+        pickVoteOptions(state),
+        new Date(Date.now() + VOTE_SECONDS * 1000),
       );
       if (!ok) {
         starting = false;
@@ -818,7 +964,7 @@ function renderLobby(code: string, player: string): void {
         return;
       }
       channel.ping();
-      location.href = roomGameUrl(firstGame, code);
+      void refresh();
     })();
   });
 }

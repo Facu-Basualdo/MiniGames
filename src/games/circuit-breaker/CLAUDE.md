@@ -37,8 +37,9 @@ paredes**. Si tocas una pared = choque: la senal vuelve al inicio y se cuenta.
 ## Niveles (`levels.ts`)
 
 - Cada nivel es un **mapa de bitmap** (`LEVEL_N_MAP`: una fila = un string).
-  Caracteres: `#` pared (mortal), `.` corredor, `A` origen, `B` destino. `parseGrid`
-  lo limpia a `#`/`.` y extrae `start`/`end`.
+  Caracteres: `#` pared (mortal), `.` corredor, `A` origen, `B` destino, `t`/`T` ancla
+  del HUD/cronometro (`t` sobre corredor, `T` sobre pared; opcional). `parseGrid` lo
+  limpia a `#`/`.` y extrae `start`/`end`/`hud`.
 - `LEVEL_MAPS` es la lista ordenada de mapas; `LEVEL_COUNT` su cantidad;
   `getLevel(index)` (1-based, acotado) devuelve el `Level`. **Para agregar un nivel:
   pegar su `LEVEL_N_MAP` y sumarlo a `LEVEL_MAPS`** (nada mas).
@@ -63,9 +64,10 @@ paredes**. Si tocas una pared = choque: la senal vuelve al inicio y se cuenta.
 - Abrir el juego con **`?edit=1`** (`main.ts` lo carga con import dinamico guardado por
   `import.meta.env.DEV`, asi no entra en el build de produccion).
 - Se pinta el laberinto en una grilla: herramientas Corredor / Pared / Inicio A /
-  Destino B, tamano de pincel, tamano de grilla (cols/filas), selector de **Nivel**,
-  vaciar/rellenar y "Cargar nivel" (carga `getLevel(n)` para retocar). Muestra en vivo
-  si **A->B** es resoluble (BFS).
+  Destino B / **Cronometro** (ancla del HUD, marcador unico dibujado como reloj), tamano
+  de pincel, tamano de grilla (cols/filas), selector de **Nivel**, vaciar/rellenar y
+  "Cargar nivel" (carga `getLevel(n)` para retocar). Muestra en vivo si **A->B** es
+  resoluble (BFS).
 - **"Copiar mapa"** exporta el bitmap como `const LEVEL_N_MAP = [...]` (segun el numero
   de Nivel; al portapapeles y a un textarea) listo para pegar en `levels.ts`.
 
@@ -87,6 +89,10 @@ paredes**. Si tocas una pared = choque: la senal vuelve al inicio y se cuenta.
   **desprende chispas electricas azules** (zigzag tipo rayo con parpadeo, disparadas
   hacia los costados: `particles`, `spawnParticles`/`updateParticles`/`drawParticles`).
   Letterbox por nivel (`resize`).
+- **HUD posicionable por nivel**: el grupo de lecturas (nivel/tiempo/choques) vive en
+  `.hud__readout`. Si el nivel define `hud` (marcador `t`/`T`), `updateHudPosition`
+  (llamado en `resize`) convierte esa celda de mundo a px CSS y lo ancla ahi con
+  `Hud.setReadoutPosition`; si no, queda arriba-centro (CSS por defecto).
 
 ## Ajustes (tuning)
 

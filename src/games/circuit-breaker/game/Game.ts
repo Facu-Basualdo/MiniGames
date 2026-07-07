@@ -841,5 +841,21 @@ export class Game {
     this.scale = fit * dpr;
     this.offsetX = (w / fit - this.viewW) / 2;
     this.offsetY = (h / fit - this.viewH) / 2;
+    this.updateHudPosition();
   };
+
+  /** Ancla el HUD sobre la celda `level.hud` (si el nivel la define); si no, lo deja
+   *  arriba-centro. Convierte la celda de mundo a pixeles CSS de pantalla. */
+  private updateHudPosition(): void {
+    const cell = this.level?.hud;
+    if (!cell) {
+      this.hud.setReadoutPosition(null);
+      return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const fit = this.scale / dpr; // px CSS por unidad de mundo
+    const wx = (cell.x + 0.5) * CELL;
+    const wy = (cell.y + 0.5) * CELL;
+    this.hud.setReadoutPosition(fit * (wx + this.offsetX), fit * (wy + this.offsetY));
+  }
 }

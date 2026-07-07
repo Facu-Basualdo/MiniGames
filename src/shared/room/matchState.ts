@@ -21,10 +21,16 @@ function warn(action: string, message: string): void {
   console.warn(`[rooms] ${action}: ${message}`);
 }
 
-/** Lee el estado de la partida de una ronda, o null si (aun) no existe. */
+/**
+ * Lee el estado de la partida de una ronda, o null si (aun) no existe. `board`
+ * distingue tableros simultaneos de la misma ronda (Conecta 4 empareja a todos
+ * en duelos 1v1: un board por pareja); los juegos de un solo tablero lo omiten
+ * (default 0).
+ */
 export async function fetchMatchState<S>(
   code: string,
   roundNo: number,
+  board = 0,
 ): Promise<MatchStateRow<S> | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
@@ -34,6 +40,7 @@ export async function fetchMatchState<S>(
     .select("state, version")
     .eq("code", code)
     .eq("round_no", roundNo)
+    .eq("board", board)
     .maybeSingle();
   if (error) {
     warn("fetchMatchState", error.message);
@@ -51,13 +58,14 @@ export async function createMatchState<S>(
   code: string,
   roundNo: number,
   state: S,
+  board = 0,
 ): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
 
   const { error } = await supabase
     .from("room_match_state")
-    .insert({ code, round_no: roundNo, state });
+    .insert({ code, round_no: roundNo, board, state });
   if (error) {
     // 23505 = unique_violation: otro cliente ya creo el tablero.
     if (error.code !== "23505") warn("createMatchState", error.message);
@@ -75,6 +83,7 @@ export async function updateMatchState<S>(
   roundNo: number,
   state: S,
   expectedVersion: number,
+  board = 0,
 ): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
@@ -84,6 +93,7 @@ export async function updateMatchState<S>(
     .update({ state, version: expectedVersion + 1, updated_at: new Date().toISOString() })
     .eq("code", code)
     .eq("round_no", roundNo)
+    .eq("board", board)
     .eq("version", expectedVersion)
     .select("version");
   if (error) {
