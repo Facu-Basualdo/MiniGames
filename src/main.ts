@@ -5,6 +5,7 @@ import { getScoring } from "./shared/scoring";
 import { fetchTop } from "./shared/leaderboard";
 import { isLeaderboardEnabled } from "./shared/supabase";
 import { recordPlay, fetchPlayCounts, cachedPlayCounts } from "./shared/plays";
+import { fetchGameLeaders } from "./shared/leaders";
 import { getNickname, setNickname, NICKNAME_MAX } from "./shared/nickname";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -422,12 +423,87 @@ bannersRow.className = "banners-row";
 bannersRow.append(discordBanner);
 if (roomsOn) bannersRow.append(roomsBanner);
 
+// Banner del Salon de la fama: recuadro compacto (estilo el de Salas) que lleva
+// a la pagina dedicada /fame/. Muestra un mini-preview con los 3 primeros.
+const fameBanner = document.createElement("a");
+if (roomsOn) {
+  fameBanner.className = "fame-banner";
+  fameBanner.href = "/fame/";
+  fameBanner.innerHTML = `
+    <div class="fame-banner__glow"></div>
+    <div class="fame-banner__text">
+      <span class="fame-banner__kicker">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+          <path d="M4.5 16 L6.2 8.4 L9.4 11.8 L12 6.6 L14.6 11.8 L17.8 8.4 L19.5 16 Z" />
+          <rect x="5" y="17.2" width="14" height="2.4" rx="1.2" />
+          <circle cx="6.2" cy="7.3" r="1.05" />
+          <circle cx="12" cy="5.5" r="1.25" />
+          <circle cx="17.8" cy="7.3" r="1.05" />
+        </svg>
+        Sal&oacute;n de la fama
+      </span>
+      <h2 class="fame-banner__title">L&iacute;deres de los juegos</h2>
+      <p class="fame-banner__subtitle">Mir&aacute; qui&eacute;nes lideran el ranking de m&aacute;s juegos.</p>
+    </div>
+    <div class="fame-banner__podium" aria-hidden="true"></div>
+    <span class="fame-banner__cta">Ver ranking <span class="fame-banner__arrow">&rarr;</span></span>
+  `;
+}
+
 const main = document.createElement("main");
 main.className = "page";
-main.append(bannersRow, hero, filtersBar);
+main.append(bannersRow);
+if (roomsOn) main.append(fameBanner);
+main.append(hero, filtersBar);
 main.append(grid, empty);
 
 app.append(nav, main, footer);
+
+// ---------- Banner del salon de la fama: preview del podio ----------
+
+// Rellena el mini-podio del banner con los 3 lideres top (el mismo podio de
+// /fame/ pero en chico: 2.o - 1.o - 3.o, campeon dorado y elevado). Para ver la
+// lista completa se entra a /fame/. No-op sin credenciales / sin datos.
+if (roomsOn) {
+  void fetchGameLeaders().then(({ ranking }) => {
+    if (ranking.length === 0) return;
+    const podium = fameBanner.querySelector<HTMLElement>(".fame-banner__podium");
+    if (!podium) return;
+    const crown = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+      <path d="M4.5 16 L6.2 8.4 L9.4 11.8 L12 6.6 L14.6 11.8 L17.8 8.4 L19.5 16 Z" />
+      <rect x="5" y="17.2" width="14" height="2.4" rx="1.2" />
+      <circle cx="6.2" cy="7.3" r="1.05" /><circle cx="12" cy="5.5" r="1.25" /><circle cx="17.8" cy="7.3" r="1.05" />
+    </svg>`;
+    const esc = (s: string) => {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    };
+    const initialOf = (name: string) => {
+      const ch = name.trim().charAt(0);
+      return ch ? ch.toUpperCase() : "?";
+    };
+    const top3 = ranking.slice(0, 3);
+    // Orden visual del podio: 2.o - 1.o - 3.o (campeon al centro).
+    const order = [
+      { row: top3[1], place: 2 },
+      { row: top3[0], place: 1 },
+      { row: top3[2], place: 3 },
+    ].filter((o) => o.row);
+    podium.innerHTML = order
+      .map(
+        ({ row, place }) => `
+        <div class="fbp__slot fbp__slot--p${place}">
+          ${place === 1 ? `<span class="fbp__crown">${crown}</span>` : ""}
+          <span class="fbp__av">${initialOf(row.player)}</span>
+          <span class="fbp__name">${esc(row.player)}</span>
+          <span class="fbp__count">${row.games} <em>juegos</em></span>
+          <span class="fbp__base">${place}</span>
+        </div>`,
+      )
+      .join("");
+  });
+}
 
 // Reordena las cards segun el modo actual: mueve los nodos existentes al nuevo
 // orden (no los recrea) y refresca el stagger `--i`.

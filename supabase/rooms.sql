@@ -203,3 +203,8 @@ create policy "room_match_state_delete_public" on public.room_match_state
 -- puede correr a mano (o con pg_cron):
 --   delete from public.rooms where created_at < now() - interval '2 days';
 -- El on delete cascade arrastra players/rounds/scores/votes.
+
+-- Nota: el "Salon de la fama" (/fame/) NO usa ninguna tabla: es un ranking
+-- derivado en vivo de public.scores (ver src/shared/leaders.ts). Si en una
+-- iteracion anterior se creo public.champions + increment_champion_wins, ya no
+-- se usan y se pueden borrar:  drop function if exists public.increment_champion_wins(text); drop table if exists public.champions;

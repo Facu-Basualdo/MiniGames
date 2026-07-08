@@ -79,6 +79,10 @@ function collectHtmlEntries(): Record<string, string> {
   const roomsHtml = resolve(root, "rooms/index.html");
   if (existsSync(roomsHtml)) entries.rooms = roomsHtml;
 
+  // Pagina del salon de la fama (ranking de lideres de salas). Tampoco es juego.
+  const fameHtml = resolve(root, "fame/index.html");
+  if (existsSync(fameHtml)) entries.fame = fameHtml;
+
   for (const dirent of readdirSync(gamesDir, { withFileTypes: true })) {
     if (!dirent.isDirectory()) continue;
     const htmlPath = resolve(gamesDir, dirent.name, "index.html");
