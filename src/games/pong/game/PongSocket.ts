@@ -11,6 +11,7 @@ import type { PongMatchState, PongTransport } from "./PongProtocol";
 export class PongSocket implements PongTransport {
   private socket: Socket | null = null;
   private stateCb: (s: PongMatchState) => void = () => {};
+  private errorCb: () => void = () => {};
 
   private readonly serverUrl: string;
   private readonly code: string;
@@ -37,10 +38,17 @@ export class PongSocket implements PongTransport {
       socket.emit("pg:join", { code: this.code, nickname: this.nickname, roster: this.roster });
     });
     socket.on("pg:state", (s: PongMatchState) => this.stateCb(s));
+    // Namespace inexistente / CORS / URL mala: el server no responde. El cliente
+    // usa esto para degradar a un partido local vs IA en vez de quedar congelado.
+    socket.on("connect_error", () => this.errorCb());
   }
 
   onState(cb: (s: PongMatchState) => void): void {
     this.stateCb = cb;
+  }
+
+  onError(cb: () => void): void {
+    this.errorCb = cb;
   }
 
   sendPaddle(y: number): void {

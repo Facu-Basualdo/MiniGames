@@ -33,7 +33,9 @@ const BALL_SPEED_MAX = 750;
 const AI_SPEED = 310;
 const AI_MARGIN = 30;
 // ---- Reglas / timing del server ----
-const SCORE_LIMIT = 7;
+/** Gana el primero en llegar a este puntaje. Espejo del cliente
+ *  (`src/games/pong/game/Game.ts`). */
+const SCORE_LIMIT = 3;
 const TICK_MS = 16; // ~60 fps: fisica + broadcast (mas suave y menos lag de input)
 const MAX_STEP_DT = 0.034; // corte de dt si el intervalo se atrasa
 /** Maximo avance de la pelota por sub-paso de colision (px). La fisica se integra
