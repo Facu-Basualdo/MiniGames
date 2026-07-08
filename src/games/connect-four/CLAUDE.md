@@ -90,6 +90,18 @@ respaldo. Por turnos, la latencia por jugada no se nota.
   `room.reportScore(...)`; el empate reporta 0; los espectadores reportan 0.
   Recargar a mitad de partida reengancha (el estado vive en Postgres y
   `SharedMatch.boot()` lo readopta por `board`).
+- **Espectar al terminar**: como los duelos duran distinto, cuando tu partida
+  termina no ves la pantalla generica "esperando a los demas": pasas a **mirar
+  otra partida en curso** de la ronda (con 4 jugadores, la otra; con mas, una al
+  azar, y saltas a la siguiente cuando la mirada termina). Lo maneja
+  `Game.beginSpectating()`/`spectateNext()`: crean un `SharedMatch` con
+  `spectate: true` (renderiza el tablero ajeno en el HUD pero no juega, no
+  reporta, no crea el tablero ni administra el AFK). RoomMode oculta su overlay
+  de espera via el hook `onReportedWaiting` (devuelve true mientras haya algo que
+  mirar; false cuando no queda ninguna y vuelve la espera de siempre). Al cambiar
+  de tablero espectado se llama `SharedMatch.dispose()` para frenar los intervalos
+  de la instancia anterior (el `onSync` no se puede desuscribir, asi que su
+  `refresh` corta solo por el flag `disposed`).
 
 Usa el contexto extendido de `RoomMode` (`code`, `me`, `round()`, `players()`,
 `isHost()`, `ping()`, `onSync()`) igual que Memoria y Ta-Te-Ti.

@@ -53,6 +53,14 @@ export interface RoomModeHooks {
    * manual como siempre.
    */
   onStart?: () => void;
+  /**
+   * Tras reportar el propio puntaje con la ronda aun en "playing", el juego puede
+   * seguir mostrando algo propio en vez de la pantalla generica "esperando a los
+   * demas". Devolver true para que se oculte ese overlay (el juego se hace cargo
+   * de lo que se ve); false o ausente muestra la espera de siempre. Lo usa
+   * Conecta 4: al terminar tu duelo 1v1 pasas a espectar otra partida de la ronda.
+   */
+  onReportedWaiting?: () => boolean;
 }
 
 export interface RoomMode {
@@ -403,7 +411,13 @@ class RoomModeController implements RoomMode {
         }
         this.updateStrip();
         if (this.reported) {
-          this.renderWaiting();
+          // El juego puede tomar la vista (p.ej. Conecta 4 espectando otra
+          // partida); si no, la pantalla generica de espera.
+          if (this.hooks.onReportedWaiting?.()) {
+            this.overlay.hide();
+          } else {
+            this.renderWaiting();
+          }
         } else {
           this.overlay.hide();
           this.autoStartGame();

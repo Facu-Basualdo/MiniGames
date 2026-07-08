@@ -48,6 +48,13 @@ export interface SharedMatchOpts {
    * jugadores del tablero corren su propia instancia activa.
    */
   passive?: boolean;
+  /**
+   * Espectador: renderiza un tablero ajeno en el HUD (mira otra partida tras
+   * terminar la propia) pero no juega, no reporta puntaje, no crea el tablero ni
+   * administra el AFK. `onFinished` avisa cuando la partida mirada termina para
+   * saltar a otra.
+   */
+  spectate?: boolean;
 }
 
 export class SharedMatch {
@@ -56,6 +63,9 @@ export class SharedMatch {
   private lastAnimSeq = 0;
   private lastChangeAt = Date.now();
   private finished = false;
+  private disposed = false;
+  /** Handles de los intervalos, para poder frenarlos al descartar la instancia. */
+  private timers: number[] = [];
   /** Serializa las escrituras: dos jugadas rapidas deben llegar en orden. */
   private writeChain: Promise<void> = Promise.resolve();
 
@@ -65,6 +75,7 @@ export class SharedMatch {
   private readonly boardNo: number;
   private readonly seats: [string, string];
   private readonly passive: boolean;
+  private readonly spectate: boolean;
 
   constructor(room: RoomMode, hud: Hud, onFinished: () => void, opts: SharedMatchOpts) {
     this.room = room;
@@ -73,18 +84,31 @@ export class SharedMatch {
     this.boardNo = opts.boardNo;
     this.seats = opts.seats;
     this.passive = opts.passive ?? false;
+    this.spectate = opts.spectate ?? false;
   }
 
   start(): void {
     if (!this.passive) {
-      this.hud.setStatus("Preparando el tablero...");
+      this.hud.setStatus(this.spectate ? "Mirando otra partida..." : "Preparando el tablero...");
       this.hud.setInteractive(false);
       this.hud.showPlayers(null);
     }
     this.room.onSync(() => void this.refresh());
-    window.setInterval(() => void this.refresh(), MATCH_POLL_MS);
-    window.setInterval(() => void this.maybeMoveAfk(), 1000);
+    this.timers.push(window.setInterval(() => void this.refresh(), MATCH_POLL_MS));
+    this.timers.push(window.setInterval(() => void this.maybeMoveAfk(), 1000));
     void this.boot();
+  }
+
+  /**
+   * Descarta la instancia: frena sus intervalos y la vuelve inerte (el `onSync`
+   * suscrito en RoomMode no se puede desuscribir, asi que `refresh` corta solo).
+   * Se usa al cambiar de tablero espectado para no dejar dos instancias
+   * peleando por el HUD.
+   */
+  dispose(): void {
+    this.disposed = true;
+    for (const t of this.timers) window.clearInterval(t);
+    this.timers = [];
   }
 
   /** Puntaje de la ronda (y parcial por timeout): 1 si gane, si no 0 (empate incluido). */
@@ -102,33 +126,40 @@ export class SharedMatch {
    */
   private async boot(): Promise<void> {
     for (;;) {
-      if (this.state) return;
+      if (this.disposed || this.state) return;
       const row = await fetchMatchState<C4MatchState>(
         this.room.code,
         this.room.round(),
         this.boardNo,
       );
+      if (this.disposed) return;
       if (row) {
         this.apply(row.state, row.version);
         return;
       }
-      if (this.room.isHost()) {
+      // El espectador nunca crea el tablero (ya existe: lo hizo el host o los
+      // jugadores de esa pareja); solo espera a leerlo.
+      if (this.room.isHost() && !this.spectate) {
         const init: C4MatchState = { ...createState(0), players: this.seats, seq: 0 };
         const ok = await createMatchState(this.room.code, this.room.round(), init, this.boardNo);
         if (ok) this.room.ping();
         continue;
       }
-      if (!this.passive) this.hud.setStatus("Esperando un rival...");
+      if (!this.passive) {
+        this.hud.setStatus(this.spectate ? "Mirando otra partida..." : "Esperando un rival...");
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 
   private async refresh(): Promise<void> {
+    if (this.disposed) return;
     const row = await fetchMatchState<C4MatchState>(
       this.room.code,
       this.room.round(),
       this.boardNo,
     );
+    if (this.disposed) return;
     if (row && row.version > this.version) this.apply(row.state, row.version);
   }
 
@@ -165,7 +196,7 @@ export class SharedMatch {
 
   /** Clic en una columna (lo enruta el Game desde su unico handler). */
   handleColumn(col: number): void {
-    if (this.passive) return; // un tablero administrado no recibe clics
+    if (this.passive || this.spectate) return; // administrado / espectado: sin clics
     const state = this.state;
     if (!state || this.finished || state.winner !== null || state.draw) return;
     if (state.players[state.turn] !== this.room.me) return; // no es mi turno
@@ -190,6 +221,7 @@ export class SharedMatch {
   /** Host: si el jugador de turno no mueve en AFK_MOVE_MS, juega por el (al azar). */
   private async maybeMoveAfk(): Promise<void> {
     const state = this.state;
+    if (this.disposed || this.spectate) return; // el espectador no administra el tablero
     if (!state || this.finished || state.winner !== null || state.draw || !this.room.isHost()) return;
     if (Date.now() - this.lastChangeAt < AFK_MOVE_MS) return;
 
@@ -212,7 +244,13 @@ export class SharedMatch {
   /** Encadena las escrituras; ante conflicto de version se readopta la DB. */
   private queueWrite(next: C4MatchState, expected: number): void {
     this.writeChain = this.writeChain.then(async () => {
-      const ok = await updateMatchState(this.room.code, this.room.round(), next, expected);
+      const ok = await updateMatchState(
+        this.room.code,
+        this.room.round(),
+        next,
+        expected,
+        this.boardNo,
+      );
       if (ok) this.room.ping();
       else await this.forceRefresh();
     });
@@ -275,6 +313,14 @@ export class SharedMatch {
 
     this.hud.setInteractive(false);
     this.hud.setPreviewColor(null);
+
+    // Espectador: no puntua ni suena; muestra el resultado y avisa para saltar a
+    // otra partida en curso.
+    if (this.spectate) {
+      this.render();
+      this.onFinished();
+      return;
+    }
 
     if (state.winner !== null) {
       const iWon = state.players[state.winner] === this.room.me;

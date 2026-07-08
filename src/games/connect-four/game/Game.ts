@@ -38,6 +38,16 @@ export class Game {
   private aiRoomMatch = false;
   /** Resultado de esa partida vs IA (1 gane / 0 perdi-empate), para el parcial. */
   private aiRoomScore = 0;
+  /** Numero de mi tablero PvP (para no espectarme a mi mismo); null si juego vs IA. */
+  private myHumanBoardNo: number | null = null;
+  /** Tablero ajeno que estoy mirando tras terminar mi partida. */
+  private spectator: SharedMatch | null = null;
+  /** Ya arranque a espectar (idempotente: no volver a repartir la cola). */
+  private spectateStarted = false;
+  /** Otras partidas de la ronda para mirar, en orden al azar. */
+  private spectateQueue: Array<{ boardNo: number; seats: [string, string] }> = [];
+  /** Tableros ya mirados hasta el final (no repetir). */
+  private readonly spectatedBoards = new Set<number>();
 
   private state: State = "ready";
 
@@ -67,6 +77,9 @@ export class Game {
     this.room = initRoomMode("connect-four", {
       getScore: () => this.shared?.myScore() ?? this.aiRoomScore,
       onStart: () => this.beginCountdown(),
+      // Al terminar mi partida no muestro la espera generica: paso a mirar otra
+      // partida en curso (true = la manejo yo, RoomMode oculta el "esperando").
+      onReportedWaiting: () => this.beginSpectating(),
     });
 
     this.hud.showStart(this.best, this.room !== null);
@@ -142,10 +155,13 @@ export class Game {
       // Jugador impar: partida local contra la IA que igual reporta 1/0 a la sala.
       this.aiRoomMatch = true;
       this.aiRoomScore = 0;
+      this.myHumanBoardNo = null; // no tengo tablero compartido propio
       this.newSoloMatch();
     } else {
+      this.myHumanBoardNo = pairing.boardNo;
       this.shared = new SharedMatch(room, this.hud, () => {
         this.state = "over";
+        this.beginSpectating();
       }, { boardNo: pairing.boardNo, seats: pairing.seats });
       this.shared.start();
     }
@@ -263,6 +279,52 @@ export class Game {
     this.aiRoomScore = score;
     this.renderSolo();
     this.room!.reportScore(score);
+    this.beginSpectating();
+  }
+
+  // ---------- Espectar otras partidas (sala PvP) ----------
+
+  /**
+   * Al terminar mi partida paso a mirar otra en curso de la ronda en vez de la
+   * pantalla generica "esperando a los demas": con 4 jugadores, la otra; con mas,
+   * una al azar, saltando a la siguiente cuando la mirada termina. Devuelve true
+   * si hay algo para espectar (RoomMode oculta la espera), false si no queda
+   * ninguna (se muestra la espera de siempre). Idempotente.
+   */
+  private beginSpectating(): boolean {
+    if (!this.room) return false;
+    if (!this.spectateStarted) {
+      this.spectateStarted = true;
+      this.shared?.dispose(); // mi tablero ya termino: dejo de sondearlo
+      const boards = humanBoards(this.room.players()).filter(
+        (b) => b.boardNo !== this.myHumanBoardNo,
+      );
+      // Al azar para que ">4 jugadores" mire una cualquiera; con 4 hay una sola.
+      for (let i = boards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [boards[i], boards[j]] = [boards[j], boards[i]];
+      }
+      this.spectateQueue = boards;
+      this.spectateNext();
+    }
+    return this.spectator !== null;
+  }
+
+  /** Pasa a mirar la siguiente partida no vista; si no queda ninguna, se detiene. */
+  private spectateNext(): void {
+    this.spectator?.dispose();
+    this.spectator = null;
+    const room = this.room;
+    if (!room) return;
+    const next = this.spectateQueue.find((b) => !this.spectatedBoards.has(b.boardNo));
+    if (!next) return; // no queda otra partida en curso para mirar
+    this.spectatedBoards.add(next.boardNo);
+    this.spectator = new SharedMatch(room, this.hud, () => this.spectateNext(), {
+      boardNo: next.boardNo,
+      seats: next.seats,
+      spectate: true,
+    });
+    this.spectator.start();
   }
 
   private onMatchLose(): void {
