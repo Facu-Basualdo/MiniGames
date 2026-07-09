@@ -61,6 +61,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Constelación | Puzzle | Se encienden unas celdas de la grilla un instante: memorizá el patrón y volvé a marcarlas. Cada nivel suma celdas y agranda la grilla; con 3 vidas, tu marca es el nivel más alto que alcanzás. | [matiasgzlez](https://github.com/matiasgzlez) |
 | Prisma | Arcade | Tu bola cambia de color y sube por impulsos: cruzá cada anillo giratorio solo por el arco de tu mismo color. Un roce del color equivocado y perdés; tu marca es cuántos anillos cruzás. | [matiasgzlez](https://github.com/matiasgzlez) |
 | Tinta | Reflejos | El efecto Stroop hecho juego: aparece el nombre de un color pintado con otra tinta y tenés que tocar el color de la tinta, no lo que dice la palabra. El reloj drena, cada acierto suma tiempo; tu marca es cuántas tintas acertás. | [matiasgzlez](https://github.com/matiasgzlez) |
+| Cannon Dodge | Reflejos | Sobreviví en una isla pirata redonda esquivando las balas de cañón que la cruzan. Los cañones aparecen en los bordes, avisan y disparan; a medida que aguantás salen más seguido, más rápido y de a más. Tu marca es el tiempo que sobrevivís. | [juanidrose11](https://github.com/juani) |
 
 ## Empezar
 
