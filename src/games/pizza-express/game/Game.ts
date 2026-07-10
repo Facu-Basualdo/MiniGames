@@ -160,7 +160,12 @@ export class Game {
     if (target) target.reserved = true;
     this.thrower.throw(this.scooter.throwOrigin(), target);
     SoundEffects.playThrow();
-    if (!target) this.onErrantPizza();
+    if (!target) {
+      // A late attempt burns that customer now (errant pizza cost only) so its
+      // passing doesn't also charge a skipped-mailbox token.
+      this.mailboxes.dismissLateTarget(side);
+      this.onErrantPizza();
+    }
   }
 
   private deliver(mailbox: Mailbox): void {

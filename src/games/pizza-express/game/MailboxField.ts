@@ -84,4 +84,18 @@ export class MailboxField {
     }
     return best;
   }
+
+  /** Called on an errant throw: if there is a pending customer on that side in
+   *  the too-late band (already past THROW_MIN_Z but not yet passed), the throw
+   *  was an *attempt* at it — mark it missed right now so its passing does NOT
+   *  also charge a skipped-mailbox token. Wasting the pizza was the whole cost;
+   *  skips are only for customers you never threw at. */
+  dismissLateTarget(side: -1 | 1): void {
+    for (const b of this.boxes) {
+      if (!b.pending || b.reserved || b.side !== side) continue;
+      if (b.z <= -THROW_MIN_Z || b.z > MAILBOX_MISS_Z) continue;
+      b.markMissed();
+      return; // spacing keeps the band to one box at most, but be explicit
+    }
+  }
 }

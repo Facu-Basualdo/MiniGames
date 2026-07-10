@@ -145,7 +145,11 @@ the road surface is `y = 0`. The scooter only moves in **X** (steering).
   of the **5 mailbox tokens** (`customersLeft`, from `MISS_CUSTOMERS`); an empty
   pool ends the run just like wasting the pizzas does (it used to cost nothing
   but the combo, which made skipping customers free). So besides crashing there
-  are two miss-based failure modes, one per pool.
+  are two miss-based failure modes, one per pool. **The pools never double-charge
+  one mistake**: an errant throw at a customer already in the too-late band
+  (`MailboxField.dismissLateTarget`, called from `handleThrow`) marks that box
+  missed on the spot — the wasted pizza *was* the attempt, so its passing does
+  not also charge a mailbox token. A skip only costs when you never threw.
 - **Tutorial (first `TUTORIAL_SECONDS`):** a gentle intro — **no lethal
   obstacles**, two thought-bubble hints (throw controls, then "position yourself on
   the side you want to throw to"), and errant throws are **free** (only the shield
@@ -195,8 +199,10 @@ moving toward you.
 the scooter's side; if one exists it is `reserved` (so it can't be marked missed
 mid-flight) and the pizza delivers on arrival; if none, the throw is errant and
 `onErrantPizza` runs immediately (token cost + combo break), while the pizza just
-flops to the verge for show. Deciding at throw time avoids a mid-flight target
-passing you and double-counting as both a miss and an errant.
+flops to the verge for show — and if a pending customer sat in the too-late band,
+`dismissLateTarget` burns it right there so it can't charge a skip on top of the
+wasted pizza. Deciding at throw time avoids a mid-flight target passing you and
+double-counting as both a miss and an errant.
 
 **Auto-start / idle drift.** On the menus and during the countdown the street
 keeps scrolling (idle `street.scroll`) so the town is never frozen; obstacles run
