@@ -70,9 +70,12 @@ export class ObstacleField {
 
     for (const o of this.obstacles) {
       o.update(dz, dt);
-      if (!o.resolved && o.z >= SCOOTER_Z) {
-        o.resolved = true;
+      // Point obstacles resolve on the single frame their centre crosses the
+      // scooter's plane; long ones (the car, halfLength > 0) keep testing while
+      // any part of them straddles it, from nose to tail.
+      if (!o.resolved && o.z + o.halfLength >= SCOOTER_Z) {
         if (o.overlaps(scooterX, SCOOTER_HALF_WIDTH, OBSTACLE_COLLIDE_TOLERANCE)) hit = true;
+        if (o.z - o.halfLength >= SCOOTER_Z) o.resolved = true;
       }
     }
 

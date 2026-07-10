@@ -61,7 +61,10 @@ the road surface is `y = 0`. The scooter only moves in **X** (steering).
   lean + yaw into turns, engine idle bob, spinning wheels, a headlight. Exposes
   `throwOrigin()` (world point a pizza launches from).
 - `game/Obstacle.ts` + `game/ObstacleField.ts` — road hazards (cone, pothole,
-  trashcan, crate, **car** = wide wall, and the **dog** = the one *dynamic*
+  trashcan, crate, **car** = a car parked parallel to the road (long in Z: it is
+  the only kind with a `halfLength`, so collision keeps testing while it
+  straddles the scooter's plane, nose to tail, instead of the usual single
+  centre-crossing frame), and the **dog** = the one *dynamic*
   hazard), all **instant-death**. `ObstacleField` spawns gap-based rows that always
   leave a **guaranteed clear gap** the scooter can reach (see "Fairness" below);
   static obstacles go *outside* the gap. A dog instead spawns as its own **patrol
@@ -135,8 +138,8 @@ GAP_REACH_FACTOR`), and shrinks with difficulty. Obstacles are placed **only
 outside** that gap (`place()` confines each prop's full width to a blocked side
 region), so the clear path is never blocked and never jumps farther than you can
 steer — hard but never luck. A row adds a second obstacle on the other side with
-growing odds (`DOUBLE_OBSTACLE_CHANCE_MAX`), and cars (wide) only spawn where they
-fully fit.
+growing odds (`DOUBLE_OBSTACLE_CHANCE_MAX`), and cars only spawn in regions wide
+enough to fit one with margin (the `pickKind` gate).
 
 **The dog is the dynamic obstacle.** Every other hazard is static and placed
 outside the row's clear gap; the dog instead trots across the full road width

@@ -7,18 +7,26 @@ import {
   COLOR_CREAM,
   COLOR_FOLIAGE,
   COLOR_TOMATO,
+  COLOR_MOLTEN,
 } from "./constants";
 
 export type ObstacleKind = "cone" | "pothole" | "trashcan" | "crate" | "car" | "dog";
 
-/** Half the collision width of each kind (world units). Cars are wide walls. */
+/** Half the collision width of each kind (world units). */
 const HALF_WIDTH: Record<ObstacleKind, number> = {
   cone: 0.34,
   pothole: 0.62,
   trashcan: 0.42,
   crate: 0.52,
-  car: 1.35,
+  car: 0.8,
   dog: 0.5,
+};
+
+/** Half the collision LENGTH along Z. Only the car (parked parallel to the
+ *  road, so long in Z) needs one: it keeps testing collision while it straddles
+ *  the scooter's plane instead of the usual single centre-crossing frame. */
+const HALF_LENGTH: Partial<Record<ObstacleKind, number>> = {
+  car: 1.6,
 };
 
 /**
@@ -30,6 +38,7 @@ export class Obstacle {
   readonly group = new THREE.Group();
   readonly kind: ObstacleKind;
   readonly halfWidth: number;
+  readonly halfLength: number;
   resolved = false;
   private readonly disposables: (THREE.BufferGeometry | THREE.Material)[] = [];
   private wobble = 0;
@@ -41,6 +50,7 @@ export class Obstacle {
   constructor(kind: ObstacleKind, x: number, z: number) {
     this.kind = kind;
     this.halfWidth = HALF_WIDTH[kind];
+    this.halfLength = HALF_LENGTH[kind] ?? 0;
     this.group.position.set(x, 0, z);
     this.build();
   }
@@ -96,9 +106,14 @@ export class Obstacle {
   private build(): void {
     switch (this.kind) {
       case "cone": {
-        this.mesh(new THREE.ConeGeometry(0.3, 0.6, 14), toonMat(0xe8622a, {}), 0, 0.3, 0);
-        this.mesh(new THREE.BoxGeometry(0.55, 0.06, 0.55), toonMat(0x2a2320, {}), 0, 0.03, 0);
-        this.mesh(new THREE.TorusGeometry(0.2, 0.05, 8, 16), glowMat(COLOR_CREAM, 1), 0, 0.36, 0).rotation.x = Math.PI / 2;
+        // A real traffic cone: orange rubber base slab + orange cone with the
+        // white band painted ON the cone — a truncated-cone sleeve hugging the
+        // surface, matte, not glowing. (The old version was a flat additive
+        // torus floating near the tip: a full-on halo.)
+        this.mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), toonMat(0xc94d1d, {}), 0, 0.04, 0);
+        this.mesh(new THREE.ConeGeometry(0.3, 0.62, 14), toonMat(0xe8622a, {}), 0, 0.39, 0);
+        // Sleeve radii follow the cone's taper at its height (+0.02 outset).
+        this.mesh(new THREE.CylinderGeometry(0.12, 0.19, 0.15, 14), toonMat(COLOR_CREAM, {}), 0, 0.44, 0);
         break;
       }
       case "pothole": {
@@ -122,19 +137,30 @@ export class Obstacle {
         break;
       }
       case "car": {
-        const color = [0x3f7fae, 0x8a5ea8, 0x6b8f3a][Math.floor(Math.random() * 3)];
-        this.mesh(new THREE.BoxGeometry(2.4, 0.7, 1.5), toonMat(color, {}), 0, 0.55, 0);
-        this.mesh(new THREE.BoxGeometry(1.5, 0.6, 1.35), toonMat(color, {}), -0.1, 1.05, 0);
-        // Windshields.
-        this.mesh(new THREE.BoxGeometry(1.4, 0.5, 1.2), glowMat(0x2a3a44, 0.9), -0.1, 1.06, 0);
-        for (const wx of [-0.8, 0.8]) {
-          for (const wz of [-0.72, 0.72]) {
-            const wheel = this.mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12), toonMat(0x1c1712, {}), wx, 0.3, wz);
-            wheel.rotation.x = Math.PI / 2;
+        // A car parked ALONG the street (long in Z, like the scooter drives),
+        // low-poly toon: body, dark glass cabin with a body-colour roof, four
+        // wheels, bumpers, headlights (front, -Z) and taillights (rear, +Z).
+        // Warm palette only (see DESIGN.md). Randomly faces either way.
+        const color = [0xc65a34, 0xd8a13a, 0xf2e4c4, 0x6b8f3a][Math.floor(Math.random() * 4)];
+        const bodyMat = toonMat(color, {});
+        this.mesh(new THREE.BoxGeometry(1.4, 0.46, 2.9), bodyMat, 0, 0.52, 0);
+        // Glass greenhouse + roof, set slightly toward the rear.
+        this.mesh(new THREE.BoxGeometry(1.24, 0.4, 1.45), glowMat(0x2a3a44, 0.95), 0, 0.95, 0.18);
+        this.mesh(new THREE.BoxGeometry(1.3, 0.09, 1.5), bodyMat, 0, 1.19, 0.18);
+        for (const wx of [-0.68, 0.68]) {
+          for (const wz of [-0.95, 0.95]) {
+            const wheel = this.mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 12), toonMat(0x1c1712, {}), wx, 0.3, wz);
+            wheel.rotation.z = Math.PI / 2;
           }
         }
-        // Warm brake lights facing the player.
-        for (const lx of [-1.0, 1.0]) this.mesh(new THREE.BoxGeometry(0.2, 0.16, 0.06), glowMat(COLOR_TOMATO, 1), lx, 0.6, 0.78);
+        for (const bz of [-1.5, 1.5]) {
+          this.mesh(new THREE.BoxGeometry(1.44, 0.14, 0.18), toonMat(0x2a2320, {}), 0, 0.36, bz);
+        }
+        for (const lx of [-0.45, 0.45]) {
+          this.mesh(new THREE.BoxGeometry(0.18, 0.12, 0.06), glowMat(COLOR_MOLTEN, 1), lx, 0.62, -1.47);
+          this.mesh(new THREE.BoxGeometry(0.18, 0.12, 0.06), glowMat(COLOR_TOMATO, 1), lx, 0.62, 1.47);
+        }
+        if (Math.random() < 0.5) this.group.rotation.y = Math.PI;
         break;
       }
       case "dog": {
