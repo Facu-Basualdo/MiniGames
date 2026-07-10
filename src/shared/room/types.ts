@@ -5,7 +5,6 @@ export type RoomStatus =
   | "playing"
   | "results"
   | "voting"
-  | "time_voting"
   | "finished";
 
 /**
@@ -20,12 +19,6 @@ export interface RoomSettings {
   totalRounds: number;
   /** Lista explicita de juegos en orden, o null para votar despues de cada ronda. */
   playlist: string[] | null;
-  /** Tope de tiempo por ronda, en segundos. Cuando timeVote es true queda como
-   * valor por defecto sin usar (el tope de cada ronda sale de una votacion). */
-  roundTimeLimitSec: number;
-  /** Si true, antes de cada juego se vota el tope de tiempo entre las opciones
-   * de TIME_VOTE_OPTIONS. Opcional para compatibilidad con salas viejas. */
-  timeVote?: boolean;
 }
 
 /** Fila de public.rooms tal como la devuelve Supabase. */
@@ -87,18 +80,21 @@ export interface RoomState {
   votes: VoteRow[];
 }
 
-/** Valor de roundTimeLimitSec que significa "sin tope de tiempo por juego". */
+/**
+ * "Sin tope de tiempo" para una ronda. Es el valor por defecto de toda la sala:
+ * el tope ya no es un ajuste del anfitrion, sino una propiedad de cada juego
+ * (`roomTimeLimitSec` en su `meta.ts`). Un juego que no lo declara se juega sin
+ * reloj y la ronda cierra cuando todos terminan su partida.
+ */
 export const NO_TIME_LIMIT = 0;
-export const ROUND_TIME_LIMIT_OPTIONS = [60, 120, 180, NO_TIME_LIMIT] as const;
-export const DEFAULT_ROUND_TIME_LIMIT = 120;
 
-/** Opciones entre las que se vota el tope de tiempo cuando el anfitrion habilita
- * la votacion de tiempo (1 a 5 minutos y sin limite). */
-export const TIME_VOTE_OPTIONS = [60, 120, 180, 240, 300, NO_TIME_LIMIT] as const;
-
-/** Etiqueta legible del tope de tiempo por juego (o "Sin límite" si es 0). */
+/** Etiqueta legible del tope de tiempo de una ronda (o "Sin límite" si es 0). */
 export function formatRoundTimeLimit(sec: number): string {
-  return sec === NO_TIME_LIMIT ? "Sin límite" : `${sec / 60} min`;
+  if (sec === NO_TIME_LIMIT) return "Sin límite";
+  const min = Math.floor(sec / 60);
+  const rest = sec % 60;
+  if (min === 0) return `${rest} s`;
+  return rest === 0 ? `${min} min` : `${min}:${String(rest).padStart(2, "0")} min`;
 }
 export const DEFAULT_TOTAL_ROUNDS = 5;
 

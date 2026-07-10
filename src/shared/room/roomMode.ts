@@ -7,14 +7,12 @@ import {
   closeRound,
   fetchRoomState,
   finishRoom,
-  finishTimeVote,
   openVote,
   reportScore,
   resetRoom,
   sanitizeCode,
   startBriefing,
   startRound,
-  startTimeVote,
   takeOverHost,
   touchRoom,
   updateDeadline,
@@ -26,7 +24,6 @@ import {
   formatRoundTimeLimit,
   HEARTBEAT_MS,
   NO_TIME_LIMIT,
-  TIME_VOTE_OPTIONS,
   type RoomState,
   type RoomStatus,
 } from "./types";
@@ -86,10 +83,9 @@ export interface RoomMode {
   /** Se dispara cuando otro cliente hizo ping (releer la DB). */
   onSync(cb: () => void): void;
   /**
-   * Fin de la ronda en curso segun lo que fijo el host (ajuste fijo o votacion
-   * de tiempo), o null si la ronda no tiene tope ("Sin límite"). Incluye el
-   * margen de navegacion/countdown, asi que al arrancar la partida el tiempo
-   * restante ronda el valor nominal elegido por el anfitrion.
+   * Fin de la ronda en curso segun el `roomTimeLimitSec` del juego, o null si el
+   * juego no declara tope. Incluye el margen de navegacion/countdown, asi que al
+   * arrancar la partida el tiempo restante ronda el valor nominal del juego.
    */
   deadline(): Date | null;
   /**
@@ -127,9 +123,14 @@ export function randomGameId(): string {
   return roomGames[Math.floor(Math.random() * roomGames.length)].id;
 }
 
-/** Candidatos de la votacion de tiempo, como strings de segundos (para vote_options). */
-export function timeVoteOptionIds(): string[] {
-  return TIME_VOTE_OPTIONS.map(String);
+/**
+ * Tope de tiempo de la ronda de un juego, en segundos. Ya no es un ajuste de la
+ * sala: cada juego declara el suyo en su `meta.ts` (`roomTimeLimitSec`) y los que
+ * no lo declaran (la mayoria) se juegan sin reloj, cerrando la ronda cuando todos
+ * terminan su partida.
+ */
+export function roomTimeLimitFor(gameId: string): number {
+  return games.find((g) => g.id === gameId)?.roomTimeLimitSec ?? NO_TIME_LIMIT;
 }
 
 /**
@@ -138,7 +139,7 @@ export function timeVoteOptionIds(): string[] {
  */
 const NAV_GRACE_SEC = 10;
 
-/** Deadline de una ronda que arranca ahora, o null si no hay tope de tiempo. */
+/** Deadline de una ronda que arranca ahora, o null si el juego no tiene tope. */
 export function computeRoundDeadline(roundTimeLimitSec: number): Date | null {
   if (roundTimeLimitSec === NO_TIME_LIMIT) return null;
   return new Date(Date.now() + (roundTimeLimitSec + NAV_GRACE_SEC) * 1000);
@@ -146,7 +147,7 @@ export function computeRoundDeadline(roundTimeLimitSec: number): Date | null {
 
 const TICK_MS = 500;
 const POLL_MS = 5000;
-/** Duracion de las votaciones (proximo juego y tope de tiempo). */
+/** Duracion de la votacion del proximo juego. */
 export const VOTE_SECONDS = 20;
 /**
  * Tope de lectura del briefing previo a cada ronda (de que va el juego + los
@@ -443,12 +444,6 @@ class RoomModeController implements RoomMode {
         this.overlay.setStrip(null);
         this.renderVoting();
         break;
-      case "time_voting":
-        // Antes de jugar: se vota el tope de tiempo de esta ronda. Todavia no
-        // se jugo, asi que no se reporta ningun parcial.
-        this.overlay.setStrip(null);
-        this.renderTimeVoting();
-        break;
     }
     this.updateTakeover();
   }
@@ -600,16 +595,13 @@ class RoomModeController implements RoomMode {
       }
       // El host cierra el briefing al vencer el tope o cuando todos estan listos.
       if (this.isHost()) void this.maybeFinishBriefing(deadline !== null && now >= deadline);
-    } else if (room.status === "voting" || room.status === "time_voting") {
+    } else if (room.status === "voting") {
       if (this.isHost()) this.maybeCompressVote();
       if (deadline !== null) {
         this.overlay.setTimeText(formatClock(deadline - now));
         // Sin CLOSE_LAG en las votaciones: no hay parciales que esperar, asi
         // cierra apenas vence (incluido el deadline comprimido a pocos segundos).
-        if (this.isHost() && now >= deadline) {
-          if (room.status === "voting") void this.closeVoting();
-          else void this.closeTimeVote();
-        }
+        if (this.isHost() && now >= deadline) void this.closeVoting();
       }
     }
 
@@ -740,42 +732,6 @@ class RoomModeController implements RoomMode {
     if (this.isHost()) this.maybeCompressVote();
   }
 
-  /** Votacion del tope de tiempo de esta ronda (antes de jugar). */
-  private renderTimeVoting(): void {
-    const state = this.state!;
-    const room = state.room;
-    const optionIds = room.vote_options ?? [];
-    // El voto de tiempo se guarda en room_votes con round_no = la ronda a jugar
-    // (el string de segundos va en game_id). El filtro por vote_options descarta
-    // votos viejos (p.ej. del voto de juego previo, que se sobrescriben al votar).
-    const round = room.current_round;
-
-    const votes = state.votes.filter(
-      (v) => v.round_no === round && optionIds.includes(v.game_id),
-    );
-    const counts: Record<string, number> = {};
-    for (const v of votes) counts[v.game_id] = (counts[v.game_id] ?? 0) + 1;
-    const myVote = votes.find((v) => v.player === this.me)?.game_id ?? null;
-
-    this.overlay.showVoting({
-      round,
-      kicker: `Ronda ${room.current_round}/${this.totalRounds()} - ${this.gameTitle(this.gameId)}`,
-      title: "Elegi el tiempo",
-      hint: "Gana la mayoria; empate se define al azar",
-      options: optionIds.map((id) => ({ id, title: formatRoundTimeLimit(Number(id)) })),
-      counts,
-      myVote,
-      onVote: (id) => {
-        void castVote(this.code, round, this.me, id).then((ok) => {
-          if (ok) this.channel?.ping();
-          void this.refresh();
-        });
-      },
-    });
-
-    if (this.isHost()) this.maybeCompressVote();
-  }
-
   /** Briefing previo a la ronda: de que va el juego + controles + boton "Listo". */
   private renderBriefing(): void {
     const state = this.state!;
@@ -790,6 +746,8 @@ class RoomModeController implements RoomMode {
     );
     const readyCount = state.players.filter((p) => ready.has(p)).length;
 
+    const limit = roomTimeLimitFor(this.gameId);
+
     this.overlay.showBriefing({
       round,
       roundNo: room.current_round,
@@ -797,6 +755,8 @@ class RoomModeController implements RoomMode {
       gameTitle: this.gameTitle(this.gameId),
       description: game?.description ?? "",
       controls: game?.controls ?? "",
+      // Solo los juegos con tope declarado avisan el reloj; el resto no lo tiene.
+      timeLimit: limit === NO_TIME_LIMIT ? "" : formatRoundTimeLimit(limit),
       readyCount,
       totalPlayers: state.players.length,
       iAmReady: ready.has(this.me),
@@ -882,13 +842,12 @@ class RoomModeController implements RoomMode {
     const state = this.state;
     if (!state || !this.isHost()) return;
     const room = state.room;
-    if (room.status !== "voting" && room.status !== "time_voting") return;
+    if (room.status !== "voting") return;
 
     const options = room.vote_options ?? [];
     if (options.length === 0) return;
-    // El voto del proximo juego se guarda en la ronda siguiente; el de tiempo, en
-    // la ronda a jugar (la vigente).
-    const voteRound = room.status === "voting" ? room.current_round + 1 : room.current_round;
+    // El voto del proximo juego se guarda en la ronda siguiente.
+    const voteRound = room.current_round + 1;
     const voters = new Set(
       state.votes
         .filter((v) => v.round_no === voteRound && options.includes(v.game_id))
@@ -934,8 +893,7 @@ class RoomModeController implements RoomMode {
   /**
    * Arranca la siguiente ronda por su briefing: se fija el juego y se pasa a
    * 'briefing' para que todos lean de que va antes de jugar. Al cerrarlo (todos
-   * listos o vencido el tope) recien se abre la votacion de tiempo (si esta
-   * activa) o se arranca a jugar (finishBriefing).
+   * listos o vencido el tope) recien arranca la partida (finishBriefing).
    */
   private async startNextRound(gameId: string): Promise<void> {
     const state = this.state;
@@ -969,45 +927,17 @@ class RoomModeController implements RoomMode {
   }
 
   /**
-   * Sale del briefing hacia la partida: si la sala vota el tope de tiempo, abre
-   * esa votacion; si no, arranca a jugar con el tope fijo. El reloj de la ronda
-   * recien arranca aca, asi que el briefing no le come tiempo a la partida.
+   * Sale del briefing hacia la partida, con el tope de tiempo que declare el juego
+   * (o sin reloj, que es lo normal). El reloj de la ronda recien arranca aca, asi
+   * que el briefing no le come tiempo a la partida.
    */
   private async finishBriefing(): Promise<void> {
     const state = this.state;
     if (!state || state.room.status !== "briefing" || this.actionInFlight) return;
     const round = state.room.current_round;
     const gameId = state.room.current_game ?? this.gameId;
-    if (state.room.settings.timeVote) {
-      const deadline = new Date(Date.now() + VOTE_SECONDS * 1000);
-      await this.hostAction(() =>
-        startTimeVote(this.code, round, gameId, timeVoteOptionIds(), deadline),
-      );
-    } else {
-      const deadline = computeRoundDeadline(state.room.settings.roundTimeLimitSec);
-      await this.hostAction(() => startRound(this.code, round, gameId, deadline));
-    }
-  }
-
-  /** Cierra la votacion de tiempo y arranca a jugar con el tope ganador. */
-  private async closeTimeVote(): Promise<void> {
-    const state = this.state;
-    if (!state || state.room.status !== "time_voting" || this.actionInFlight) return;
-    const options = state.room.vote_options ?? [];
-    if (options.length === 0) return;
-
-    const round = state.room.current_round;
-    const counts = new Map<string, number>();
-    for (const v of state.votes) {
-      if (v.round_no === round && options.includes(v.game_id)) {
-        counts.set(v.game_id, (counts.get(v.game_id) ?? 0) + 1);
-      }
-    }
-    const max = Math.max(0, ...counts.values());
-    const top = max > 0 ? options.filter((id) => counts.get(id) === max) : options;
-    const winner = top[Math.floor(Math.random() * top.length)];
-    const deadline = computeRoundDeadline(Number(winner));
-    await this.hostAction(() => finishTimeVote(this.code, deadline));
+    const deadline = computeRoundDeadline(roomTimeLimitFor(gameId));
+    await this.hostAction(() => startRound(this.code, round, gameId, deadline));
   }
 
   private async finish(): Promise<void> {
@@ -1038,7 +968,6 @@ class RoomModeController implements RoomMode {
       state.room.status === "briefing" ||
       state.room.status === "results" ||
       state.room.status === "voting" ||
-      state.room.status === "time_voting" ||
       state.room.status === "finished" ||
       (state.room.status === "playing" && this.reported);
     const present = this.channel?.presentPlayers() ?? [];

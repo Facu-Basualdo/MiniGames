@@ -21,6 +21,14 @@ export interface GameEntry {
   /** Excluir solo del modo sala (selección, votación, random y picker del host),
    * pero seguir mostrándolo en la landing. Para juegos que no van bien en multijugador. */
   roomsHidden?: boolean;
+  /**
+   * Tope de tiempo de la ronda **en modo sala**, en segundos. Solo lo declaran los
+   * juegos que sin reloj no terminan nunca (o se estiran demasiado): al vencer, cada
+   * jugador reporta su parcial y la ronda cierra. Sin este campo la ronda no tiene
+   * reloj y cierra cuando todos terminan su partida, que es el caso normal.
+   * No afecta al juego fuera de las salas.
+   */
+  roomTimeLimitSec?: number;
 }
 
 /** Portada del juego generada por IA; si falta, la card muestra un fallback. */

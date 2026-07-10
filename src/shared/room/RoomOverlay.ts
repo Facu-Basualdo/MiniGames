@@ -486,6 +486,8 @@ export class RoomOverlay {
     gameTitle: string;
     description: string;
     controls: string;
+    /** Tope de tiempo de la ronda ya formateado, o "" si el juego no tiene. */
+    timeLimit: string;
     readyCount: number;
     totalPlayers: number;
     iAmReady: boolean;
@@ -512,6 +514,19 @@ export class RoomOverlay {
       const text = document.createElement("div");
       text.className = "mg-room__controls-text";
       text.textContent = opts.controls;
+      box.append(label, text);
+      this.boxEl.append(box);
+    }
+
+    if (opts.timeLimit) {
+      const box = document.createElement("div");
+      box.className = "mg-room__controls";
+      const label = document.createElement("div");
+      label.className = "mg-room__controls-label";
+      label.textContent = "Tiempo de la ronda";
+      const text = document.createElement("div");
+      text.className = "mg-room__controls-text";
+      text.textContent = `${opts.timeLimit} - al vencer se toma tu puntaje del momento`;
       box.append(label, text);
       this.boxEl.append(box);
     }
@@ -547,7 +562,7 @@ export class RoomOverlay {
     this.briefEls.count.textContent = `${readyCount}/${totalPlayers} listos`;
   }
 
-  /** Votacion (proximo juego o tope de tiempo). */
+  /** Votacion del proximo juego. */
   showVoting(opts: {
     options: VoteOption[];
     /** Cantidad de votos por opcion. */
@@ -559,7 +574,6 @@ export class RoomOverlay {
     /** Textos de la vista (por defecto, la votacion del proximo juego). */
     kicker?: string;
     title?: string;
-    hint?: string;
   }): void {
     const sig = JSON.stringify({
       r: opts.round ?? 0,
@@ -628,7 +642,7 @@ export class RoomOverlay {
       els.set(opt.id, { btn, count });
     }
     this.boxEl.append(wrap);
-    this.addHint(opts.hint ?? "Gana la mayoria; empate se define al azar");
+    this.addHint("Gana la mayoria; empate se define al azar");
 
     this.voteEls = els;
     this.voteOptimisticMine = null;

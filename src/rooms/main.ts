@@ -27,12 +27,9 @@ import {
   VOTE_SECONDS,
 } from "../shared/room/roomMode";
 import {
-  DEFAULT_ROUND_TIME_LIMIT,
   DEFAULT_TOTAL_ROUNDS,
-  formatRoundTimeLimit,
   HEARTBEAT_MS,
   MAX_ROOM_PLAYERS,
-  ROUND_TIME_LIMIT_OPTIONS,
   TOTAL_ROUNDS_OPTIONS,
   type PublicRoom,
   type RoomSettings,
@@ -232,8 +229,6 @@ function renderHome(joinProblem?: string): void {
       const settings: RoomSettings = {
         totalRounds: DEFAULT_TOTAL_ROUNDS,
         playlist: null,
-        roundTimeLimitSec: DEFAULT_ROUND_TIME_LIMIT,
-        timeVote: false,
       };
       createBtn.disabled = true;
       const code = await createRoom(player, settings, visibility);
@@ -350,10 +345,11 @@ function buildBrowsePanel(
 }
 
 /**
- * Formulario de ajustes de sala (rondas / tope de tiempo / playlist opcional).
- * Reutilizado al crear y en el lobby (el host puede cambiar los juegos antes
- * de cada partida, incluida la revancha). Emite settings ya normalizados:
- * con playlist, totalRounds = playlist.length.
+ * Formulario de ajustes de sala (rondas / playlist opcional). Reutilizado al
+ * crear y en el lobby (el host puede cambiar los juegos antes de cada partida,
+ * incluida la revancha). Emite settings ya normalizados: con playlist,
+ * totalRounds = playlist.length. El tope de tiempo no se ajusta aca: lo declara
+ * cada juego en su `meta.ts` (ver `roomTimeLimitFor`).
  */
 function buildSettingsForm(
   initial: RoomSettings,
@@ -366,8 +362,6 @@ function buildSettingsForm(
   )
     ? initial.totalRounds
     : DEFAULT_TOTAL_ROUNDS;
-  let timeLimit: number = initial.roundTimeLimitSec;
-  let timeVote: boolean = initial.timeVote ?? false;
   const playlist: string[] = initial.playlist ? [...initial.playlist] : [];
 
   // La cantidad elegida arriba manda: es el tope de juegos que se pueden
@@ -377,8 +371,6 @@ function buildSettingsForm(
     onChange({
       totalRounds,
       playlist: playlist.length > 0 ? [...playlist] : null,
-      roundTimeLimitSec: timeLimit,
-      timeVote,
     });
   };
 
@@ -396,49 +388,6 @@ function buildSettingsForm(
       emit();
     },
   );
-
-  // Votar el tope de tiempo antes de cada juego (en vez de un tope fijo).
-  const timeVoteLabel = document.createElement("div");
-  timeVoteLabel.className = "panel__label";
-  timeVoteLabel.textContent = "Votar el tiempo antes de cada juego";
-  const timeVoteChoices = buildChoices(
-    [
-      { value: 0, label: "No" },
-      { value: 1, label: "Si" },
-    ],
-    timeVote ? 1 : 0,
-    (v) => {
-      timeVote = v === 1;
-      applyTimeVoteUI();
-      emit();
-    },
-  );
-
-  // Selector de tope fijo, solo cuando NO se vota el tiempo.
-  const timeSelector = document.createElement("div");
-  const timeLabel = document.createElement("div");
-  timeLabel.className = "panel__label";
-  timeLabel.textContent = "Tope de tiempo por juego";
-  const timeChoices = buildChoices(
-    ROUND_TIME_LIMIT_OPTIONS.map((n) => ({ value: n, label: formatRoundTimeLimit(n) })),
-    timeLimit,
-    (v) => {
-      timeLimit = v;
-      emit();
-    },
-  );
-  timeSelector.append(timeLabel, timeChoices);
-
-  const timeVoteHint = document.createElement("p");
-  timeVoteHint.className = "hint";
-  timeVoteHint.textContent =
-    "Antes de cada juego los jugadores votan el tope entre 1 y 5 minutos o sin limite.";
-
-  const applyTimeVoteUI = (): void => {
-    timeSelector.style.display = timeVote ? "none" : "";
-    timeVoteHint.style.display = timeVote ? "" : "none";
-  };
-  applyTimeVoteUI();
 
   const playlistLabel = document.createElement("div");
   playlistLabel.className = "panel__label";
@@ -579,10 +528,6 @@ function buildSettingsForm(
   wrap.append(
     roundsLabel,
     roundsChoices,
-    timeVoteLabel,
-    timeVoteChoices,
-    timeSelector,
-    timeVoteHint,
     playlistHead,
     playlistSearch,
     playlistFilters,

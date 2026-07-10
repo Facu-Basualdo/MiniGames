@@ -13,6 +13,7 @@ export const meta: GameEntry = {
   category: "Precisión",
   order: 320,
   added: "2026-07-06",
+  roomTimeLimitSec: 180,
 };
 
 // El ranking se ordena por tiempo (menor mejor). Cada puntaje codifica el tiempo

@@ -12,6 +12,7 @@ export const meta: GameEntry = {
   category: "Arcade",
   order: 370,
   added: "2026-07-09",
+  roomTimeLimitSec: 150,
 };
 
 // Puntaje = puntos por entregas (con combo). Mayor es mejor → board por defecto,

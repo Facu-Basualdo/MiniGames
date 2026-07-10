@@ -11,13 +11,13 @@
 create table if not exists public.rooms (
   code          text primary key,                 -- 6 chars, alfabeto A-Z2-9 sin ambiguos (sin O/0/I/1)
   host          text not null,                    -- nickname del anfitrion
-  status        text not null default 'lobby',    -- lobby|briefing|playing|results|voting|time_voting|finished
-  settings      jsonb not null default '{}',      -- { totalRounds, playlist: string[]|null, roundTimeLimitSec, timeVote }
+  status        text not null default 'lobby',    -- lobby|briefing|playing|results|voting|finished ('time_voting' quedo como legacy)
+  settings      jsonb not null default '{}',      -- { totalRounds, playlist: string[]|null }
   visibility    text not null default 'public',   -- public = listada en /rooms/; private = solo por codigo/link
   last_active   timestamptz not null default now(), -- heartbeat de los clientes; las salas frias se purgan
   current_round int  not null default 0,
   current_game  text,
-  vote_options  text[],                           -- candidatos durante 'voting' (ids de juego) o 'time_voting' (segundos)
+  vote_options  text[],                           -- candidatos durante 'voting' (ids de juego)
   deadline      timestamptz,                      -- fin aproximado de la ronda o votacion en curso
   created_at    timestamptz not null default now(),
   constraint code_format check (code ~ '^[A-Z2-9]{6}$'),
@@ -27,7 +27,9 @@ create table if not exists public.rooms (
 );
 
 -- Migracion idempotente del CHECK de status para salas ya creadas (agrega
--- 'briefing' y 'time_voting'). create table ... if not exists no toca tablas existentes.
+-- 'briefing'). create table ... if not exists no toca tablas existentes.
+-- 'time_voting' sigue permitido aunque el cliente ya no lo escriba: sacarlo del
+-- CHECK haria fallar el ALTER si alguna sala vieja quedo parada en ese estado.
 alter table public.rooms drop constraint if exists status_ok;
 alter table public.rooms add constraint status_ok
   check (status in ('lobby','briefing','playing','results','voting','time_voting','finished'));
