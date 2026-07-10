@@ -62,6 +62,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Prisma | Arcade | Tu bola cambia de color y sube por impulsos: cruzá cada anillo giratorio solo por el arco de tu mismo color. Un roce del color equivocado y perdés; tu marca es cuántos anillos cruzás. | [matiasgzlez](https://github.com/matiasgzlez) |
 | Tinta | Reflejos | El efecto Stroop hecho juego: aparece el nombre de un color pintado con otra tinta y tenés que tocar el color de la tinta, no lo que dice la palabra. El reloj drena, cada acierto suma tiempo; tu marca es cuántas tintas acertás. | [matiasgzlez](https://github.com/matiasgzlez) |
 | Cannon Dodge | Reflejos | Sobreviví en una isla pirata redonda esquivando las balas de cañón que la cruzan. Los cañones aparecen en los bordes, avisan y disparan; a medida que aguantás salen más seguido, más rápido y de a más. Tu marca es el tiempo que sobrevivís. | [juanidrose11](https://github.com/juani) |
+| Pizza Express | Arcade | Repartí pizzas en scooter por Cheesetown al atardecer, tipo Paperboy: manejá esquivando autos, pozos y perros mientras le tirás pizzas a los buzones que piden. Cada entrega suma con combo y un choque te termina la partida; la dificultad escala rápido y tu marca son los puntos. | [emi1i0](https://github.com/emi1i0) |
 
 ## Empezar
 
