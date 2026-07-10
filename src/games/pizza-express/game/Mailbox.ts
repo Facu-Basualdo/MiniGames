@@ -4,7 +4,7 @@ import {
   MAILBOX_X,
   COLOR_TOMATO,
   COLOR_CHEESE,
-  COLOR_PEPPERONI,
+  COLOR_MOLTEN,
   COLOR_CREAM,
   COLOR_CRUST,
 } from "./constants";
@@ -70,9 +70,9 @@ export class Mailbox {
   update(dz: number, dt: number): void {
     this.group.position.z += dz;
     if (this.pending) {
-      this.bob += dt * 3;
-      this.marker.position.y = 2.0 + Math.sin(this.bob) * 0.12;
-      this.marker.rotation.y += dt * 1.4;
+      // The arrow bounces down toward the box so it clearly points at it.
+      this.bob += dt * 5;
+      this.marker.position.y = 2.1 + Math.abs(Math.sin(this.bob)) * 0.28;
     } else if (this.flagAngle < 0.55) {
       // Snap the flag up on delivery.
       this.flagAngle = Math.min(0.55, this.flagAngle + dt * 6);
@@ -97,22 +97,21 @@ export class Mailbox {
 
   private buildMarker(): THREE.Group {
     const g = new THREE.Group();
-    // A little floating pizza: a cheese disc with pepperoni.
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.06, 20), glowMat(COLOR_CHEESE, 1));
-    g.add(disc);
-    const crust = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.05, 8, 20), toonMat(COLOR_CRUST, {}));
-    crust.rotation.x = Math.PI / 2;
-    g.add(crust);
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2 + 0.3;
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 10), glowMat(COLOR_PEPPERONI, 1));
-      p.position.set(Math.cos(a) * 0.15, 0.03, Math.sin(a) * 0.15);
-      g.add(p);
-    }
-    // Bouncing "!" beacon post so it reads from far as a target.
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), glowMat(COLOR_TOMATO, 0.6, true));
-    beam.position.y = -0.42;
-    g.add(beam);
+    // A bright downward arrow that points right at the mailbox — reads clearly
+    // from far as "deliver here" (much clearer than the old pizza icon).
+    const headMat = glowMat(COLOR_TOMATO, 1);
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.44, 4), headMat);
+    head.rotation.x = Math.PI; // tip points down
+    head.rotation.y = Math.PI / 4; // square arrowhead facing the road
+    head.position.y = -0.05;
+    g.add(head);
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 0.16), glowMat(COLOR_CHEESE, 1));
+    shaft.position.y = 0.34;
+    g.add(shaft);
+    // Faint additive glow halo so it pops against the town.
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), glowMat(COLOR_MOLTEN, 0.4, true));
+    halo.position.y = 0.05;
+    g.add(halo);
     return g;
   }
 }

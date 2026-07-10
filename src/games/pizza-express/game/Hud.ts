@@ -1,21 +1,30 @@
 import { LeaderboardPanel } from "../../../shared/LeaderboardPanel";
 
-/** DOM overlay: live score + combo, best, start / game-over screens, countdown,
- *  leaderboard and the touch "throw" button. */
+// A pizza slice token (warm) and a shield token (cool, deliberately distinct so
+// the one-time presentation shield reads apart from the miss pizzas).
+const PIZZA_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 22 20a1.6 1.6 0 0 1-1.9 2.3L12 20 3.9 22.3A1.6 1.6 0 0 1 2 20Z" fill="#f2b134" stroke="#8a5a2b" stroke-width="1.6" stroke-linejoin="round"/><circle cx="9.5" cy="15.5" r="1.5" fill="#a8281c"/><circle cx="14" cy="17" r="1.4" fill="#a8281c"/><circle cx="12" cy="11.5" r="1.3" fill="#a8281c"/></svg>`;
+const SHIELD_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 20 5v6c0 5-3.4 8.7-8 11-4.6-2.3-8-6-8-11V5Z" fill="#6fbfe8" stroke="#2c6f9e" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.4 2.4 4.6-4.8" fill="none" stroke="#effaff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/** DOM overlay: live score + combo, best, the miss-token strip (shield + pizzas),
+ *  the tutorial thought bubble, start / game-over screens, countdown and the
+ *  leaderboard. */
 export class Hud {
   private readonly scoreEl: HTMLDivElement;
   private readonly comboEl: HTMLDivElement;
   private readonly bestEl: HTMLDivElement;
+  private readonly tokensEl: HTMLDivElement;
+  private readonly shieldTok: HTMLSpanElement;
+  private readonly pizzaToks: HTMLSpanElement[] = [];
+  private readonly bubbleEl: HTMLDivElement;
   private readonly overlayEl: HTMLDivElement;
   private readonly titleEl: HTMLDivElement;
   private readonly subtitleEl: HTMLDivElement;
   private readonly scoreLineEl: HTMLDivElement;
   private readonly hintEl: HTMLDivElement;
   private readonly countdownEl: HTMLDivElement;
-  private readonly throwBtn: HTMLButtonElement;
   private readonly leaderboard = new LeaderboardPanel();
 
-  constructor(container: HTMLElement, onActivate: () => void, onThrow: () => void) {
+  constructor(container: HTMLElement, onActivate: () => void) {
     const hud = document.createElement("div");
     hud.className = "hud";
 
@@ -31,6 +40,25 @@ export class Hud {
 
     hud.append(this.scoreEl, this.comboEl, this.bestEl);
 
+    // Miss-token strip: shield + 3 pizzas.
+    this.tokensEl = document.createElement("div");
+    this.tokensEl.className = "tokens";
+    this.shieldTok = document.createElement("span");
+    this.shieldTok.className = "token token--shield";
+    this.shieldTok.innerHTML = SHIELD_SVG;
+    this.tokensEl.append(this.shieldTok);
+    for (let i = 0; i < 3; i++) {
+      const t = document.createElement("span");
+      t.className = "token token--pizza";
+      t.innerHTML = PIZZA_SVG;
+      this.pizzaToks.push(t);
+      this.tokensEl.append(t);
+    }
+
+    // Character thought bubble (tutorial hints).
+    this.bubbleEl = document.createElement("div");
+    this.bubbleEl.className = "bubble";
+
     this.overlayEl = document.createElement("div");
     this.overlayEl.className = "overlay";
 
@@ -45,7 +73,7 @@ export class Hud {
 
     this.hintEl = document.createElement("div");
     this.hintEl.className = "overlay__hint";
-    this.hintEl.innerHTML = "<b>&larr; &rarr;</b> / A D / arrastrá para esquivar &nbsp;·&nbsp; <b>ESPACIO</b> / tocá para lanzar la pizza";
+    this.hintEl.innerHTML = "<b>&larr; &rarr;</b> / <b>A D</b> para esquivar &nbsp;·&nbsp; <b>ESPACIO</b> / <b>W</b> / <b>&uarr;</b> para lanzar la pizza";
 
     this.overlayEl.append(this.titleEl, this.subtitleEl, this.scoreLineEl, this.hintEl);
     this.leaderboard.mount(this.overlayEl);
@@ -54,16 +82,7 @@ export class Hud {
     this.countdownEl = document.createElement("div");
     this.countdownEl.className = "countdown";
 
-    this.throwBtn = document.createElement("button");
-    this.throwBtn.className = "throw-btn hidden";
-    this.throwBtn.textContent = "TIRAR";
-    this.throwBtn.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onThrow();
-    });
-
-    container.append(hud, this.overlayEl, this.countdownEl, this.throwBtn);
+    container.append(hud, this.tokensEl, this.bubbleEl, this.overlayEl, this.countdownEl);
 
     const activate = (e: Event): void => {
       e.preventDefault();
@@ -92,8 +111,27 @@ export class Hud {
     this.bestEl.textContent = best > 0 ? `MEJOR: ${best}` : "";
   }
 
-  showThrowButton(show: boolean): void {
-    this.throwBtn.classList.toggle("hidden", !show);
+  /** Shows the miss allowance: whether the shield is intact and pizzas remaining. */
+  setTokens(shieldActive: boolean, pizzasLeft: number): void {
+    this.shieldTok.classList.toggle("is-spent", !shieldActive);
+    for (let i = 0; i < this.pizzaToks.length; i++) {
+      this.pizzaToks[i].classList.toggle("is-spent", i >= pizzasLeft);
+    }
+  }
+
+  showTokens(show: boolean): void {
+    this.tokensEl.classList.toggle("hidden", !show);
+  }
+
+  /** Shows a tutorial thought bubble above the character, or hides it when null. */
+  showBubble(text: string | null): void {
+    if (text === null) {
+      this.bubbleEl.classList.remove("is-shown");
+      return;
+    }
+    if (this.bubbleEl.textContent === text && this.bubbleEl.classList.contains("is-shown")) return;
+    this.bubbleEl.textContent = text;
+    this.bubbleEl.classList.add("is-shown");
   }
 
   /** Shows a countdown label ("3" / "2" / "1" / "YA"), or hides it when null. */
@@ -112,10 +150,12 @@ export class Hud {
 
   showStart(): void {
     this.titleEl.textContent = "PIZZA EXPRESS";
-    this.subtitleEl.textContent = "presioná ENTER o tocá para arrancar";
+    this.subtitleEl.textContent = "presioná ENTER para arrancar";
     this.scoreLineEl.textContent = "";
     this.hintEl.style.display = "block";
     this.comboEl.classList.remove("is-shown");
+    this.showTokens(false);
+    this.showBubble(null);
     this.leaderboard.clear();
     this.overlayEl.classList.remove("hidden");
   }
@@ -125,12 +165,14 @@ export class Hud {
     void this.leaderboard.render(gameId, { score });
   }
 
-  showGameOver(score: number, best: number): void {
-    this.titleEl.textContent = "¡TE ESTRELLASTE!";
-    this.subtitleEl.textContent = "presioná ENTER o tocá para repartir de nuevo";
+  showGameOver(score: number, best: number, crashed: boolean): void {
+    this.titleEl.textContent = crashed ? "¡TE ESTRELLASTE!" : "¡PERDISTE MUCHOS PEDIDOS!";
+    this.subtitleEl.textContent = "presioná ENTER para repartir de nuevo";
     this.scoreLineEl.textContent = score >= best && score > 0 ? `PUNTAJE: ${score} — ¡NUEVO RÉCORD!` : `PUNTAJE: ${score}  ·  MEJOR: ${best}`;
     this.hintEl.style.display = "none";
     this.comboEl.classList.remove("is-shown");
+    this.showTokens(false);
+    this.showBubble(null);
     this.overlayEl.classList.remove("hidden");
   }
 

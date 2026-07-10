@@ -33,10 +33,20 @@ export const BASE_SPEED = 15; // units/s the world scrolls at the start
 export const MAX_SPEED = 48;
 export const SPEED_RAMP_PER_SEC = 1.05; // linear climb of the speed cap over time
 
-// --- Difficulty stepping (a pure function of elapsed time) ---
+// --- Tutorial / presentation window ---
+// The first seconds are a gentle intro: no lethal obstacles, thought-bubble
+// hints, and the shield cushions misses so a new player can learn to throw.
+export const TUTORIAL_SECONDS = 10;
+
+// --- Miss allowance (customers passed undelivered) ---
+// You can lose this many pizza tokens before the run ends, plus a one-time
+// shield that absorbs the very first miss. Neither regenerates.
+export const MISS_PIZZAS = 3;
+
+// --- Difficulty stepping (a pure function of play time, after the tutorial) ---
 // Difficulty is quantized into levels so the game visibly steps up.
 export const DIFFICULTY_STEP_SECONDS = 4; // seconds per difficulty level
-export const DIFFICULTY_RAMP_SECONDS = 70; // reaches hardest values here, then holds
+export const DIFFICULTY_RAMP_SECONDS = 60; // reaches hardest values here, then holds
 
 // --- Obstacles (instant death on contact) ---
 export const OBSTACLE_SPAWN_Z = -95;

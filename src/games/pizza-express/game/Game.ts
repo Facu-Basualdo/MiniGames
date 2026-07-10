@@ -21,6 +21,8 @@ import {
   SPEED_RAMP_PER_SEC,
   DIFFICULTY_STEP_SECONDS,
   DIFFICULTY_RAMP_SECONDS,
+  TUTORIAL_SECONDS,
+  MISS_PIZZAS,
   THROW_COOLDOWN,
   DELIVERY_BASE_POINTS,
   COMBO_MAX,
@@ -71,6 +73,10 @@ export class Game {
   private combo = 0;
   private elapsed = 0;
   private throwCooldown = 0;
+  private shieldActive = true;
+  private pizzasLeft = MISS_PIZZAS;
+  private crashed = false;
+  private bubbleText: string | null = null;
   private countdownTime = 0;
   private lastCountdownIndex = -1;
   private lastTime = performance.now();
@@ -119,7 +125,7 @@ export class Game {
     this.scene.add(this.street.group, this.scooter.object, this.particles.points);
 
     this.input = new InputController(this.renderer.domElement, () => this.handleThrow());
-    this.hud = new Hud(this.container, () => this.handleActivate(), () => this.handleThrow());
+    this.hud = new Hud(this.container, () => this.handleActivate());
 
     this.best = Number(localStorage.getItem(BEST_SCORE_KEY) ?? 0);
     this.hud.setBest(this.best);
@@ -161,6 +167,26 @@ export class Game {
     this.particles.burst(p.x, p.y + 0.2, p.z, COLOR_CHEESE, 22, 3.2, 3.4);
   }
 
+  /** A customer passed undelivered: break the combo and spend a token. The shield
+   *  absorbs the first miss (and misses are free during the tutorial); running out
+   *  of pizzas after the tutorial ends the run. */
+  private onCustomerMissed(): void {
+    this.combo = 0;
+    this.hud.setCombo(0);
+    SoundEffects.playMiss();
+    if (this.shieldActive) {
+      this.shieldActive = false;
+    } else if (this.elapsed >= TUTORIAL_SECONDS) {
+      this.pizzasLeft = Math.max(0, this.pizzasLeft - 1);
+      if (this.pizzasLeft <= 0) {
+        this.hud.setTokens(this.shieldActive, this.pizzasLeft);
+        this.endGame(false);
+        return;
+      }
+    }
+    this.hud.setTokens(this.shieldActive, this.pizzasLeft);
+  }
+
   private beginCountdown(): void {
     this.scooter.reset();
     this.scooter.object.visible = true;
@@ -171,11 +197,15 @@ export class Game {
     this.crashFlash.intensity = 0;
     this.shakeTime = 0;
     this.combo = 0;
+    this.shieldActive = true;
+    this.pizzasLeft = MISS_PIZZAS;
+    this.crashed = false;
     this.state = "countdown";
     this.countdownTime = 0;
     this.lastCountdownIndex = -1;
     this.hud.hide();
-    this.hud.showThrowButton(false);
+    this.hud.showTokens(false);
+    this.hud.showBubble(null);
     this.hud.setCombo(0);
     this.hud.showCountdown(COUNTDOWN_LABELS[0]);
   }
@@ -185,27 +215,36 @@ export class Game {
     this.elapsed = 0;
     this.combo = 0;
     this.throwCooldown = 0;
+    this.shieldActive = true;
+    this.pizzasLeft = MISS_PIZZAS;
+    this.bubbleText = null;
+    this.obstacles.reset(); // clean road for the tutorial window
     this.hud.setScore(0);
     this.hud.setCombo(0);
+    this.hud.setTokens(true, MISS_PIZZAS);
+    this.hud.showTokens(true);
     this.hud.hide();
     this.hud.showCountdown(null);
-    this.hud.showThrowButton(true);
     this.state = "playing";
     this.lastTime = performance.now();
   }
 
-  private endGame(): void {
+  private endGame(crashed: boolean): void {
     this.state = "gameover";
-    SoundEffects.playCrash();
-    this.hud.showThrowButton(false);
+    this.crashed = crashed;
+    this.hud.showTokens(false);
+    this.hud.showBubble(null);
 
     const px = this.scooter.x;
-    this.particles.burst(px, 0.6, 0.2, COLOR_DIRT, 30, 4.5, 4.2);
-    this.particles.burst(px, 0.6, 0.2, COLOR_TOMATO, 16, 3.5, 5.0);
-    this.crashFlash.position.set(px, 1.2, 0.5);
-    this.crashFlash.intensity = 40;
-    this.shakeTime = SHAKE_DURATION;
-    this.scooter.object.visible = false;
+    if (crashed) {
+      SoundEffects.playCrash();
+      this.particles.burst(px, 0.6, 0.2, COLOR_DIRT, 30, 4.5, 4.2);
+      this.particles.burst(px, 0.6, 0.2, COLOR_TOMATO, 16, 3.5, 5.0);
+      this.crashFlash.position.set(px, 1.2, 0.5);
+      this.crashFlash.intensity = 40;
+      this.shakeTime = SHAKE_DURATION;
+      this.scooter.object.visible = false;
+    }
 
     if (this.score > this.best) {
       this.best = this.score;
@@ -216,17 +255,29 @@ export class Game {
     // Let the crash play in the clear before the overlay covers it.
     window.setTimeout(() => {
       if (this.state !== "gameover") return;
-      this.hud.showGameOver(this.score, this.best);
+      this.hud.showGameOver(this.score, this.best, this.crashed);
       if (this.room) this.room.reportScore(this.score);
       else this.hud.showRanking("pizza-express", this.score);
-    }, 600);
+    }, crashed ? 600 : 250);
   }
 
-  /** Normalized difficulty 0..1, quantized into steps so it visibly ramps up. */
-  private difficulty(): number {
-    const level = Math.floor(this.elapsed / DIFFICULTY_STEP_SECONDS);
+  /** Normalized difficulty 0..1, quantized into steps so it visibly ramps up.
+   *  `t` is play time (elapsed minus the tutorial), so the ramp starts fresh. */
+  private difficulty(t: number): number {
+    const level = Math.floor(t / DIFFICULTY_STEP_SECONDS);
     const d = (level * DIFFICULTY_STEP_SECONDS) / DIFFICULTY_RAMP_SECONDS;
     return d < 0 ? 0 : d > 1 ? 1 : d;
+  }
+
+  /** Drives the two tutorial thought bubbles over the first `TUTORIAL_SECONDS`. */
+  private updateTutorial(): void {
+    let text: string | null = null;
+    if (this.elapsed < 5) text = "W / ↑ / Espacio para lanzar la pizza";
+    else if (this.elapsed < TUTORIAL_SECONDS) text = "Ponete del lado de la calle al que querés tirar";
+    if (text !== this.bubbleText) {
+      this.bubbleText = text;
+      this.hud.showBubble(text);
+    }
   }
 
   private readonly tick = (): void => {
@@ -237,30 +288,40 @@ export class Game {
     if (this.state === "playing") {
       this.elapsed += dt;
       this.throwCooldown = Math.max(0, this.throwCooldown - dt);
-      const d = this.difficulty();
-      const speed = Math.min(BASE_SPEED + this.elapsed * SPEED_RAMP_PER_SEC, MAX_SPEED);
+      const inTutorial = this.elapsed < TUTORIAL_SECONDS;
+      // Play time only counts after the tutorial, so the ramp starts then.
+      const playT = Math.max(0, this.elapsed - TUTORIAL_SECONDS);
+      const d = this.difficulty(playT);
+      const speed = inTutorial ? BASE_SPEED : Math.min(BASE_SPEED + playT * SPEED_RAMP_PER_SEC, MAX_SPEED);
       const dz = speed * dt;
 
       this.scooter.update(dt, this.input.dirX, dz);
       this.street.scroll(dz, dt);
 
       const missed = this.mailboxes.update(dt, dz, d);
-      if (missed > 0) {
-        this.combo = 0;
-        this.hud.setCombo(0);
-        SoundEffects.playMiss();
+      for (let m = 0; m < missed; m++) {
+        this.onCustomerMissed();
+        if (this.state !== "playing") break; // ran out of pizzas
       }
       this.thrower.update(dt);
 
-      const hit = this.obstacles.update(dt, dz, this.scooter.x, speed, d);
-      if (hit) this.endGame();
+      // No lethal obstacles during the tutorial (safe learning window).
+      if (!inTutorial) {
+        const hit = this.obstacles.update(dt, dz, this.scooter.x, speed, d);
+        if (hit) this.endGame(true);
+      }
+
+      this.updateTutorial();
     } else {
-      // Idle drift so the town keeps moving on the menus / countdown.
+      // Idle drift so the town keeps moving on the menus (not the countdown,
+      // which needs a clean road for the tutorial start).
       const dz = (this.state === "countdown" ? 10 : 5) * dt;
       this.street.scroll(dz, dt);
       this.scooter.update(dt, 0, dz);
       this.mailboxes.update(dt, dz, 0);
-      this.obstacles.update(dt, dz, 999, BASE_SPEED, 0); // 999 = never collide off-road
+      if (this.state !== "countdown") {
+        this.obstacles.update(dt, dz, 999, BASE_SPEED, 0); // 999 = never collide off-road
+      }
       this.thrower.update(dt);
 
       if (this.state === "countdown") {
