@@ -158,6 +158,8 @@ Square 1:1 video game cover art, bold indie game key art style, vibrant saturate
 
 ```text
 Square 1:1 video game cover art, bold indie game key art style, dramatic cinematic lighting, clean composition with a strong focal subject, high detail digital illustration, no watermark, no borders. A dark Japanese dojo at night: a single dramatic warm spotlight from above carves a pool of light on a black floor, thick with slow drifting dust. In the centre, a lone hand wrapped in dark cloth balances a long polished katana perfectly upright on its palm, the steel blade catching the light with a razor-bright highlight down its edge and a cool blue rim glint from behind. Deep blue-black shadows all around, tense sense of concentration and fragile balance, the blade the clear focal point. The game title "PULSO DE ACERO" is integrated into the artwork as a bold stylized videogame logo, large and readable, spelled exactly "PULSO DE ACERO".
+```
+
 ## Memoria de Color — guardar como `color-memory.jpg`
 
 ```text
@@ -186,6 +188,16 @@ Square 1:1 video game cover art, bold indie game key art style, vibrant saturate
 
 ```text
 Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A glossy glowing ball on a near-black background rising through a tower of rotating geometric shapes, each shape's outline split into four bright neon colors (hot pink, cyan, lime-green, amber): a circular ring, a square, a pentagon and a hexagon receding upward, all glowing. The ball glows in one of those colors with a soft halo and a white specular highlight, small sparkles and light trails around it. Electric four-color neon spectrum palette (hot pink, cyan, lime, amber) over deep near-black, energetic playful arcade mood, high contrast. The game title "PRISMA" is integrated into the artwork as a bold stylized videogame logo with a rainbow spectrum gradient fill and a thick dark outline, large and readable, spelled exactly "PRISMA".
+```
+
+## Cadena de Palabras — guardar como `word-chain.jpg`
+
+Sigue el `DESIGN.md` del juego ("Cadena forjada"): taller de herreria en una noche
+azul fria, el eslabon al rojo vivo como unico foco caliente. Ojo con las letras
+grabadas en los eslabones: si salen deformadas, regenerar pidiendo menos letras.
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, dramatic cinematic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A blacksmith forge at night: a heavy iron chain runs across a dark anvil, its cold steel links each engraved with a single carved letter. The newest link, at the center, is glowing white-hot and orange, freshly hammered, with the letter "O" blazing inside it; a hammer strikes it and a burst of bright sparks flies upward into the darkness. Ember glow pools under the chain, the rest of the links fade into cold blue shadow, smoke and floating orange embers rise through the air. Deep cold blue-black night background against the fierce orange and white-hot glow of the forged link, high contrast, tense sense of a chain about to snap. The game title "CADENA DE PALABRAS" is integrated into the artwork as a bold stylized videogame logo made of forged iron letters with a hot orange inner glow, large and readable, spelled exactly "CADENA DE PALABRAS".
 ```
 
 ## Cannon Dodge — guardar como `cannon-dodge.jpg`
