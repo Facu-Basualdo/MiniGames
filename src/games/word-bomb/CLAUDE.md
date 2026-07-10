@@ -82,7 +82,9 @@ descubrirlo) y en el picker/votacion de salas como cualquier otro juego de sala.
   contra el namespace `/wordbomb`. Anuncia `{code, nickname, roster}`; el server
   fija el orden de turnos con el `roster` (= `room.players()`, por `joined_at`).
 - `game/SoundEffects.ts` — Web Audio sintetizado (countdown tick, sello de
-  aceptada, zumbido de rechazo, explosion, ganar/perder).
+  aceptada, zumbido de rechazo, explosion, ganar/perder) + fallback de reacciones.
+- `game/EmoteAudio.ts` — samples mp3 de las reacciones, con fallback al sintetizado.
+- `game/audioContext.ts` — el `AudioContext` compartido por los dos de arriba.
 - `game/constants.ts` — countdown, `GAME_SERVER_URL` (de `VITE_GAME_SERVER_URL`),
   paleta y umbral de peligro de la mecha.
 
@@ -110,11 +112,24 @@ cerrado (`risa` / `sorpresa` / `enojo` / `burla` / `llanto`) y cada cara esta
   burlandose es medio la gracia) y tambien el de turno. **Los espectadores no**: nunca
   llegan a conectar al game server, porque `RoomMode.applyState` corta antes de
   `autoStartGame` para ellos y `onStart` (que dispara el `connect()`) jamas se llama.
-- **Sonido**: cada reaccion tiene su voz sintetizada en `SoundEffects.playEmote(id)`
-  (risa de tres silabas, "oh!" que sube, gruñido grave, cantito de burla, dos
-  sollozos). Suenan para todos, asi que van bajas (pico <= 0.09) y cortas; el
-  cooldown de 1s por jugador es lo que evita que se apilen. `blip()` acepta un
-  `delay` para encadenar silabas.
+- **Animacion**: cada cara **se mueve** mientras dura la reaccion (bloque "Caras vivas" en
+  `style.css`): keyframes CSS sobre los paths del SVG, sin video ni sprites. Risa que abre
+  la mandibula, dos lagrimas alternadas en el llanto, temblor y cuerpo recalentado en el
+  enojo, guino en la burla. Los rasgos animables llevan un gancho `wb__a-*` puesto en el
+  `Hud` (asi el CSS no depende de `nth-of-type`). **Gotcha**: `transform-box: fill-box` es
+  obligatorio, o el transform SVG toma como origen la esquina del `viewBox`. Se apagan con
+  `prefers-reduced-motion`.
+- **Sonido**: cada reaccion suena con un **sample real** (`game/EmoteAudio.ts`), unica
+  excepcion del repo a la regla de sintetizar todo con Web Audio. Los mp3 viven en
+  `public/sfx/emotes/<id>.mp3` (ver su README) y se precargan en el constructor del
+  `Game`. **Degrada**: si el mp3 falta o no decodifica, cae a la voz sintetizada de
+  `SoundEffects.playEmote(id)` (risa de tres silabas, "oh!" que sube, gruñido grave,
+  cantito de burla, dos sollozos). Ojo que en `npm run dev` un archivo faltante **no da
+  404**: Vite responde 200 con el index.html y falla el decode; el mismo `catch` lo cubre.
+  Suenan para todos, asi que van bajas (pico <= 0.09 las sintetizadas, `SAMPLE_GAIN` = 0.45
+  los samples) y cortas; el cooldown de 1s por jugador evita que se apilen. `blip()` acepta
+  un `delay` para encadenar silabas. El `AudioContext` vive en `game/audioContext.ts`
+  (modulo hoja, para que el fallback no cierre un ciclo de imports con `EmoteAudio`).
 - **Como**: dock de cabecitas abajo (`.wb__emotes`, z-index por encima del input
   invisible) o atajos **1-5**. Los atajos escuchan en `window` y hacen `preventDefault`,
   lo que cancela la insercion del digito en el input del jugador de turno — no se

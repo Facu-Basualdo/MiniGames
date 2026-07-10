@@ -29,43 +29,47 @@ const BODY_PATH = "M32 5C47 5 55 19 55 39 55 62 45 73 32 73 19 73 9 62 9 39 9 19
  * Cada grupo es un juego completo de rasgos — se muestra en lugar de `.wc__base-face`,
  * no encima — asi que no compite en especificidad con las caras automaticas (turno /
  * panico / feliz / muerto): basta con ocultar el `<g>` padre. Ver `showEmote`.
+ *
+ * Los rasgos que se **animan** llevan ademas un gancho `wc__a-*` (boca, lengua, cejas,
+ * pupilas, cada lagrima por separado). Existen para que el CSS los apunte por nombre en
+ * vez de por `nth-of-type`, que se rompe apenas se agrega o reordena un path. Las
+ * animaciones viven en `style.css` ("Caras vivas").
  */
 const EMOTE_FACES: Record<EmoteId, string> = {
   risa: `
     <path class="wc__ln" d="M18 34Q24 28 30 34"/>
     <path class="wc__ln" d="M34 34Q40 28 46 34"/>
-    <path class="wc__fl" d="M22 46Q32 63 42 46Z"/>
-    <path class="wc__tongue" d="M28 56Q32 62 36 55 32 53 28 56Z"/>`,
+    <path class="wc__fl wc__a-mouth" d="M22 46Q32 63 42 46Z"/>`,
   sorpresa: `
     <path class="wc__ln" d="M17 21Q24 17 30 21"/>
     <path class="wc__ln" d="M34 21Q40 17 47 21"/>
     <ellipse class="wc__white" cx="24" cy="34" rx="8" ry="9"/>
     <ellipse class="wc__white" cx="41" cy="34" rx="8" ry="9"/>
-    <circle class="wc__pupil" cx="24" cy="34" r="3"/>
-    <circle class="wc__pupil" cx="41" cy="34" r="3"/>
-    <ellipse class="wc__fl" cx="32" cy="55" rx="5.5" ry="7"/>`,
+    <circle class="wc__pupil wc__a-pupil" cx="24" cy="34" r="3"/>
+    <circle class="wc__pupil wc__a-pupil" cx="41" cy="34" r="3"/>
+    <ellipse class="wc__fl wc__a-mouth" cx="32" cy="55" rx="5.5" ry="7"/>`,
   enojo: `
-    <path class="wc__ln" d="M17 25 30 32"/>
-    <path class="wc__ln" d="M47 25 34 32"/>
+    <path class="wc__ln wc__a-brow--l" d="M17 25 30 32"/>
+    <path class="wc__ln wc__a-brow--r" d="M47 25 34 32"/>
     <ellipse class="wc__white" cx="24" cy="37" rx="6.5" ry="4.6"/>
     <ellipse class="wc__white" cx="41" cy="37" rx="6.5" ry="4.6"/>
     <circle class="wc__pupil" cx="24" cy="37" r="3"/>
     <circle class="wc__pupil" cx="41" cy="37" r="3"/>
-    <path class="wc__ln" d="M25 55Q32 48 39 55"/>`,
+    <path class="wc__ln wc__a-mouth" d="M25 55Q32 48 39 55"/>`,
   burla: `
-    <ellipse class="wc__white" cx="24" cy="34" rx="6.5" ry="7.5"/>
-    <circle class="wc__pupil" cx="24" cy="35" r="3.2"/>
+    <ellipse class="wc__white wc__a-eye" cx="24" cy="34" rx="6.5" ry="7.5"/>
+    <circle class="wc__pupil wc__a-eye" cx="24" cy="35" r="3.2"/>
     <path class="wc__ln" d="M35 35Q40.5 30 46 35"/>
     <path class="wc__ln" d="M24 49Q32 55 40 49"/>
-    <path class="wc__tongue" d="M29 52Q31 63 36 54 33 51 29 52Z"/>`,
+    <path class="wc__tongue wc__a-tongue" d="M29 52Q31 63 36 54 33 51 29 52Z"/>`,
   llanto: `
     <path class="wc__ln" d="M17 29Q23 25 30 26"/>
     <path class="wc__ln" d="M47 29Q41 25 34 26"/>
     <path class="wc__ln" d="M18 33Q24 39 30 33"/>
     <path class="wc__ln" d="M34 33Q40 39 46 33"/>
-    <path class="wc__tear" d="M22 37C22 37 17 47 20.5 50.5 24 53 26 45 22 37Z"/>
-    <path class="wc__tear" d="M42 37C42 37 47 47 43.5 50.5 40 53 38 45 42 37Z"/>
-    <path class="wc__ln" d="M26 57Q32 50 38 57"/>`,
+    <path class="wc__tear wc__a-tear--l" d="M22 37C22 37 17 47 20.5 50.5 24 53 26 45 22 37Z"/>
+    <path class="wc__tear wc__a-tear--r" d="M42 37C42 37 47 47 43.5 50.5 40 53 38 45 42 37Z"/>
+    <path class="wc__ln wc__a-mouth" d="M26 57Q32 50 38 57"/>`,
 };
 
 /** Los cinco grupos de reaccion, ocultos hasta que la tarjeta lleve `is-emote--<id>`. */

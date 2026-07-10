@@ -1,5 +1,6 @@
 import { initRoomMode, isRoomMode, type RoomMode } from "../../../shared/room/roomMode";
 import { COUNTDOWN_LABELS, COUNTDOWN_STEP, GAME_SERVER_URL } from "./constants";
+import { EmoteAudio } from "./EmoteAudio";
 import { Hud } from "./Hud";
 import { SocketTransport } from "./SocketTransport";
 import { SoundEffects } from "./SoundEffects";
@@ -74,6 +75,10 @@ export class Game {
       );
       return;
     }
+
+    // Los samples de las reacciones se bajan ya, mientras se espera la ronda (el
+    // briefing dura 10s): al primer emote tienen que estar decodificados.
+    EmoteAudio.preload();
 
     // En sala: RoomMode dispara onStart al pasar a "playing" y arranca el countdown.
     this.hud.showMessage("Bomba Palabra", "Esper&aacute; a que empiece la ronda...");

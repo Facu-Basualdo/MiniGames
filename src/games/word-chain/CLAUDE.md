@@ -119,6 +119,32 @@ jugador; **no toca el estado de la partida ni entra en `wc:state`**, asi que es 
 cara propia se pinta con el **eco del server**, no de forma optimista (al reves que
 `wc:typing`, que se pinta local y **ignora** su eco para no parpadear).
 
+**Animacion**: cada cara **se mueve** mientras dura la reaccion, con keyframes CSS sobre los
+paths del SVG (bloque "Caras vivas" en `style.css`) — nada de video ni sprites: pesan cero,
+escalan perfecto y el cuerpo del enojo se sigue tinendo desde CSS. La risa abre y cierra la
+mandibula al ritmo de las tres silabas del blip; el llanto suelta **dos lagrimas alternadas**
+(la derecha va media fase atrasada) sobre un puchero que tiembla; la sorpresa entra con un
+golpe seco y late; el enojo tiembla, aprieta las cejas y se recalienta el cuerpo; la burla
+sacude la lengua y guina. Los rasgos animables llevan un gancho `wc__a-*` puesto en el `Hud`
+(boca, lengua, cejas, pupilas y **cada lagrima por separado**), para no apuntarlos por
+`nth-of-type`. **Gotcha**: `transform-box: fill-box` es obligatorio en esos rasgos — sin el,
+el origen de un transform SVG es la esquina del `viewBox` y la boca escala desde afuera de la
+cara. Las animaciones del **grupo** (`wc__emo--<id>`) no chocan con el salto del avatar
+(`wc-emote-pop`, en `.wc__avatar`) ni con el temblor de panico (`wc-panic`, en `.wc__face`)
+porque van en elementos distintos. Se apagan con `prefers-reduced-motion`.
+
+**Sonido**: cada reaccion suena con un **sample real** (`game/EmoteAudio.ts`), unica excepcion
+del repo a la regla de sintetizar todo con Web Audio — una risa humana no la hace un
+oscilador. Los mp3 viven en `public/sfx/emotes/<id>.mp3` (ver su README: <= 1s por el cooldown
+del server, livianos, sin silencio inicial). Se precargan en el constructor del `Game` (durante
+el briefing) y se decodifican a `AudioBuffer` una vez por pagina. **Degrada**: si el mp3 falta,
+no baja o no decodifica, `EmoteAudio.play()` devuelve `false` y `SoundEffects.playEmote` cae al
+sonido sintetizado. Ojo que en `npm run dev` un archivo faltante **no da 404**: Vite responde
+200 con el index.html y es el decode el que falla — el mismo `catch` cubre los dos casos. El
+volumen esta en `SAMPLE_GAIN` (0.45), muy por encima del pico 0.09 de los osciladores porque un
+sample viene mucho mas fuerte. El `AudioContext` es compartido via `game/audioContext.ts` (modulo
+hoja: si viviera en `SoundEffects`, el fallback cerraria un ciclo de imports con `EmoteAudio`).
+
 **Gotcha del DOM**: `Hud.render()` reconstruye todas las tarjetas en cada `wc:state`. Por eso
 la reaccion vigente vive en `Hud.emoteState` y se **re-aplica** al crear la tarjeta.
 

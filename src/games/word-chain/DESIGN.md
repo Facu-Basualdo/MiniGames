@@ -102,6 +102,16 @@ corto** del personaje al reaccionar (~380ms, con overshoot): es la voz del jugad
 tiene que verse desde el otro lado de la ronda. Y **se escucha**: el acierto es un
 martillo en el yunque con el metal cantando; el quiebre, hierro que cede.
 
+**La cara reacciona viva, no congelada.** Una reaccion no es una estampa: mientras dura,
+la cara **actua**. La risa abre y cierra la mandibula al ritmo de sus tres silabas; el
+llanto deja caer lagrimas de verdad, alternadas, sobre un puchero que tiembla; el enojo
+vibra de furia y le recalienta el cuerpo a la bocha; la burla sacude la lengua y guina;
+la sorpresa entra de golpe y late. El movimiento **subraya lo que ya dice el sonido**,
+nunca lo contradice ni compite con el. Se dibuja con los mismos paths del SVG movidos por
+CSS — **nunca video, sprites ni un render 3D**: la cara tiene que pesar cero, escalar a
+cualquier tamano y poder recolorearse (el rojo del enojo). Quien pida menos movimiento
+(`prefers-reduced-motion`) ve la cara igual, quieta.
+
 ## Que evitar
 
 - **Que parezca Bomba Palabra pintada de naranja.** El centro no es una esfera con una

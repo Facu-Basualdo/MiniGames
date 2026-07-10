@@ -1,15 +1,6 @@
+import { getAudioContext, resumeAudio } from "./audioContext";
+import { EmoteAudio } from "./EmoteAudio";
 import type { EmoteId } from "./constants";
-
-let audioCtx: AudioContext | null = null;
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (AudioContextClass) audioCtx = new AudioContextClass();
-  }
-  return audioCtx;
-}
 
 /** `delay` (seg) permite encadenar blips en una frase: una risa son varias silabas. */
 function blip(
@@ -22,7 +13,7 @@ function blip(
 ): void {
   const ctx = getAudioContext();
   if (!ctx) return;
-  if (ctx.state === "suspended") ctx.resume();
+  resumeAudio(ctx);
   const now = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -62,13 +53,16 @@ export class SoundEffects {
   }
 
   /**
-   * Voz de cada reaccion, sintetizada (sin assets), en la clave cartoon del juego.
-   * Suenan para todos los de la sala y pueden pisarse con la mecha y la explosion,
-   * asi que van a volumen bajo (pico <= 0.09) y cortas (~90ms el "oh!" de sorpresa,
-   * ~430ms el sollozo de llanto, que es la mas larga): son un gesto, no un evento de
-   * la partida. El cooldown de 1s por jugador es lo que evita que se acumulen.
+   * Voz de cada reaccion. Primero intenta el sample real (`EmoteAudio`, mp3 en
+   * `public/sfx/emotes/`); si todavia no bajo, no existe o no decodifico, cae a la
+   * version sintetizada de abajo. Suenan para todos los de la sala y pueden pisarse con
+   * la mecha y la explosion, asi que van a volumen bajo (pico <= 0.09 las sintetizadas,
+   * `SAMPLE_GAIN` los samples) y cortas (~90ms el "oh!" de sorpresa, ~430ms el sollozo
+   * de llanto, que es la mas larga): son un gesto, no un evento de la partida. El
+   * cooldown de 1s por jugador es lo que evita que se acumulen.
    */
   static playEmote(id: EmoteId): void {
+    if (EmoteAudio.play(id)) return;
     switch (id) {
       case "risa":
         // "ja-ja-ja": tres silabas que caen de tono.

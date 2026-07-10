@@ -32,38 +32,37 @@ const EMOTE_FACES: Record<EmoteId, string> = {
   risa: `
     <path class="wb__ln" d="M18 34Q24 28 30 34"/>
     <path class="wb__ln" d="M34 34Q40 28 46 34"/>
-    <path class="wb__fl" d="M22 46Q32 63 42 46Z"/>
-    <path class="wb__tongue" d="M28 56Q32 62 36 55 32 53 28 56Z"/>`,
+    <path class="wb__fl wb__a-mouth" d="M22 46Q32 63 42 46Z"/>`,
   sorpresa: `
     <path class="wb__ln" d="M17 21Q24 17 30 21"/>
     <path class="wb__ln" d="M34 21Q40 17 47 21"/>
     <ellipse class="wb__white" cx="24" cy="34" rx="8" ry="9"/>
     <ellipse class="wb__white" cx="41" cy="34" rx="8" ry="9"/>
-    <circle class="wb__pupil" cx="24" cy="34" r="3"/>
-    <circle class="wb__pupil" cx="41" cy="34" r="3"/>
-    <ellipse class="wb__fl" cx="32" cy="55" rx="5.5" ry="7"/>`,
+    <circle class="wb__pupil wb__a-pupil" cx="24" cy="34" r="3"/>
+    <circle class="wb__pupil wb__a-pupil" cx="41" cy="34" r="3"/>
+    <ellipse class="wb__fl wb__a-mouth" cx="32" cy="55" rx="5.5" ry="7"/>`,
   enojo: `
-    <path class="wb__ln" d="M17 25 30 32"/>
-    <path class="wb__ln" d="M47 25 34 32"/>
+    <path class="wb__ln wb__a-brow--l" d="M17 25 30 32"/>
+    <path class="wb__ln wb__a-brow--r" d="M47 25 34 32"/>
     <ellipse class="wb__white" cx="24" cy="37" rx="6.5" ry="4.6"/>
     <ellipse class="wb__white" cx="41" cy="37" rx="6.5" ry="4.6"/>
     <circle class="wb__pupil" cx="24" cy="37" r="3"/>
     <circle class="wb__pupil" cx="41" cy="37" r="3"/>
-    <path class="wb__ln" d="M25 55Q32 48 39 55"/>`,
+    <path class="wb__ln wb__a-mouth" d="M25 55Q32 48 39 55"/>`,
   burla: `
-    <ellipse class="wb__white" cx="24" cy="34" rx="6.5" ry="7.5"/>
-    <circle class="wb__pupil" cx="24" cy="35" r="3.2"/>
+    <ellipse class="wb__white wb__a-eye" cx="24" cy="34" rx="6.5" ry="7.5"/>
+    <circle class="wb__pupil wb__a-eye" cx="24" cy="35" r="3.2"/>
     <path class="wb__ln" d="M35 35Q40.5 30 46 35"/>
     <path class="wb__ln" d="M24 49Q32 55 40 49"/>
-    <path class="wb__tongue" d="M29 52Q31 63 36 54 33 51 29 52Z"/>`,
+    <path class="wb__tongue wb__a-tongue" d="M29 52Q31 63 36 54 33 51 29 52Z"/>`,
   llanto: `
     <path class="wb__ln" d="M17 29Q23 25 30 26"/>
     <path class="wb__ln" d="M47 29Q41 25 34 26"/>
     <path class="wb__ln" d="M18 33Q24 39 30 33"/>
     <path class="wb__ln" d="M34 33Q40 39 46 33"/>
-    <path class="wb__tear" d="M22 37C22 37 17 47 20.5 50.5 24 53 26 45 22 37Z"/>
-    <path class="wb__tear" d="M42 37C42 37 47 47 43.5 50.5 40 53 38 45 42 37Z"/>
-    <path class="wb__ln" d="M26 57Q32 50 38 57"/>`,
+    <path class="wb__tear wb__a-tear--l" d="M22 37C22 37 17 47 20.5 50.5 24 53 26 45 22 37Z"/>
+    <path class="wb__tear wb__a-tear--r" d="M42 37C42 37 47 47 43.5 50.5 40 53 38 45 42 37Z"/>
+    <path class="wb__ln wb__a-mouth" d="M26 57Q32 50 38 57"/>`,
 };
 
 /** Los cinco grupos de reaccion, ocultos hasta que la tarjeta lleve `is-emote--<id>`. */

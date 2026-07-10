@@ -719,6 +719,225 @@ body {
   stroke-width: 1;
 }
 
+/* ---------- Caras vivas: cada reaccion se mueve mientras dura (EMOTE_MS = 1.8s) ----------
+
+   El movimiento subraya lo que ya dice el sonido: la risa abre la mandibula en las mismas
+   tres silabas del blip, el llanto suelta lagrimas escalonadas, el enojo tiembla. Todo con
+   keyframes CSS sobre los paths del SVG (cero assets, escala perfecto, y el cuerpo del enojo
+   se sigue tinendo desde CSS). Los rasgos animados llevan un gancho `wc__a-*` puesto en el
+   Hud; sin el habria que apuntarlos por `nth-of-type`, que se rompe al tocar el dibujo.
+
+   `transform-box: fill-box` es obligatorio: sin el, el origen de un transform SVG es la
+   esquina del viewBox y la boca escalaria desde afuera de la cara. */
+.wc__emo [class*="wc__a-"] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* RISA: la mandibula cae y sube, y la cara pega un bote corto. Sin lengua: la boca abierta
+   sola lee mejor a la escala de la ronda (la lengua queda para la burla, que la necesita). */
+.wc__player.is-emote--risa .wc__emo--risa {
+  animation: wc-laugh-bob 0.3s ease-in-out infinite;
+}
+.wc__player.is-emote--risa .wc__a-mouth {
+  transform-origin: top center; /* la boca se abre hacia abajo, como una mandibula */
+  animation: wc-laugh-mouth 0.3s ease-in-out infinite;
+}
+
+/* LLANTO: dos lagrimas que caen alternadas (la derecha va media fase atrasada) y un
+   puchero que tiembla. La gota nace en el ojo, engorda y se desvanece al caer. */
+.wc__player.is-emote--llanto .wc__a-tear--l {
+  animation: wc-tear-fall 1.25s ease-in infinite;
+}
+.wc__player.is-emote--llanto .wc__a-tear--r {
+  animation: wc-tear-fall 1.25s ease-in 0.62s infinite;
+}
+.wc__player.is-emote--llanto .wc__a-mouth {
+  animation: wc-sob-mouth 0.7s ease-in-out infinite;
+}
+
+/* SORPRESA: un golpe seco al aparecer, despues las pupilas y la boca laten. */
+.wc__player.is-emote--sorpresa .wc__emo--sorpresa {
+  animation: wc-gasp-hit 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.wc__player.is-emote--sorpresa .wc__a-pupil {
+  animation: wc-gasp-pupil 0.7s ease-in-out infinite alternate;
+}
+.wc__player.is-emote--sorpresa .wc__a-mouth {
+  animation: wc-gasp-mouth 0.7s ease-in-out infinite alternate;
+}
+
+/* ENOJO: temblor de furia, cejas que se aprietan y el cuerpo que se recalienta. */
+.wc__player.is-emote--enojo .wc__emo--enojo {
+  animation: wc-rage-shake 0.11s linear infinite;
+}
+.wc__player.is-emote--enojo .wc__a-brow--l {
+  animation: wc-rage-brow-l 0.22s ease-in-out infinite alternate;
+}
+.wc__player.is-emote--enojo .wc__a-brow--r {
+  animation: wc-rage-brow-r 0.22s ease-in-out infinite alternate;
+}
+.wc__player.is-emote--enojo .wc__a-mouth {
+  animation: wc-rage-mouth 0.22s ease-in-out infinite alternate;
+}
+/* Va despues del `fill` plano del enojo: misma especificidad, pero una animacion pisa
+   la declaracion estatica mientras corre. */
+.wc__player.is-emote--enojo .wc__face-body {
+  animation: wc-rage-heat 0.5s ease-in-out infinite alternate;
+}
+
+/* BURLA: la lengua se sacude y el ojo abierto guina cada tanto. */
+.wc__player.is-emote--burla .wc__a-tongue {
+  transform-origin: top center; /* la lengua cuelga: se mueve desde la boca */
+  animation: wc-taunt-tongue 0.3s ease-in-out infinite alternate;
+}
+.wc__player.is-emote--burla .wc__a-eye {
+  animation: wc-taunt-wink 1.4s ease-in-out infinite;
+}
+
+@keyframes wc-laugh-mouth {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.45);
+  }
+}
+@keyframes wc-laugh-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.2px);
+  }
+}
+@keyframes wc-tear-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.5);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(17px) scale(0.8);
+  }
+}
+@keyframes wc-sob-mouth {
+  0%,
+  100% {
+    transform: scaleX(1) translateY(0);
+  }
+  50% {
+    transform: scaleX(1.12) translateY(0.6px);
+  }
+}
+@keyframes wc-gasp-hit {
+  0% {
+    transform: scale(0.72);
+  }
+  60% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes wc-gasp-pupil {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.3);
+  }
+}
+@keyframes wc-gasp-mouth {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(1.2);
+  }
+}
+@keyframes wc-rage-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-0.7px, 0.3px);
+  }
+  75% {
+    transform: translate(0.7px, -0.3px);
+  }
+}
+@keyframes wc-rage-brow-l {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(4deg);
+  }
+}
+@keyframes wc-rage-brow-r {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes wc-rage-mouth {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(1.1);
+  }
+}
+@keyframes wc-rage-heat {
+  from {
+    fill: #a8384f;
+  }
+  to {
+    fill: #d1504a;
+  }
+}
+@keyframes wc-taunt-tongue {
+  from {
+    transform: rotate(-9deg);
+  }
+  to {
+    transform: rotate(9deg);
+  }
+}
+@keyframes wc-taunt-wink {
+  0%,
+  62%,
+  100% {
+    transform: scaleY(1);
+  }
+  68%,
+  74% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Respeta a quien pidio menos movimiento: la cara cambia igual, pero queda quieta. */
+@media (prefers-reduced-motion: reduce) {
+  .wc__emo,
+  .wc__emo * {
+    animation: none !important;
+  }
+}
+
 /* El eliminado tambien reacciona (es media la gracia): mientras dura, sale del gris. */
 .wc__player.is-out.is-emote {
   opacity: 0.95;
