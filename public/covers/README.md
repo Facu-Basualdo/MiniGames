@@ -200,8 +200,26 @@ grabadas en los eslabones: si salen deformadas, regenerar pidiendo menos letras.
 Square 1:1 video game cover art, bold indie game key art style, dramatic cinematic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A blacksmith forge at night: a heavy iron chain runs across a dark anvil, its cold steel links each engraved with a single carved letter. The newest link, at the center, is glowing white-hot and orange, freshly hammered, with the letter "O" blazing inside it; a hammer strikes it and a burst of bright sparks flies upward into the darkness. Ember glow pools under the chain, the rest of the links fade into cold blue shadow, smoke and floating orange embers rise through the air. Deep cold blue-black night background against the fierce orange and white-hot glow of the forged link, high contrast, tense sense of a chain about to snap. The game title "CADENA DE PALABRAS" is integrated into the artwork as a bold stylized videogame logo made of forged iron letters with a hot orange inner glow, large and readable, spelled exactly "CADENA DE PALABRAS".
 ```
 
+## Basta — guardar como `basta.jpg`
+
+Sigue el `DESIGN.md` del juego ("Hoja de cuaderno"): papel rayado con margen rojo,
+tinta azul, la letra como sello y un sello rojo que estampa BASTA. El titulo del juego
+ES el sello rojo, para no pelear con la letra grande. Ojo con los rotulos de las
+categorias escritos a mano: si salen deformados, no importa (son ambiente), pero el
+sello "BASTA" tiene que quedar legible; regenerar 2-3 veces si hace falta.
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic warm lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. Overhead view of a sheet of cream lined notebook paper on a warm wooden school desk, a red vertical margin line down the left side. On the paper, a hand-drawn Tutti Frutti / Basta score sheet: category rows labelled in blue ballpoint handwriting ("Nombre", "Pais", "Color", "Animal", "Comida"), each row half-filled with scribbled words, a couple of answers crossed out in red pen. At the top, a single huge letter stamped like a red ink seal, slightly rotated. A yellow pencil and a blue pen rest on the sheet, a small round alarm clock in a corner adding urgency, tiny paper texture and eraser crumbs, cheerful party-at-recess mood, bright and playful. Warm paper-and-ink palette (cream, notebook blue, red margin) with red as the sharp focal accent. The game title "BASTA" is integrated into the artwork as a big bold red rubber-stamp logo slamming down onto the paper with a little ink splatter, large and readable, spelled exactly "BASTA".
+```
+
 ## Cannon Dodge — guardar como `cannon-dodge.jpg`
 
 ```text
 Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. Top-down illustrated view of a small round tropical pirate island in a bright turquoise sea, golden sandy beach with palm trees and weathered wooden bulwarks around the rim, several bronze pirate cannons on the edge pointing inward. Matte black cannonballs streak across the island in straight lines leaving smoky trails, a tiny cartoon pirate with a red bandana dodging between them near the center, white foam ring around the shore, sunny daylight, warm golden sand and coral-blue water, high-contrast readable shapes, dynamic arcade energy. Warm tropical palette (turquoise, gold, bronze) with the black cannonballs as the sharp focal contrast. The game title "CANNON DODGE" is integrated into the artwork as a bold stylized wooden-and-gold pirate videogame logo, large and readable, spelled exactly "CANNON DODGE".
+```
+
+## Hackerman — guardar como `hackerman.jpg`
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A retro phosphor-green CRT hacking terminal glowing in a dark room, heavy scanlines and screen curvature. Center focus: a bright neon-green fingerprint being scanned and cloned, reconstructed line by line from pixel data, a scan bar sweeping across it. Around it, floating holographic panels: a grid of glowing green two-digit numbers with one horizontal sequence highlighted, and vertical reels of alphabet letters like a code lock aligning into place. Monochrome acid-green on near-black palette with a single hot red alert accent, dense monospaced code, cyber-intrusion mood, tense and technical. The game title "HACKERMAN" is integrated into the artwork as a bold stylized videogame logo, large and readable, glowing green terminal typography, spelled exactly "HACKERMAN".
 ```

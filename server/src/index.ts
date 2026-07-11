@@ -4,6 +4,7 @@ import { fragmentCount, initialCount, wordCount } from "./dictionary.js";
 import { registerWordBomb } from "./games/wordbomb.js";
 import { registerWordChain } from "./games/wordchain.js";
 import { registerPong } from "./games/pong.js";
+import { registerBasta } from "./games/basta.js";
 
 /**
  * Game server autoritativo de tiempo real. v1: Bomba Palabra. Complementa la
@@ -43,6 +44,7 @@ const io = new Server(httpServer, {
 registerWordBomb(io);
 registerWordChain(io);
 registerPong(io);
+registerBasta(io);
 
 httpServer.listen(PORT, () => {
   console.log(

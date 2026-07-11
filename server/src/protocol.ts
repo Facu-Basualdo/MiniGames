@@ -199,3 +199,114 @@ export interface PongClientToServer {
 export interface PongServerToClient {
   "pg:state": (state: PongMatchState) => void;
 }
+
+/* ============================ BASTA (namespace /basta) ============================ */
+
+/**
+ * Contrato de mensajes socket.io de Basta / Tutti Frutti (namespace `/basta`).
+ *
+ * Se sortea una LETRA y cada jugador llena 7 categorias con palabras que empiecen
+ * con ella. El primero que completa las 7 grita BASTA y corta a los demas (gracia
+ * corta). Despues las respuestas se validan por VOTACION entre jugadores: cada uno
+ * puede tachar como invalidas las respuestas ajenas, y la mayoria las tumba. El
+ * server NO valida contra el diccionario (a diferencia de Bomba/Cadena) — solo
+ * arbitra el flujo, guarda las respuestas y computa el puntaje. Un partido son
+ * varias letras; gana el de mas puntos. Mismo nivel de confianza spoofeable ya
+ * aceptado en el repo; el server no escribe en Supabase.
+ */
+
+/** Las 7 categorias (ids fijos). Deben coincidir con `CATEGORIES` del cliente. */
+export type BtCategoryId =
+  | "nombre"
+  | "apellido"
+  | "lugar"
+  | "color"
+  | "comida"
+  | "animal"
+  | "cosa";
+
+export type BtPhase = "waiting" | "filling" | "grace" | "voting" | "reveal" | "over";
+
+/** Vista publica de un jugador dentro de la partida. */
+export interface BtPlayerView {
+  nickname: string;
+  connected: boolean;
+  /** Cuantas de las 7 categorias tiene llenas en la letra actual (solo en filling,
+   *  para la tension; NO revela el contenido). */
+  filledCount: number;
+  /** Puntaje acumulado del partido. */
+  total: number;
+}
+
+/** Como quedo puntuada una respuesta al revelar (para el desglose). */
+export type BtCellStatus = "unique" | "repeated" | "rejected" | "empty";
+
+/** Una celda revelada (en voting/reveal): la respuesta de un jugador en una categoria. */
+export interface BtCell {
+  player: string;
+  category: BtCategoryId;
+  /** Texto tal cual lo escribio (vacio si no puso nada). */
+  text: string;
+  /** Solo en reveal: como quedo puntuada y cuantos puntos dio. */
+  status: BtCellStatus | null;
+  points: number | null;
+}
+
+/** Un voto de rechazo crudo (la votacion es publica). El cliente cuenta los rechazos
+ *  por celda y deriva cuales tacho el mismo (voter === su nickname). */
+export interface BtVote {
+  voter: string;
+  target: string;
+  category: BtCategoryId;
+}
+
+/** Snapshot completo que el server difunde en cada cambio. */
+export interface BtState {
+  phase: BtPhase;
+  /** Letra en juego (mayuscula), o null fuera de una letra. */
+  letter: string | null;
+  /** Indice de la letra actual (0-based) y total de letras del partido. */
+  letterIndex: number;
+  totalLetters: number;
+  /** Fin de la fase actual en epoch ms (filling tope / grace / voting / reveal), o null. */
+  deadline: number | null;
+  /** Ms restantes de la fase al broadcast; el cliente los ancla a performance.now()
+   *  para animar el reloj sin drift (ver Bomba Palabra). */
+  clockMs: number | null;
+  /** Duracion total de la fase actual (para la fraccion de la barra). */
+  clockTotalMs: number | null;
+  players: BtPlayerView[];
+  /** Quien grito BASTA en esta letra, o null. */
+  bastaBy: string | null;
+  /** Respuestas reveladas de TODOS (solo en voting/reveal; null en filling). */
+  cells: BtCell[] | null;
+  /** Votos de rechazo crudos (solo en voting/reveal; null en filling). */
+  votes: BtVote[] | null;
+  /** Puntos ganados por cada jugador en esta letra (solo en reveal; null si no). */
+  letterScores: { player: string; points: number }[] | null;
+}
+
+export interface BtGameover {
+  /** Puesto por jugador: 1 = ganador (mas puntos). Incluye el total final. */
+  ranking: { nickname: string; place: number; total: number }[];
+}
+
+/** Cliente -> Server. */
+export interface BtClientToServer {
+  "bt:join": (msg: { code: string; nickname: string; roster: string[] }) => void;
+  /** Hoja completa del jugador para la letra actual (debounced; el server guarda la ultima). */
+  "bt:fill": (msg: { answers: Partial<Record<BtCategoryId, string>> }) => void;
+  /** Declara BASTA: el server exige tener las 7 categorias no vacias. */
+  "bt:basta": (msg: Record<string, never>) => void;
+  /** Togglea el tachado de una respuesta ajena (voto de rechazo) durante la votacion. */
+  "bt:vote": (msg: { target: string; category: BtCategoryId }) => void;
+}
+
+/** Server -> Cliente. */
+export interface BtServerToClient {
+  "bt:state": (state: BtState) => void;
+  /** Dirigido: al (re)conectar durante el llenado, el server le devuelve al jugador
+   *  SU propia hoja (que vive en el server) para que un F5 no la pierda. */
+  "bt:you": (msg: { answers: Partial<Record<BtCategoryId, string>> }) => void;
+  "bt:gameover": (msg: BtGameover) => void;
+}
