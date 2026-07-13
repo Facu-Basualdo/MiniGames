@@ -67,6 +67,7 @@ Hecho con **Vite + TypeScript** (sin framework) y desplegado como sitio estátic
 | Cannon Dodge | Reflejos | Sobreviví en una isla pirata redonda esquivando las balas de cañón que la cruzan. Los cañones aparecen en los bordes, avisan y disparan; a medida que aguantás salen más seguido, más rápido y de a más. Tu marca es el tiempo que sobrevivís. | [juanidrose11](https://github.com/juani) |
 | Pizza Express | Arcade | Repartí pizzas en scooter por Cheesetown al atardecer, tipo Paperboy: manejá esquivando autos, pozos y perros mientras le tirás pizzas a los buzones que piden. Cada entrega suma con combo y un choque te termina la partida; la dificultad escala rápido y tu marca son los puntos. | [emi1i0](https://github.com/emi1i0) |
 | Hackerman | Puzzle | Tres hackeos seguidos al estilo de los golpes de GTA Online: cloná una huella franja por franja, encontrá la secuencia oculta en una grilla de números y forzá la clave alineando los reels de letras. El reloj corre de punta a punta y tu marca es el tiempo total en crackear los tres. | [Facu-Basualdo](https://github.com/Facu-Basualdo) |
+| Danger Wings | Arcade | Un cuervo atrapado en una celda de hierro gótica, al estilo Don't Touch the Spikes en 2.5D: aleteá para rebotar entre las paredes sumando puntos y esquivá las púas que asoman en cada rebote, mientras juntás reliquias rubí para puntos extra. Tocar una púa te empala. | [emi1i0](https://github.com/emi1i0) |
 
 ## Empezar
 
