@@ -195,10 +195,12 @@ Estructura de `server/` (paquete propio, aislado del build de Vite, con su propi
   y tipeo que Bomba. Ver el `CLAUDE.md` de `word-chain`.
 - `src/games/pong.ts` — `PongSim`: empareja la sala de a dos (un `Match` por par;
   el impar juega vs IA del server), corre la fisica de la pelota / colisiones /
-  rampa / puntaje a ~30 fps y emite `pg:state` a cada jugador con su lado. La
+  rampa / puntaje a ~60 fps y emite `pg:state` a cada jugador con su lado. La
   pelota queda congelada un `PREROLL_MS` (3s) para coincidir con el countdown del
   cliente. Las constantes de fisica estan duplicadas de `constants.ts` del juego.
-  Ver el `CLAUDE.md` de `pong` para el detalle.
+  **Corre con paso FIJO** (`STEP_DT` + acumulador) y manda su reloj de simulacion en
+  `pg:state.t`: ver "Interpolar sobre el reloj del server" abajo. Ver el `CLAUDE.md`
+  de `pong` para el detalle.
 - `src/games/basta.ts` — `BastaSim`: Basta / Tutti Frutti. Sortea una **letra** (de un
   set propio, **no** usa el diccionario), corre las fases (llenado -> alguien grita BASTA
   -> gracia -> votacion -> reveal) con `setTimeout` propio, guarda las respuestas de cada
@@ -213,6 +215,39 @@ Estructura de `server/` (paquete propio, aislado del build de Vite, con su propi
   broadcast `im:state` (no espiable); tambien se reenvia al reconectar (F5). Recolecta pistas
   (`im:clue`), votos (`im:vote`) y la adivinanza del acusado (`im:guess`), y computa el puntaje por
   equipo (impostor gana 3, inocente 2). Un partido son 3 rondas. Ver el `CLAUDE.md` de `impostor`.
+
+### Interpolar sobre el reloj del server (no sobre la hora de llegada)
+
+Regla para cualquier juego **de tiempo real arbitrado por el server** (hoy solo PONG;
+aplica al que venga, p.ej. rocket-arena si se retoma). Si el cliente dibuja entidades
+interpolando snapshots, **el snapshot tiene que traer el reloj de la simulacion del
+server** y la interpolacion tiene que correr sobre esa linea de tiempo, nunca sobre la
+hora de llegada del paquete. Dos mitades, las dos obligatorias:
+
+1. **Server: paso fijo + timestamp.** Nada de integrar la fisica con el tiempo real
+   medido entre despertares del `setInterval`: el timer de Node no es preciso (en
+   Windows la resolucion es de ~15.6 ms, asi que un `setInterval(16)` cae a 15.6 /
+   31.2 ms de forma despareja) y ese jitter entra directo en la velocidad de las
+   entidades. Acumulador + pasos de `STEP_DT` exactos, un reloj `simTime` que avanza
+   en escalones, y ese `simTime` viaja en el snapshot (`pg:state.t` en PONG).
+2. **Cliente: offset de reloj.** Fechar cada snapshot con `t + clockOffset`, donde
+   `clockOffset` se estima con el **minimo** de `(llegada - t)` visto (la muestra que
+   menos jitter comio), corregido lento hacia arriba por la deriva entre relojes.
+   Descartar los que llegan fuera de orden.
+
+Fechar el buffer con `performance.now()` de la llegada — como hacia PONG antes — mete
+el jitter de entrega en la interpolacion: dos snapshots que llegan pegados describen un
+tick entero de movimiento en un `span` de 2 ms, asi que la pelota se dibuja pegando un
+salto y despues frenando. **Se ve como lag y no lo es**: mover el server a localhost no
+lo arregla, solo lo arregla la linea de tiempo. Beneficio de yapa: el retraso de
+interpolacion (`BALL_INTERP_DELAY`) deja de tener que cubrir la latencia (la absorbe el
+offset) y solo cubre el espaciado de snapshots + jitter, asi que se puede bajar.
+
+Ojo: esto **no** aplica a los juegos de canal efimero (car-race, cannon-dodge,
+typing-race, monopoly-mundial, rocket-arena entre pares), que no tienen simulacion
+autoritativa y suavizan a los rivales con un ease exponencial hacia el ultimo snapshot
+(`x += (tx - x) * k`). Ese modelo es un filtro, no una interpolacion temporal: el jitter
+de llegada no lo deforma, solo lo atrasa un poco. No hay nada que portar ahi.
 
 Cliente: env `VITE_GAME_SERVER_URL` (documentada en `.env.example`). El juego
 carga `socket.io-client` con **import dinamico** (no pesa en los juegos que no lo
