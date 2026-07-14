@@ -177,6 +177,12 @@ export type PongPhase = "countdown" | "playing" | "over";
 export interface PongMatchState {
   /** Lado de ESTE jugador: "p1" = paleta izquierda, "p2" = paleta derecha. */
   side: "p1" | "p2";
+  /** Reloj de la SIMULACION (ms, epoch del server) al que corresponde este estado.
+   *  Avanza de a TICK_MS exactos, no es el Date.now() del envio: es la linea de
+   *  tiempo sobre la que el cliente interpola (ver `renderFromSnaps` del cliente).
+   *  Sin esto el cliente tiene que usar la hora de llegada del paquete y el jitter
+   *  de entrega se convierte en velocidad falsa de la pelota. */
+  t: number;
   phase: PongPhase;
   ball: PongBall;
   /** Y de la paleta izquierda / derecha (coord de vista, no escaladas). */
