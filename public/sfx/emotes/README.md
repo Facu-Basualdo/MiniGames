@@ -30,7 +30,7 @@ cortando el sample anterior.
 
 Lo que sigue vigente:
 
-- **Licencia libre para uso comercial** (el sitio tiene AdSense). CC0 / dominio publico:
+- **Licencia libre para uso comercial**. CC0 / dominio publico:
   freesound.org filtrando por CC0, Pixabay o Mixkit.
 - **Ojo con el peso**: los cinco se bajan al entrar al juego (hoy ~435 KB en total,
   todos estereo). Pasar a mono los dejaria a la mitad sin diferencia audible en un
