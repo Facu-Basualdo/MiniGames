@@ -3,13 +3,14 @@ export const COUNTDOWN_LABELS = ["3", "2", "1", "YA"] as const;
 export const COUNTDOWN_STEP = 700;
 
 /**
- * URL del game server autoritativo (socket.io). Sin esta env el juego no puede
- * funcionar: Cadena de Palabras depende del server para validar palabras (diccionario
- * server-side) y arbitrar el reloj. A diferencia del resto del repo, no degrada a un
- * modo local; sin server muestra "no disponible". Es una excepcion deliberada a la
- * regla de degradacion (documentada en el CLAUDE.md del juego), igual que Bomba Palabra.
+ * La URL del game server ya no se lee aca: la resuelve `shared/server-status.ts`
+ * (principal, con caida al respaldo si esta configurado). `Game.ts` usa
+ * `isGameServerConfigured()` para el cartel de "no disponible" y
+ * `resolveGameServerUrl()` al conectar. Sin server configurado el juego no puede
+ * funcionar (depende de el para validar palabras contra el diccionario server-side
+ * y arbitrar el reloj): es una excepcion deliberada a la regla de degradacion,
+ * documentada en el CLAUDE.md del juego, igual que Bomba Palabra.
  */
-export const GAME_SERVER_URL = import.meta.env.VITE_GAME_SERVER_URL as string | undefined;
 
 /**
  * Reacciones: en vez de emojis (prohibidos en el repo) el jugador le cambia la cara a

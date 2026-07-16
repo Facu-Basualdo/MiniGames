@@ -1,5 +1,6 @@
 import { initRoomMode, isRoomMode, type RoomMode } from "../../../shared/room/roomMode";
-import { COUNTDOWN_LABELS, COUNTDOWN_STEP, GAME_SERVER_URL } from "./constants";
+import { isGameServerConfigured, resolveGameServerUrl } from "../../../shared/server-status";
+import { COUNTDOWN_LABELS, COUNTDOWN_STEP } from "./constants";
 import { Hud } from "./Hud";
 import { SocketTransport } from "./SocketTransport";
 import { SoundEffects } from "./SoundEffects";
@@ -23,6 +24,8 @@ export class Game {
 
   private readonly room: RoomMode | null;
   private transport: SocketTransport | null = null;
+  /** Guarda contra doble conexion mientras `connect()` resuelve la URL. */
+  private connecting = false;
 
   private lastCountdownIndex = -1;
   private latest: BtState | null = null;
@@ -56,7 +59,7 @@ export class Game {
       return;
     }
 
-    if (!GAME_SERVER_URL) {
+    if (!isGameServerConfigured()) {
       this.hud.showMessage(
         "No disponible",
         "Basta necesita el game server y no est&aacute; configurado (VITE_GAME_SERVER_URL).",
@@ -74,7 +77,7 @@ export class Game {
     this.state = "countdown";
     this.lastCountdownIndex = -1;
     this.prevPhase = null;
-    this.connect();
+    void this.connect();
 
     let i = 0;
     const step = () => {
@@ -102,10 +105,18 @@ export class Game {
 
   // ---------- Transporte ----------
 
-  private connect(): void {
-    if (this.transport || !this.room || !GAME_SERVER_URL) return;
+  /** Async porque resolver el server puede implicar un health check (ver
+   *  `shared/server-status.ts`); `connecting` cubre la ventana del await, en la
+   *  que `this.transport` todavia es null y una segunda llamada abriria un
+   *  socket de mas. */
+  private async connect(): Promise<void> {
+    if (this.transport || this.connecting || !this.room) return;
+    this.connecting = true;
+    const url = await resolveGameServerUrl();
+    this.connecting = false;
+    if (this.transport || !url) return;
     const transport = new SocketTransport(
-      GAME_SERVER_URL,
+      url,
       this.room.code,
       this.room.me,
       this.room.players(),

@@ -106,6 +106,79 @@ a {
   color: rgba(239, 238, 230, 0.6);
 }
 
+/* Estado del game server: pastilla al tono de .topbar__name (fondo ink), con el
+   color del punto y del texto diciendo el estado. */
+.topbar__server {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--ink);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: rgba(239, 238, 230, 0.6);
+  cursor: default;
+}
+
+.topbar__server-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* El ping va en un tono mas apagado que el estado: es el dato secundario. */
+.topbar__server-ping {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(239, 238, 230, 0.55);
+  padding-left: 8px;
+  border-left: 1px solid rgba(239, 238, 230, 0.2);
+}
+
+.topbar__server.is-online {
+  color: #4ade80;
+}
+
+/* Respaldo: anda, pero no es el server que deberia estar contestando. */
+.topbar__server.is-fallback {
+  color: #fbbf24;
+}
+
+.topbar__server.is-fallback .topbar__server-dot {
+  box-shadow: 0 0 8px #fbbf24;
+}
+
+.topbar__server.is-online .topbar__server-dot {
+  box-shadow: 0 0 8px #4ade80;
+}
+
+.topbar__server.is-offline {
+  color: #f87171;
+}
+
+.topbar__server.is-offline .topbar__server-dot {
+  box-shadow: 0 0 8px #f87171;
+  animation: coin-blink 1.4s steps(2, jump-none) infinite;
+}
+
+/* En pantallas chicas la barra ya va justa: queda solo el punto (el estado y el
+   ping siguen en el title). */
+@media (max-width: 640px) {
+  .topbar__server-text,
+  .topbar__server-ping {
+    display: none;
+  }
+
+  .topbar__server {
+    padding: 9px 11px;
+  }
+}
+
 /* ---------- Contenido ---------- */
 .page {
   width: 100%;
@@ -802,6 +875,8 @@ a {
   animation: coin-blink 1.4s steps(2, jump-none) infinite;
 }
 
+/* (El estado del game server vive en la topbar: ver .topbar__server) */
+
 .site-footer__links {
   display: flex;
   flex-direction: column;
@@ -903,7 +978,8 @@ a {
 @media (prefers-reduced-motion: reduce) {
 
   .site-footer__strip,
-  .site-footer__coin-dot {
+  .site-footer__coin-dot,
+  .topbar__server.is-offline .topbar__server-dot {
     animation: none;
   }
 }

@@ -22,9 +22,23 @@ const PORT = Number(process.env.PORT ?? 8787);
 // ALLOWED_ORIGINS con la lista separada por comas.
 const ORIGINS = process.env.ALLOWED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean);
 
+// El health check lo consulta el navegador (la landing muestra si el server esta
+// vivo), asi que necesita CORS propio: el `cors` del Server de socket.io solo
+// cubre el handshake, no este handler HTTP.
+function corsOrigin(req: { headers: { origin?: string } }): string | null {
+  if (!ORIGINS || ORIGINS.length === 0) return "*";
+  const origin = req.headers.origin;
+  return origin && ORIGINS.includes(origin) ? origin : null;
+}
+
 const httpServer = createServer((req, res) => {
   if (req.url === "/health" || req.url === "/") {
-    res.writeHead(200, { "content-type": "application/json" });
+    const allow = corsOrigin(req);
+    res.writeHead(200, {
+      "content-type": "application/json",
+      ...(allow ? { "access-control-allow-origin": allow, vary: "Origin" } : {}),
+      "cache-control": "no-store",
+    });
     res.end(
       JSON.stringify({
         ok: true,

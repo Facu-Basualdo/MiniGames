@@ -1,6 +1,6 @@
 # MiniGames
 
-Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rhythm Tap, Jump Ball, Reaction Time, City Bloxx, Sliding Puzzle, Asteroids, Mini Frogger, Neon Drift, Odd One Out, Dunk Shot, Memoria, Kunai Throw, Keepers!, Western Shoot, Barra Libre, Crono Ciego, El Trile, PONG, Block Paddle, Simon, Topos, Snake, Ta-Te-Ti, Conecta 4, Mecano, Final Sentence, Neon Sawblades, Space Rush, Lights Out, Boilerbound, Timber!, Puerco Araña, Circuit Breaker, Ring Runner, Pulso de Acero, Memoria de Color, Al Centro, Bomba Palabra, Cadena de Palabras, Hole in None, Cannon Dodge, Pizza Express and Danger Wings), each independently playable — except Bomba Palabra and Cadena de Palabras, which are **rooms-only** (they need a multiplayer room and the game server; see "Game server" below) — plus a landing page to pick one. (Rocket SpaceX / `rocket-arena`, Basta / `basta` and Impostor / `impostor` still live in the repo but are hidden from the roster via `hidden: true` in their `meta.ts`: rocket-arena due to errors, Basta and Impostor because they were pulled from the roster. Basta and Impostor are also rooms-only and server-backed; their code and their game-server sims stay in place.) Stack: Vite + TypeScript, no framework. Deployed as a static site (Vercel), plus a separate Node game server (`server/`) on Railway for the real-time / server-authoritative games.
+Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rhythm Tap, Jump Ball, Reaction Time, City Bloxx, Sliding Puzzle, Asteroids, Mini Frogger, Neon Drift, Odd One Out, Dunk Shot, Memoria, Kunai Throw, Keepers!, Western Shoot, Barra Libre, Crono Ciego, El Trile, PONG, Block Paddle, Simon, Topos, Snake, Ta-Te-Ti, Conecta 4, Mecano, Final Sentence, Neon Sawblades, Space Rush, Lights Out, Boilerbound, Timber!, Puerco Araña, Circuit Breaker, Ring Runner, Pulso de Acero, Memoria de Color, Al Centro, Bomba Palabra, Cadena de Palabras, Hole in None, Cannon Dodge, Pizza Express, Danger Wings and Click the Number), each independently playable — except Bomba Palabra and Cadena de Palabras, which are **rooms-only** (they need a multiplayer room and the game server; see "Game server" below) — plus a landing page to pick one. (Rocket SpaceX / `rocket-arena`, Basta / `basta` and Impostor / `impostor` still live in the repo but are hidden from the roster via `hidden: true` in their `meta.ts`: rocket-arena due to errors, Basta and Impostor because they were pulled from the roster. Basta and Impostor are also rooms-only and server-backed; their code and their game-server sims stay in place.) Stack: Vite + TypeScript, no framework. Deployed as a static site (Vercel), plus a separate Node game server (`server/`) on Railway for the real-time / server-authoritative games.
 
 ## Conventions (must follow)
 
@@ -10,7 +10,6 @@ Monorepo of small browser minigames (Neon Cylinder, Flappy Bird, Stack Tower, Rh
 - **Use the installed `threejs-*` skills when building 3D games.** For any game using Three.js (scenes, cameras, geometry, materials, lighting, textures, animation, model loaders, shaders, postprocessing, raycasting/interaction), consult the matching `threejs-*` skill for accurate APIs and patterns instead of relying on memory.
 - **Every game gets a `DESIGN.md` (art direction) next to its `CLAUDE.md`.** Before building or reworking a game's visuals, write that game's design philosophy there and make every visual decision answer to it — see `src/games/neon-sawblades/DESIGN.md` ("Machined Light") for the reference format. The principles are medium-agnostic (they apply to plain canvas and to Three.js games alike); the concrete palette and vocabulary are per-game. **If the programmer has not specified the aesthetic direction (palette, mood, references, how the game should feel), ask for those details before inventing them.** When the `canvas-design` skill is installed, invoke it to generate the philosophy (`npx skills add https://github.com/anthropics/skills --skill canvas-design`); when it is not, write the `DESIGN.md` by hand following the reference format anyway — the committed document is the requirement, not the tool. Like the `threejs-*` skills it is installed locally per collaborator (`.claude`/`.agents` are gitignored).
 - Every game must have the Enter-to-start 3 / 2 / 1 / YA countdown. No game may jump straight from the start / game-over screen into play — it must go through the shared countdown described below. New games are required to implement it.
-- This repo uses Git Flow. Branch off `develop` for work: features on `feature/*`, releases on `release/*`, hotfixes on `hotfix/*`. `main` holds only tagged releases; `develop` is the integration branch. Do not commit straight to `main` or `develop` — merge via the appropriate branch.
 - **Always add credits for new games in `README.md`.** When a new game is registered, append it to the games table in the root-level [README.md](file:///c:/ReposGit/Game/README.md) with its title, category, description (adapted to localized Spanish "voseo" style), and the creator's GitHub profile link.
 
 ## Structure
@@ -61,6 +60,8 @@ Every game reports its final score to a shared global leaderboard backed by **Su
 - `leaderboard.ts` — `submitScore(gameId, score, { variant })` and `fetchTop(gameId, { variant, limit })`.
 - `LeaderboardPanel.ts` — self-contained DOM component (injects its own CSS once). On game over, if the score qualifies for the Top 10: when a nickname is already saved (`getNickname()`), the score is **submitted automatically without prompting**; only the first time (no saved name yet) does it show the name form and submit after the player confirms. Then shows the Top 10 and highlights the player's row. Reused by each game's game-over overlay and by the landing modal. The name itself can be set/edited on the landing (a "Tu nombre" field in the hero, between the title and the search box).
 - `leaders.ts` — **Salón de la fama**: a ranking of the players who lead (are #1 in) the global leaderboard of the **most games**. It is **derived live** from the `scores` table — **no dedicated table, no persistence, nothing to do with rooms**. `fetchGameLeaders()` reads all scores (paginated past Supabase's 1000-row cap), and for each game in the roster picks its current leader on the representative board (variant `variants[0]`, direction-aware — exactly the board each landing card shows as its champion) and tallies how many games each player leads; it returns `{ ranking: {player, games}[], totalGames }` where `totalGames` is how many games currently have a leader. Degrades with the rest: no credentials -> empty. **UI:** the podium lives on its own page `/fame/` (`fame/index.html` + `src/fame/main.ts`, a non-game entry like `/rooms/`, registered in `vite.config.ts`): topbar + a dark gold-accented `.fame` plaque (a stats row `N juegos con líder / M líderes`, podium for the top 3 with the leader centered + elevated, ranked list for 4th onward, empty state when there are no scores) + footer, reusing the landing's `src/style.css`. The landing (`src/main.ts`) only shows a compact `.fame-banner` (styled like the Salas banner, gold accent, with a mini top-3 preview of initials) that links to `/fame/`; both appear only when the leaderboard is enabled.
+
+(`src/shared/` also holds `server-status.ts`, which has nothing to do with the leaderboard: it is the landing's game-server health check — see "Game server" below.)
 
 Config & degradation:
 - Credentials go in `.env` (gitignored; see `.env.example`) and in Vercel's env vars. The DB schema is `supabase/schema.sql`.
@@ -137,9 +138,14 @@ pistas por turno y votacion, sin diccionario).
 
 Estructura de `server/` (paquete propio, aislado del build de Vite, con su propio
 `package.json` / `tsconfig.json` / `node_modules`, gitignoreado):
-- `src/index.ts` — crea `io` + health check HTTP (`/health`, devuelve tamano del
-  diccionario) + registra los namespaces de cada juego. Escucha en `PORT`
-  (Railway lo inyecta), CORS a `ALLOWED_ORIGINS` (coma-separado; `*` en dev).
+- `src/index.ts` — crea `io` + health check HTTP (`/health`, devuelve `{ ok: true }`
+  mas el tamano del diccionario) + registra los namespaces de cada juego. Escucha en
+  `PORT` (Railway lo inyecta), CORS a `ALLOWED_ORIGINS` (coma-separado; `*` en dev).
+  El `/health` **manda sus propias cabeceras CORS** (echo del `Origin` si esta en
+  `ALLOWED_ORIGINS`, `*` sin la lista): el `cors` del `Server` de socket.io solo cubre
+  el handshake, no este handler HTTP, y la landing lo consulta desde el navegador
+  (ver `src/shared/server-status.ts`). Si se le saca esa cabecera, el indicador de la
+  landing pasa a decir "caido" con el server perfectamente vivo.
 - `src/rooms.ts` — infra generica reutilizable: `GameRoom` (un socket.io room por
   `(namespace, code)`, mapeo nickname<->socket, broadcast) + `registerGame(io,
   namespace, joinEvent, parseJoin, makeSim)` que crea/descarta rooms y reenvia
@@ -258,6 +264,47 @@ sigue siendo 1 jugador en la landing). Bomba Palabra, Cadena de Palabras, Basta 
 en Basta e Impostor porque el server arbitra las fases, los votos y el puntaje —y en Impostor
 tambien reparte los roles privados), asi que sin `VITE_GAME_SERVER_URL` muestran "no disponible"
 (excepcion deliberada y documentada a la regla de degradacion del repo).
+
+**URL del server, respaldo y estado (`src/shared/server-status.ts`).** Modulo unico que
+resuelve **a que server conectarse** y **si esta vivo**. Hay dos URLs: la principal
+(`VITE_GAME_SERVER_URL`) y una de respaldo opcional (`VITE_GAME_SERVER_FALLBACK_URL`,
+pensada para el par dominio propio / URL cruda de Railway). Se prueban **en orden**
+contra el `/health` y gana la primera que contesta.
+
+- `isGameServerConfigured()` — si hay al menos una URL. Es lo que usan los juegos para
+  el cartel de "no disponible" (antes cada uno leia la env en su `constants.ts`).
+- `resolveGameServerUrl()` — la URL a la que conectarse, con caida al respaldo. **La
+  llaman los cinco juegos server-side** en su `connect()` (`word-bomb`, `word-chain`,
+  `basta`, `impostor`, `pong`), que por eso es `async` y tiene un flag `connecting`
+  contra la doble conexion en la ventana del `await`. Si el resolver viviera solo en la
+  landing el respaldo seria decorativo: el chip diria "en linea" y los juegos seguirian
+  pegandole al server muerto. **Con una sola URL configurada no chequea nada** (devuelve
+  esa y que el socket falle como siempre): el health check extra solo se paga cuando hay
+  respaldo. El resultado se cachea en `sessionStorage` (`mg:game-server-url`) para que un
+  jugador no salte de server a mitad de partido.
+- `checkGameServer()` — `{ status, url, pingMs, fallback }` para la UI. Cualquier falla
+  (red, CORS, timeout de 8s) es `"offline"`: para el jugador es lo mismo. El timeout es
+  generoso a proposito porque Railway duerme los servicios free y el primer request lo
+  despierta.
+
+**Las URLs se normalizan (`normalize`)**: se les completa el esquema si falta
+(`game.juegachos.com` -> `https://game.juegachos.com`). Sin eso un host pelado en la env
+se toma como URL **relativa** y el fetch termina en `<origen>/game.juegachos.com/health`,
+o sea el server se ve caido estando vivo. No romper esto "simplificando" el trim.
+
+**UI**: `src/main.ts` monta una pastilla en la barra de navegacion, a la izquierda del
+campo del nombre (`.topbar__server`): punto verde "Servidor" + el **ping** (round-trip
+del `/health`), ambar "Servidor de respaldo" cuando contesta el secundario, rojo
+titilante "Servidor caido"; la URL y el ping van en el `title` y a menos de 640px queda
+solo el punto. Se re-chequea cada 60s. **Solo aparece con al menos una URL configurada**
+(si no, el estado es `"unknown"` y no se pinta nada: misma degradacion que el resto).
+
+**Ojo con el respaldo**: la sala entera tiene que terminar en el **mismo** server o los
+jugadores quedan en partidas separadas sin verse. Con la principal caida para todos,
+todos caen al respaldo y coinciden; el riesgo es el desacuerdo transitorio (a uno le
+falla el chequeo y a otro no), acotado por el cache de sesion. Y si las dos URLs apuntan
+al **mismo deploy** (dominio propio + URL de Railway), el respaldo cubre una caida de la
+capa de dominio/DNS, **no** que se caiga Railway.
 
 Comandos del server (dentro de `server/`): `npm run dev` (tsx watch),
 `npm run build` (tsc -> `dist/`), `npm start` (`node dist/index.js`). Deploy
