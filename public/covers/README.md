@@ -224,6 +224,16 @@ Square 1:1 video game cover art, bold indie game key art style, vibrant saturate
 Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A retro phosphor-green CRT hacking terminal glowing in a dark room, heavy scanlines and screen curvature. Center focus: a bright neon-green fingerprint being scanned and cloned, reconstructed line by line from pixel data, a scan bar sweeping across it. Around it, floating holographic panels: a grid of glowing green two-digit numbers with one horizontal sequence highlighted, and vertical reels of alphabet letters like a code lock aligning into place. Monochrome acid-green on near-black palette with a single hot red alert accent, dense monospaced code, cyber-intrusion mood, tense and technical. The game title "HACKERMAN" is integrated into the artwork as a bold stylized videogame logo, large and readable, glowing green terminal typography, spelled exactly "HACKERMAN".
 ```
 
+## Click the Number — guardar como `click-the-number.jpg`
+
+Sigue el `DESIGN.md` del juego ("Sala Fria"): azul casi negro, cian como unico
+acento, digitos monoespaciados y nada de glow gratuito. Ojo con los numeros de la
+grilla: tienen que salir nitidos y sin repetir; si salen deformados, regenerar.
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, dramatic cinematic lighting, clean minimalist composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A dark control-room panel at night seen head-on: a precise 5x5 grid of recessed metal keypad plates on a deep navy-black console, each plate engraved with a crisp white monospaced number from 1 to 25 in scrambled order, lit by cold indirect light. A few plates on the left are already pressed down and dark, their digits extinguished, glowing a faint cyan around the rim; a fingertip is pressing the plate marked "1" and a clean cyan light ring pulses out from it. A thin cyan stopwatch readout glows above the grid. Deep navy-black background, single electric cyan accent, no other saturated color, sharp hairline edges, silent precise instrument mood, high contrast and extremely legible. The game title "CLICK THE NUMBER" is integrated into the artwork as a bold stylized videogame logo in clean condensed uppercase with a cyan glow, large and readable, spelled exactly "CLICK THE NUMBER".
+```
+
 ## Impostor — guardar como `impostor.jpg`
 
 ```text
