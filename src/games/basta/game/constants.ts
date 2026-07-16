@@ -11,7 +11,9 @@ export const COUNTDOWN_STEP = 700;
  * sin server muestra "no disponible". Excepcion deliberada a la regla de degradacion
  * (documentada en el CLAUDE.md del juego), igual que Bomba/Cadena.
  */
-export const GAME_SERVER_URL = import.meta.env.VITE_GAME_SERVER_URL as string | undefined;
+// La URL la resuelve `shared/server-status.ts` (principal, con caida al respaldo
+// si esta configurado): `Game.ts` usa `isGameServerConfigured()` para el cartel de
+// "no disponible" y `resolveGameServerUrl()` al conectar.
 
 /** Las 7 categorias, en orden. Los ids **espejan** `CATEGORIES` de `server/src/games/basta.ts`. */
 export const CATEGORIES: { id: BtCategoryId; label: string }[] = [

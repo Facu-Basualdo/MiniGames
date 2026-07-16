@@ -77,7 +77,9 @@ el diccionario vive ahi y la validacion no puede ser spoofeable. Aparece en la l
   turnos con el `roster` (= `room.players()`, por `joined_at`).
 - `game/SoundEffects.ts` — Web Audio sintetizado, en clave de forja: martillo en el yunque
   (aceptada), hierro que cede (quiebre), zumbido de rechazo, countdown tick, ganar/perder.
-- `game/constants.ts` — countdown, `GAME_SERVER_URL`, allowlist de reacciones.
+- `game/constants.ts` — countdown y allowlist de reacciones. La URL del server **no** vive
+  aca: la resuelve `shared/server-status.ts` (principal con caida al respaldo); `Game.ts`
+  usa `isGameServerConfigured()` / `resolveGameServerUrl()`.
 
 ## Flujo de una ronda
 

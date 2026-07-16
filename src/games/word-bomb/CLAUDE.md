@@ -85,8 +85,9 @@ descubrirlo) y en el picker/votacion de salas como cualquier otro juego de sala.
   aceptada, zumbido de rechazo, explosion, ganar/perder) + fallback de reacciones.
 - `game/EmoteAudio.ts` — samples mp3 de las reacciones, con fallback al sintetizado.
 - `game/audioContext.ts` — el `AudioContext` compartido por los dos de arriba.
-- `game/constants.ts` — countdown, `GAME_SERVER_URL` (de `VITE_GAME_SERVER_URL`),
-  paleta y umbral de peligro de la mecha.
+- `game/constants.ts` — countdown, paleta y umbral de peligro de la mecha. La URL
+  del server **no** vive aca: la resuelve `shared/server-status.ts` (principal con
+  caida al respaldo); `Game.ts` usa `isGameServerConfigured()` / `resolveGameServerUrl()`.
 
 ## Flujo de una ronda
 

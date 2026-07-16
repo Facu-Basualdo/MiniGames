@@ -1,5 +1,4 @@
 import {
-  GAME_SERVER_URL,
   MAX_DT,
   PADDLE_HEIGHT,
   PADDLE_MARGIN,
@@ -16,6 +15,7 @@ import { InputController } from "./InputController";
 import { Hud } from "./Hud";
 import { SoundEffects } from "./SoundEffects";
 import { initRoomMode, type RoomMode } from "../../../shared/room/roomMode";
+import { isGameServerConfigured, resolveGameServerUrl } from "../../../shared/server-status";
 import { PongSocket } from "./PongSocket";
 import type { PongMatchState } from "./PongProtocol";
 
@@ -87,6 +87,8 @@ export class Game {
   /** En sala con game server: PvP arbitrado por el server. */
   private readonly serverMode: boolean;
   private socket: PongSocket | null = null;
+  /** Guarda contra doble conexion mientras `connectServer()` resuelve la URL. */
+  private connecting = false;
   /** Se cayo a un partido local vs IA en esta ronda (server inalcanzable). */
   private serverFellBack = false;
   /** Momento del primer error de conexion del socket (0 = ninguno todavia). */
@@ -138,7 +140,7 @@ export class Game {
       onStart: () => this.beginCountdown(),
     });
     this.isRoomMode = this.room !== null;
-    this.serverMode = this.isRoomMode && !!GAME_SERVER_URL;
+    this.serverMode = this.isRoomMode && isGameServerConfigured();
 
     this.hud.setHintText(
       this.isRoomMode ? "esperando emparejamiento…" : "mouse / flechas / W S para mover",
@@ -174,11 +176,21 @@ export class Game {
 
   /** Conecta al game server cuando arranca la ronda (en el constructor la lista
    *  de jugadores todavia no cargo: boot() es async). El server empareja por el
-   *  roster y responde con `pg:state`, de donde sale el lado propio. */
-  private connectServer(): void {
-    if (!this.serverMode || this.socket || !this.room || !GAME_SERVER_URL) return;
+   *  roster y responde con `pg:state`, de donde sale el lado propio.
+   *
+   *  Async porque resolver el server puede implicar un health check (ver
+   *  `shared/server-status.ts`); `connecting` cubre la ventana del await, en la que
+   *  `this.socket` todavia es null y una segunda llamada abriria un socket de mas.
+   *  Si no responde ninguna URL, el `SERVER_ERROR_GRACE_MS` de siempre cae al
+   *  partido local vs IA. */
+  private async connectServer(): Promise<void> {
+    if (!this.serverMode || this.socket || this.connecting || !this.room) return;
+    this.connecting = true;
+    const url = await resolveGameServerUrl();
+    this.connecting = false;
+    if (this.socket || !url) return;
     const socket = new PongSocket(
-      GAME_SERVER_URL,
+      url,
       this.room.code,
       this.room.me,
       this.room.players(),
@@ -193,7 +205,7 @@ export class Game {
 
   private beginCountdown(): void {
     if (this.state === "countdown" || this.state === "playing") return;
-    if (this.serverMode) this.connectServer();
+    if (this.serverMode) void this.connectServer();
     else if (this.isRoomMode) this.hud.setHintText("mouse / flechas / W S para mover (vs IA)");
 
     this.state = "countdown";

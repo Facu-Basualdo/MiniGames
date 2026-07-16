@@ -7,6 +7,7 @@ import { isLeaderboardEnabled } from "./shared/supabase";
 import { recordPlay, fetchPlayCounts, cachedPlayCounts } from "./shared/plays";
 import { fetchGameLeaders } from "./shared/leaders";
 import { getNickname, setNickname, NICKNAME_MAX } from "./shared/nickname";
+import { checkGameServer, isGameServerConfigured } from "./shared/server-status";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const roomsOn = isLeaderboardEnabled();
@@ -18,6 +19,7 @@ nav.className = "topbar";
 nav.innerHTML = `
   <a class="topbar__logo" href="/"><img src="/juegachos.png" alt="JUEGACHOS" /></a>
   <div class="topbar__right">
+    ${isGameServerConfigured() ? `<div class="topbar__server is-checking" title="Estado del servidor de los juegos online"><span class="topbar__server-dot"></span><span class="topbar__server-text">Servidor</span><span class="topbar__server-ping" hidden></span></div>` : ""}
     <label class="topbar__name">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4">
         <circle cx="12" cy="8" r="4"></circle>
@@ -487,6 +489,39 @@ main.append(hero, filtersBar);
 main.append(grid, empty);
 
 app.append(nav, main, footer);
+
+// ---------- Estado del game server ----------
+
+// Indicador en la barra de navegacion: dice si el server de los juegos online
+// (Bomba Palabra, Cadena de Palabras, Basta, Impostor, PONG en sala) esta vivo.
+// Se pinta solo cuando hay VITE_GAME_SERVER_URL y se re-chequea cada minuto, asi
+// el que ve "no disponible" adentro de un juego sabe desde la landing si es el
+// server.
+const SERVER_PING_MS = 60_000;
+const serverChip = nav.querySelector<HTMLElement>(".topbar__server");
+if (serverChip) {
+  const textEl = serverChip.querySelector<HTMLElement>(".topbar__server-text")!;
+  const pingEl = serverChip.querySelector<HTMLElement>(".topbar__server-ping")!;
+  const refreshServerChip = async (): Promise<void> => {
+    const { status, url, pingMs, fallback } = await checkGameServer();
+    const online = status === "online";
+    serverChip.classList.remove("is-checking");
+    serverChip.classList.toggle("is-online", online);
+    serverChip.classList.toggle("is-offline", !online);
+    serverChip.classList.toggle("is-fallback", online && fallback);
+    textEl.textContent = online ? (fallback ? "Servidor de respaldo" : "Servidor") : "Servidor caído";
+    // El ping es el round-trip del /health, no el del socket: mide el mismo viaje
+    // de ida y vuelta al server, que es lo que le importa al que quiere saber si
+    // va a ir lento.
+    pingEl.textContent = online ? `${pingMs} ms` : "";
+    pingEl.hidden = !online;
+    serverChip.title = online
+      ? `${fallback ? "Respondiendo el servidor de respaldo (el principal está caído)" : "El servidor de los juegos online está funcionando"}\n${url}\nPing: ${pingMs} ms`
+      : "El servidor de los juegos online no responde: Bomba Palabra, Cadena de Palabras, Basta e Impostor no se pueden jugar";
+  };
+  void refreshServerChip();
+  setInterval(() => void refreshServerChip(), SERVER_PING_MS);
+}
 
 // ---------- Banner del salon de la fama: preview del podio ----------
 
