@@ -224,6 +224,35 @@ Square 1:1 video game cover art, bold indie game key art style, vibrant saturate
 Square 1:1 video game cover art, bold indie game key art style, vibrant saturated colors, dramatic lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A retro phosphor-green CRT hacking terminal glowing in a dark room, heavy scanlines and screen curvature. Center focus: a bright neon-green fingerprint being scanned and cloned, reconstructed line by line from pixel data, a scan bar sweeping across it. Around it, floating holographic panels: a grid of glowing green two-digit numbers with one horizontal sequence highlighted, and vertical reels of alphabet letters like a code lock aligning into place. Monochrome acid-green on near-black palette with a single hot red alert accent, dense monospaced code, cyber-intrusion mood, tense and technical. The game title "HACKERMAN" is integrated into the artwork as a bold stylized videogame logo, large and readable, glowing green terminal typography, spelled exactly "HACKERMAN".
 ```
 
+## Click the Number — guardar como `click-the-number.jpg`
+
+Sigue el `DESIGN.md` del juego ("Sala Fria"): azul casi negro, cian como unico
+acento, digitos monoespaciados y nada de glow gratuito. Ojo con los numeros de la
+grilla: tienen que salir nitidos y sin repetir; si salen deformados, regenerar.
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, dramatic cinematic lighting, clean minimalist composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. A dark control-room panel at night seen head-on: a precise 5x5 grid of recessed metal keypad plates on a deep navy-black console, each plate engraved with a crisp white monospaced number from 1 to 25 in scrambled order, lit by cold indirect light. A few plates on the left are already pressed down and dark, their digits extinguished, glowing a faint cyan around the rim; a fingertip is pressing the plate marked "1" and a clean cyan light ring pulses out from it. A thin cyan stopwatch readout glows above the grid. Deep navy-black background, single electric cyan accent, no other saturated color, sharp hairline edges, silent precise instrument mood, high contrast and extremely legible. The game title "CLICK THE NUMBER" is integrated into the artwork as a bold stylized videogame logo in clean condensed uppercase with a cyan glow, large and readable, spelled exactly "CLICK THE NUMBER".
+```
+
+## Wordle — guardar como `wordle.jpg`
+
+Sigue el `DESIGN.md` del juego ("Sellos sobre Papel"): papel crema, tinta casi negra,
+bordes gruesos y sombra dura, sin glow. Los unicos colores son los tres veredictos
+(verde = letra en su lugar, ambar = esta pero en otro lado, olivo = descartada).
+
+La grilla del prompt **es un tablero real**: `NUDOS` -> `CAMPO` -> `TANGO` da exactamente
+esos colores contra la respuesta `TANGO` (verificado con `evaluateGuess`), y las tres son
+soluciones reales del juego. Si se cambian las palabras, recalcular los colores o va a
+quedar una combinacion imposible que cualquiera que juegue nota.
+
+Es un prompt exigente (3 palabras + colores por casilla): lo que **no** puede fallar es el
+sello del titulo y que se vean las tres familias de color; si alguna letra de la grilla sale
+deformada, regenerar 2-3 veces.
+
+```text
+Square 1:1 video game cover art, bold indie game key art style, dramatic warm lighting, clean composition with a strong focal subject, slight retro-arcade flavor, high detail digital illustration, no watermark, no borders. Head-on overhead view of a cream sheet of paper lying on a warm wooden desk: on it, a word-guessing grid of 5 columns and 6 rows of chunky rounded square tiles with thick near-black ink borders and a hard offset drop shadow, like rubber stamps pressed into the page. The top three rows are stamped and filled with letters: the first row spells "NUDOS" with its 1st and 4th tiles amber-gold and its other three tiles muted olive-grey; the second row spells "CAMPO" with its 2nd and 5th tiles deep forest green and its other three tiles muted olive-grey; the third row spells "TANGO" with all five tiles deep forest green, the solved word. The bottom three rows are empty cream tiles with faint thin outlines. An ink stamp pad and a wooden letter stamp rest beside the sheet, with a few specks of ink dust on the paper. Warm paper-and-ink palette (cream paper, near-black ink, deep forest green, amber gold, muted olive), the all-green solved row as the focal accent, completely flat printed look with no glow and no gradients, high contrast, extremely legible letters. The game title "WORDLE" is integrated into the artwork as a bold stylized black ink rubber-stamp logo slightly rotated at the top of the page, large and readable, spelled exactly "WORDLE".
+```
+
 ## Impostor — guardar como `impostor.jpg`
 
 ```text

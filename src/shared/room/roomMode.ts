@@ -101,6 +101,7 @@ export interface RoomMode {
 export const ROOM_VARIANTS: Record<string, string> = {
   "sliding-puzzle": "3",
   "lights-out": "5",
+  "click-the-number": "5",
 };
 
 /** Chequeo barato (sin red) de si la pagina corre en modo sala. */
