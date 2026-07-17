@@ -24,7 +24,8 @@ export interface ServerCheck {
   status: ServerStatus;
   /** URL que respondio, o undefined si ninguna. */
   url?: string;
-  /** Round-trip del /health en ms (entero), solo si status === "online". */
+  /** Round-trip del /health en ms (entero) con la conexion ya abierta, solo si
+   *  status === "online". Ver `PING_SAMPLES`: NO es el primer fetch. */
   pingMs?: number;
   /** true si respondio la de respaldo porque la principal esta caida. */
   fallback: boolean;
@@ -35,6 +36,24 @@ const FALLBACK = import.meta.env.VITE_GAME_SERVER_FALLBACK_URL as string | undef
 
 /** Timeout del ping: Railway duerme los servicios free y tarda en despertar. */
 const PING_TIMEOUT_MS = 8000;
+
+/**
+ * Cuantas mediciones **con la conexion ya abierta** se toman para el ping que se
+ * muestra, quedandose con la mejor.
+ *
+ * El primer fetch de la pagina no sirve como ping: paga DNS + TCP + handshake TLS
+ * y da mas o menos el doble de lo real (medido contra game.juegachos.com: 114 ms
+ * el primero, ~73 ms una vez establecida la conexion; el chip llegaba a decir 183
+ * ms). Ese numero no es la latencia del server sino la de abrir la conexion, y es
+ * justo lo que el jugador NO paga: el socket del juego se abre una vez y queda
+ * abierto. Asi que la primera medicion se descarta (es el calentamiento) y se
+ * reportan estas.
+ *
+ * Se toma el **minimo** y no el promedio porque lo que se busca es la latencia de
+ * la red, no la del navegador: la muestra mas rapida es la que menos jitter y
+ * menos slow-start de TCP se comio.
+ */
+const PING_SAMPLES = 2;
 
 /**
  * Cache de la URL viva. Es de sesion (no localStorage) a proposito: una URL que
@@ -85,22 +104,46 @@ async function probe(url: string): Promise<number | null> {
 }
 
 /**
- * Prueba las URLs en orden y devuelve la primera viva (con su ping). Cachea la
- * ganadora para `resolveGameServerUrl`.
+ * Prueba las URLs en orden y devuelve la primera viva, con el ping de esa primera
+ * respuesta (frio: incluye el setup de la conexion). Es la seleccion de server,
+ * sin mediciones de mas: la usan tanto la UI como `resolveGameServerUrl`.
  */
-export async function checkGameServer(): Promise<ServerCheck> {
-  const urls = serverUrls();
-  if (urls.length === 0) return { status: "unknown", fallback: false };
-
-  for (const [i, url] of urls.entries()) {
+async function firstLive(): Promise<{ url: string; pingMs: number; fallback: boolean } | null> {
+  for (const [i, url] of serverUrls().entries()) {
     const pingMs = await probe(url);
     if (pingMs !== null) {
       cacheUrl(url);
-      return { status: "online", url, pingMs, fallback: i > 0 };
+      return { url, pingMs, fallback: i > 0 };
     }
   }
   clearCachedUrl();
-  return { status: "offline", fallback: false };
+  return null;
+}
+
+/**
+ * Estado del game server para la UI: que URL contesta, si es la de respaldo, y el
+ * ping **real** (con la conexion caliente, ver `PING_SAMPLES`).
+ *
+ * Las mediciones extra son solo para mostrar: `resolveGameServerUrl` (el camino de
+ * los juegos) no las paga, porque para conectar solo hace falta saber cual esta
+ * viva.
+ */
+export async function checkGameServer(): Promise<ServerCheck> {
+  if (serverUrls().length === 0) return { status: "unknown", fallback: false };
+
+  const live = await firstLive();
+  if (!live) return { status: "offline", fallback: false };
+
+  // La respuesta de `firstLive` fue el calentamiento; ahora si se mide.
+  let pingMs = live.pingMs;
+  for (let i = 0; i < PING_SAMPLES; i++) {
+    const ms = await probe(live.url);
+    // Un fallo suelto aca no es "server caido" (ya contesto recien): se corta y se
+    // reporta la mejor muestra que haya.
+    if (ms === null) break;
+    pingMs = i === 0 ? ms : Math.min(pingMs, ms);
+  }
+  return { status: "online", url: live.url, pingMs, fallback: live.fallback };
 }
 
 function cacheUrl(url: string): void {
@@ -151,8 +194,10 @@ export async function resolveGameServerUrl(): Promise<string | undefined> {
   const cached = cachedUrl();
   if (cached) return cached;
 
-  const { url } = await checkGameServer();
+  // `firstLive` y no `checkGameServer`: para conectar alcanza con saber cual esta
+  // viva, sin pagar las mediciones de ping que son solo para la pastilla.
+  const live = await firstLive();
   // Ninguna respondio: se devuelve la principal igual, asi el error que ve el
   // jugador es el del socket (con su reintento) y no un silencio.
-  return url ?? urls[0];
+  return live?.url ?? urls[0];
 }
