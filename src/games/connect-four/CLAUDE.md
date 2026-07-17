@@ -129,3 +129,12 @@ Usa el contexto extendido de `RoomMode` (`code`, `me`, `round()`, `players()`,
 - La IA usa `DEPTH = 6`: subirlo la hace mas fuerte pero mas lenta (el arbol es
   mas grande a tablero vacio). Ajustar dificultad se hace con `DEPTH` y la
   heuristica en `ai.ts`.
+- **`menuVisible` gatea el reinicio (no el estado).** Al perder la racha en solo,
+  `onMatchLose` pone el estado en `over` pero el overlay de fin (con el ranking) se
+  muestra `SOLO_RESULT_MS` despues (se ve un momento el tablero perdido). En esa
+  ventana el estado ya es `over`, asi que gatear el Enter/tap de reinicio por estado
+  hacia que un toque reiniciara la partida — y `beginCountdown`->`cancelPending()`
+  cancelaba el `schedule` del overlay, dejando la corrida sin mostrar puntaje ni
+  reportar al ranking. El flag `menuVisible` es true solo con el overlay realmente
+  en pantalla; la continuacion de racha (victoria/empate) no se ve afectada porque
+  ahi el estado sigue en `playing`.

@@ -73,6 +73,15 @@ look was too bland), now cel-shaded at runtime.
 
 ## Non-obvious decisions
 
+**`menuVisible` gates the restart during the deferred game-over.** The game-over
+overlay is deferred 550 ms so the death (steam + ember burst, red flash, shake)
+plays in the clear, and that deferred callback is what calls `reportScore`/
+`showRanking` — guarded by a `state === "gameover"` re-check that aborts if the
+player restarted mid-window. Without a guard, restarting during that window
+silently **dropped the run's leaderboard submission**. `handleActivate` now bails
+on `!menuVisible` (true only while the start/game-over overlay is actually shown),
+so the score always lands.
+
 **Fair kill box, faithful visuals.** A jet's lethal zone (`VENT_KILL_HALF`, checked in `SteamVent.hits`) is a **straight, constant-width band** capped at `STEAM_KILL_HEIGHT`, and the player is tested against it with a **narrow hurtbox** (`HURTBOX_HALF_WIDTH` ~0.24, well under the visual `PLAYER_HALF_WIDTH` 0.42) so the lethal band sits *inside* the visible steam — clipping the edge of a cloud never kills you (the "invisible hitbox" complaint). The exact lethal column is also drawn on screen every danger state via the vent's telegraph (floor decal + warning pillar, see the `SteamVent` bullet). The steam column is tuned to **track that band closely** — puff centres stay inside it (`sBaseX` spread `* VENT_KILL_HALF * 0.85`), the column runs nearly straight (only a slight sway, not the old fan-out cone), `STEAM_SIZE` (~the kill width) keeps a single puff from being wider than the danger, and `STEAM_VISUAL_HEIGHT` sits just above `STEAM_KILL_HEIGHT`. At the **start of the active phase** the jet gets an `ERUPT_LEAD` (~0.13 s) window where it blasts up (a full-height column is seeded at once, opacity whooshing in) but is **not yet lethal** (`hits` returns false while `eruptLead > 0`) — this closes the old "died in the sparks before the vapour appeared" gap, where the kill zone was live at full height while the puffs were still climbing from the floor. During **dissipate** the jet lifts off the floor (no wrap) — that floating remnant is intentional and non-lethal. `VENT_KILL_HALF` is tuned so two adjacent active vents seal the gap between them (waves/cages are real walls) while a single vent leaves its neighbour cells clearly safe.
 
 **No wall jump / no wall cling.** Removed: the only way to gain height on a wall was chaining wall-jumps (a single ground jump apex is ~2.7 units, far under `STEAM_KILL_HEIGHT` 6.2), and clinging by itself capped fall speed but never got you above the kill height — so without the jump it had zero survival value, just a vestigial "stuck to the wall" feel. The side walls are now plain solid boundaries (stop horizontal motion, no effect on gravity). Escapes during a full `cage` or `wave` are purely floor-based: `cage` always keeps a safe column within reach of the player's position (see `launchCage`), and `wave` is thin enough to dash through to the cleared side (see the `wave` pattern note below).

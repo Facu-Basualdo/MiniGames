@@ -69,6 +69,14 @@ export class Game {
 
   private readonly container: HTMLElement;
   private state: GameState = "ready";
+  /**
+   * True solo cuando el overlay de inicio / fin esta realmente en pantalla. Al
+   * morir, el estado pasa a "gameover" pero el overlay aparece 600ms despues (el
+   * choque se ve primero): sin este guard, reiniciar en esa ventana hacia que el
+   * setTimeout del overlay retornara temprano por su propio chequeo de estado y
+   * el puntaje de esa corrida nunca se enviara al ranking.
+   */
+  private menuVisible = true;
   private score = 0;
   private best = 0;
   private combo = 0;
@@ -145,6 +153,7 @@ export class Game {
 
   private handleActivate(): void {
     if (this.state === "playing" || this.state === "countdown") return;
+    if (!this.menuVisible) return; // no reiniciar durante el choque previo al overlay
     // Room mode: one run per round, no retry.
     if (this.room && this.state === "gameover") return;
     this.beginCountdown();
@@ -214,6 +223,7 @@ export class Game {
   }
 
   private beginCountdown(): void {
+    this.menuVisible = false;
     this.scooter.reset();
     this.scooter.object.visible = true;
     this.obstacles.reset();
@@ -286,6 +296,7 @@ export class Game {
     // Let the crash play in the clear before the overlay covers it.
     window.setTimeout(() => {
       if (this.state !== "gameover") return;
+      this.menuVisible = true;
       this.hud.showGameOver(this.score, this.best, this.crashed);
       if (this.room) this.room.reportScore(this.score);
       else this.hud.showRanking("pizza-express", this.score);
