@@ -114,13 +114,25 @@ Degradation matches the leaderboard: without credentials the landing button and 
 
 ### Canales efimeros de alta frecuencia (ver a los otros jugadores en vivo)
 
-Some room games stream each player's live position over their own **ephemeral broadcast channel** — no DB, no game server, one channel per room+round, separate from the `RoomChannel` so the high-frequency traffic doesn't mix with the room sync. Each game owns its copy (per the decoupling rule): `car-race`'s `RaceChannel`, `cannon-dodge`'s `DodgeChannel`, `rocket-arena`'s `ArenaChannel`, `typing-race`'s `TypingChannel`, `monopoly-mundial`'s `MonopolyChannel`. Copy `DodgeChannel.ts` when you add another one — it is the only one that gets the two rules below right.
+Some room games stream each player's live position over their own **ephemeral broadcast channel** — no DB, one channel per room+round, separate from the `RoomChannel` so the high-frequency traffic doesn't mix with the room sync. Each game owns its copy (per the decoupling rule): `car-race`'s `RaceChannel`, `cannon-dodge`'s `DodgeChannel`, `rocket-arena`'s `ArenaChannel`, `typing-race`'s `TypingChannel`, `monopoly-mundial`'s `MonopolyChannel`. Copy `DodgeChannel.ts` when you add another one — it and `car-race`'s `RaceChannel` are the only ones that get the two rules below right.
 
-**1. Presupuesto de mensajes: Realtime tiene un tope y se pasa solo.** Supabase Realtime rate-limits broadcasts per channel (`max_events_per_second`, ~100 by default, a per-project setting). Do **not** assume the `realtime: { params: { eventsPerSecond: 40 } }` in `src/shared/supabase.ts` lifts it: the installed `realtime-js` doesn't even read that key (grep it in `node_modules`), and its comment about a 10 events/s client throttle is stale. The traffic in one of these channels is **`players x (1000 / NET_SEND_MS)`**, and a room holds up to `MAX_ROOM_PLAYERS` (8). So do the multiplication for 8 players before you pick a send rate: at 90 ms that is ~88 msg/s and the socket starts getting dropped mid-round; at 100 ms it is 80. **`NET_SEND_MS >= 100` (10/s) is the house limit** for a per-player broadcast, and it's what `car-race` and `cannon-dodge` use (`rocket-arena` sits at 80 ms, which is over budget for a full room — known debt, it's `hidden` anyway). Two things buy headroom without lowering the rate: send **only when the snapshot changed**, dropping to a ~1 s keepalive while a player is still or dead (`NET_IDLE_MS` in `cannon-dodge`; note that a dead player who stays watching keeps emitting), and round the payload numbers so identical frames compare equal.
+**Antes que nada: ¿este juego va en un canal o en el game server?** Medir, no adivinar — el criterio es `jugadores x envios/s` con la sala llena (8), contra el tope de ~100 msg/s por canal:
+
+| Juego | Trafico con 8 jugadores | Veredicto |
+| --- | --- | --- |
+| `car-race` | 8 x 10/s = **80/s** | **Migrado al server** (`/carrace`). Rozaba el tope: el socket moria y desaparecian todos. |
+| `cannon-dodge` | 8 x 10/s = **80/s** | **Mismo perfil que car-race: el candidato obvio si vuelve a pasar.** Hoy aguanta por el canal resiliente + el keepalive de `NET_IDLE_MS`, pero el techo es el mismo. |
+| `rocket-arena` | 8 x 12.5/s = **100/s** | **Pasado de tope** (`NET_SEND_MS` 80). Deuda conocida; esta `hidden` igual. Si se revive, va al server. |
+| `typing-race` | 8 x ~0.5/s = **4/s** | **No califica.** Emite al completar frase / morir / heartbeat de 2s. Lejisimos del tope. |
+| `monopoly-mundial` | <1/s (solo el host, cada 3s) | **No califica.** Poco volumen; el payload es grande pero eso es otro limite (tamano, 256KB). |
+
+O sea: el motivo para mudarse al server es **volumen**, no "estar en un canal". Los dos ultimos no ganan nada con el server — su exposicion real es el `subscribe()` pelado de la regla 2, que se arregla copiando `DodgeChannel`, no cambiando de transporte.
+
+**1. Presupuesto de mensajes: Realtime tiene un tope y se pasa solo.** Supabase Realtime rate-limits broadcasts per channel (`max_events_per_second`, ~100 by default, a per-project setting). Do **not** assume the `realtime: { params: { eventsPerSecond: 40 } }` in `src/shared/supabase.ts` lifts it: the installed `realtime-js` doesn't even read that key (grep it in `node_modules`), and its comment about a 10 events/s client throttle is stale. The traffic in one of these channels is **`players x (1000 / NET_SEND_MS)`**, and a room holds up to `MAX_ROOM_PLAYERS` (8). So do the multiplication for 8 players before you pick a send rate: at 90 ms that is ~88 msg/s and the socket starts getting dropped mid-round; at 100 ms it is 80. **`NET_SEND_MS >= 100` (10/s) is the house limit** for a per-player broadcast **sobre Supabase**, and it's what `cannon-dodge` and `car-race`'s Supabase fallback use (`rocket-arena` sits at 80 ms, which is over budget for a full room — known debt, it's `hidden` anyway). El tope es del canal de Realtime, no del juego: sobre el game server no existe, y por eso `car-race` emite a 60 ms (`NET_SEND_SERVER_MS`) cuando el enlace es el server y a 100 ms cuando cae a Supabase. Two things buy headroom without lowering the rate: send **only when the snapshot changed**, dropping to a ~1 s keepalive while a player is still or dead (`NET_IDLE_MS` in `cannon-dodge`; note that a dead player who stays watching keeps emitting), and round the payload numbers so identical frames compare equal.
 
 **2. `subscribe()` sin callback de estado es un bug.** A bare `channel.subscribe()` never tells you that the channel died (`CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED`), and nothing re-subscribes it. The failure is silent and total: no snapshot ever arrives again, every remote goes stale and gets purged, and the player finishes the round alone thinking the others vanished. Worse, `RealtimeChannel.send()` on a channel that can't push **silently falls back to a REST POST per message**, so a game heartbeating at 10/s starts hammering the broadcast endpoint. So: pass the status callback, keep a `ready` flag, **gate `send()` on it**, and rebuild the channel with backoff when it drops (see `DodgeChannel.open` / `scheduleReopen`). Pair it with a generous `REMOTE_STALE_MS` (6 s, not 2.5) so a normal network hiccup freezes a rival in place instead of deleting him.
 
-Also: drive the heartbeat off `setInterval`, never off the `requestAnimationFrame` loop — browsers pause rAF in background tabs, so a still player would stop broadcasting and disappear for everyone else. `car-race`, `rocket-arena`, `typing-race` and `monopoly-mundial` still call `subscribe()` bare; they predate this and haven't been migrated.
+Also: drive the heartbeat off `setInterval`, never off the `requestAnimationFrame` loop — browsers pause rAF in background tabs, so a still player would stop broadcasting and disappear for everyone else. `rocket-arena`, `typing-race` and `monopoly-mundial` still call `subscribe()` bare; they predate this and haven't been migrated (`car-race`'s `RaceChannel` was migrated: status callback + `ready`-gated `send()` + reopen with backoff, plus its heartbeat moved off the rAF loop onto a `setInterval` with an idle keepalive).
 
 ## Game server (tiempo real / autoritativo)
 
@@ -133,8 +145,19 @@ solo maneja el **estado en-ronda en memoria** y **no toca la DB**. Plan de fondo
 `docs/server-realtime-plan.md`. **En uso: Bomba Palabra** (`word-bomb`, validacion
 por turnos), **Cadena de Palabras** (`word-chain`, fork de Bomba con otra mecanica),
 **PONG** (`pong`, fisica de tiempo real / PvP 1v1), **Basta** (`basta`, Tutti Frutti
-por votacion, sin diccionario) **e Impostor** (`impostor`, deduccion social: roles privados,
-pistas por turno y votacion, sin diccionario).
+por votacion, sin diccionario), **Impostor** (`impostor`, deduccion social: roles privados,
+pistas por turno y votacion, sin diccionario) **y Neon Drift** (`car-race`, **relay** de
+posiciones — el unico que no usa el server para arbitrar nada, ver abajo).
+
+**El server tambien sirve de relay, no solo de arbitro.** Neon Drift es el primer caso:
+no necesita arbitro (cada cliente corre su propia carrera sobre un seed compartido), pero
+el broadcast de Supabase le quedaba chico — topea ~100 mensajes/s por canal y una sala
+llena lo rozaba (8 jugadores x 10/s = 80/s), con lo cual Realtime cerraba el socket y
+**todos los rivales desaparecian de la pantalla**. Un relay en el server saca ese techo,
+trae reconexion de socket.io de fabrica y permite subir la cadencia. Si otro juego de
+canal efimero sufre lo mismo, este es el molde (`server/src/games/carrace.ts` es el sim
+mas corto del server). Ojo: **es un motivo de volumen, no de "esta en un canal"** — ver
+"Canales efimeros" abajo para cuales juegos califican y cuales no.
 
 Estructura de `server/` (paquete propio, aislado del build de Vite, con su propio
 `package.json` / `tsconfig.json` / `node_modules`, gitignoreado):
@@ -151,7 +174,10 @@ Estructura de `server/` (paquete propio, aislado del build de Vite, con su propi
   namespace, joinEvent, parseJoin, makeSim)` que crea/descarta rooms y reenvia
   los eventos al `RoomSim` del juego (contrato `join` / `leave` / `message` /
   `dispose`). Para agregar otro juego server-side se implementa un `RoomSim` y se
-  llama `registerGame` en su propio namespace.
+  llama `registerGame` en su propio namespace. `join(nickname, roster, meta?)`
+  recibe en `meta` el payload crudo del join, para el sim que necesite algo mas que
+  nickname + roster (hoy solo Neon Drift, que lee la `round` de ahi); el que no lo
+  usa declara `join(nickname, roster)` y listo.
 - `src/protocol.ts` — tipos de mensajes (por juego: `wb:*` de Bomba Palabra,
   `wc:*` de Cadena de Palabras, `pg:*` de PONG, `bt:*` de Basta, `im:*` de Impostor). **Se duplican en el cliente**
   (p.ej. `src/games/word-bomb/game/WordBombTransport.ts`,
@@ -221,6 +247,16 @@ Estructura de `server/` (paquete propio, aislado del build de Vite, con su propi
   broadcast `im:state` (no espiable); tambien se reenvia al reconectar (F5). Recolecta pistas
   (`im:clue`), votos (`im:vote`) y la adivinanza del acusado (`im:guess`), y computa el puntaje por
   equipo (impostor gana 3, inocente 2). Un partido son 3 rondas. Ver el `CLAUDE.md` de `impostor`.
+- `src/games/carrace.ts` — `CarRaceSim`: **relay puro**, el sim mas corto del server y el
+  unico que no simula nada. Reenvia el snapshot de posicion de cada auto (`cr:pos`) al
+  resto de la sala y estampa el nickname del socket emisor (asi nadie mueve el auto ajeno,
+  cosa que el broadcast de Supabase no podia). Lo unico que recuerda es la **votacion de
+  circuito de la ronda**: el `cr:map` ya anunciado se le reenvia a quien se conecte despues,
+  que arregla el gotcha viejo del que entraba tarde y caia al circuito por seed en vez del
+  votado. El estado esta scopeado por **ronda** (`round` viene en el `cr:join`): entre
+  rondas los clientes navegan de una pagina a la otra y no todos a la vez, asi que el
+  `GameRoom` puede sobrevivir con los votos de la ronda anterior adentro. Ver el `CLAUDE.md`
+  de `car-race`.
 
 ### Interpolar sobre el reloj del server (no sobre la hora de llegada)
 
@@ -259,11 +295,23 @@ Cliente: env `VITE_GAME_SERVER_URL` (documentada en `.env.example`). El juego
 carga `socket.io-client` con **import dinamico** (no pesa en los juegos que no lo
 usan). **Degradacion:** depende del juego. PONG degrada con gracia: sin
 `VITE_GAME_SERVER_URL` la sala cae a un partido local vs IA por jugador (y solo
-sigue siendo 1 jugador en la landing). Bomba Palabra, Cadena de Palabras, Basta e Impostor
-**no** pueden: existen por el server (en Bomba/Cadena porque el diccionario vive ahi;
+sigue siendo 1 jugador en la landing). Neon Drift tambien: sin server el enlace de sala
+cae al broadcast de Supabase de siempre (`RaceChannel`), con su tope de mensajes y su
+cadencia mas baja, pero la carrera es identica. Bomba Palabra, Cadena de Palabras, Basta e
+Impostor **no** pueden: existen por el server (en Bomba/Cadena porque el diccionario vive ahi;
 en Basta e Impostor porque el server arbitra las fases, los votos y el puntaje —y en Impostor
 tambien reparte los roles privados), asi que sin `VITE_GAME_SERVER_URL` muestran "no disponible"
 (excepcion deliberada y documentada a la regla de degradacion del repo).
+
+**Elegir transporte se hace por CONFIGURACION, nunca en runtime.** Neon Drift es el unico
+que tiene dos enlaces posibles, y decide mirando `isGameServerConfigured()`. La tentacion
+es caer al otro transporte cuando la conexion falla (como hace PONG con su IA local), pero
+aca seria un bug mudo: la env es la misma para todos los clientes del deploy, asi que si
+uno solo cae a Supabase mientras el resto sigue en el server, la sala queda partida en dos
+grupos que corren la misma carrera **sin verse**. Con el server configurado pero caido no
+se ven los rivales y la carrera sigue igual (la votacion cae al `tallyWinner` determinista,
+que da el mismo circuito en todos los clientes). Es el mismo riesgo de desacuerdo que ya
+esta documentado para el par de URLs principal/respaldo.
 
 **URL del server, respaldo y estado (`src/shared/server-status.ts`).** Modulo unico que
 resuelve **a que server conectarse** y **si esta vivo**. Hay dos URLs: la principal
@@ -272,10 +320,11 @@ pensada para el par dominio propio / URL cruda de Railway). Se prueban **en orde
 contra el `/health` y gana la primera que contesta.
 
 - `isGameServerConfigured()` — si hay al menos una URL. Es lo que usan los juegos para
-  el cartel de "no disponible" (antes cada uno leia la env en su `constants.ts`).
+  el cartel de "no disponible" (antes cada uno leia la env en su `constants.ts`), y lo que
+  usa Neon Drift para elegir enlace de sala (server vs Supabase).
 - `resolveGameServerUrl()` — la URL a la que conectarse, con caida al respaldo. **La
-  llaman los cinco juegos server-side** en su `connect()` (`word-bomb`, `word-chain`,
-  `basta`, `impostor`, `pong`), que por eso es `async` y tiene un flag `connecting`
+  llaman los seis juegos server-side** en su `connect()` (`word-bomb`, `word-chain`,
+  `basta`, `impostor`, `pong`, `car-race`), que por eso es `async` y tiene un flag `connecting`
   contra la doble conexion en la ventana del `await`. Si el resolver viviera solo en la
   landing el respaldo seria decorativo: el chip diria "en linea" y los juegos seguirian
   pegandole al server muerto. **Con una sola URL configurada no chequea nada** (devuelve
@@ -286,6 +335,18 @@ contra el `/health` y gana la primera que contesta.
   (red, CORS, timeout de 8s) es `"offline"`: para el jugador es lo mismo. El timeout es
   generoso a proposito porque Railway duerme los servicios free y el primer request lo
   despierta.
+
+**El `pingMs` descarta la primera medicion (`PING_SAMPLES`).** El primer fetch de la
+pagina paga DNS + TCP + handshake TLS y da como el doble de lo real (medido contra
+game.juegachos.com: 114 ms el primero, ~73 ms con la conexion abierta; el chip llegaba a
+mostrar 183 ms). Ese numero no es la latencia del server sino la de **abrir la conexion**,
+que es justo lo que el jugador no paga: el socket del juego se abre una vez y queda
+abierto. Asi que la primera respuesta es calentamiento y se reportan las siguientes,
+quedandose con el **minimo** (la muestra que menos jitter y menos slow-start de TCP comio,
+o sea la latencia de la red y no la del navegador). Son 3 requests por chequeo, cada 60s.
+**Las mediciones son solo para la pastilla**: `resolveGameServerUrl` (el camino de los
+juegos) usa `firstLive()`, que solo busca cual contesta — no hay que encarecer el connect
+de una ronda para pintar un numero.
 
 **Las URLs se normalizan (`normalize`)**: se les completa el esquema si falta
 (`game.juegachos.com` -> `https://game.juegachos.com`). Sin eso un host pelado en la env

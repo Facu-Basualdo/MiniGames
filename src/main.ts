@@ -510,9 +510,9 @@ if (serverChip) {
     serverChip.classList.toggle("is-offline", !online);
     serverChip.classList.toggle("is-fallback", online && fallback);
     textEl.textContent = online ? (fallback ? "Servidor de respaldo" : "Servidor") : "Servidor caído";
-    // El ping es el round-trip del /health, no el del socket: mide el mismo viaje
-    // de ida y vuelta al server, que es lo que le importa al que quiere saber si
-    // va a ir lento.
+    // El ping es el round-trip del /health con la conexion ya caliente (el modulo
+    // descarta la primera medicion), asi que se parece a lo que paga el socket del
+    // juego y no al costo de abrir la conexion.
     pingEl.textContent = online ? `${pingMs} ms` : "";
     pingEl.hidden = !online;
     serverChip.title = online

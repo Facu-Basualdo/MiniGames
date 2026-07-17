@@ -317,6 +317,62 @@ export interface BtServerToClient {
   "bt:gameover": (msg: BtGameover) => void;
 }
 
+/* ========================= NEON DRIFT (namespace /carrace) ========================= */
+
+/**
+ * Contrato de mensajes socket.io de Neon Drift (namespace `/carrace`).
+ *
+ * A diferencia del resto, el server NO simula: es un RELAY. Cada cliente corre su
+ * propia carrera (fisica local, mismo circuito y mismos obstaculos por seed) y solo
+ * difunde su posicion para que los demas lo vean; el server la reenvia. Reemplaza al
+ * canal de broadcast de Supabase, que topea ~100 mensajes/s por canal — justo donde
+ * caia una sala llena (8 jugadores x 10/s = 80/s) y el socket se moria en silencio.
+ *
+ * Lo unico que el server si recuerda es la votacion de circuito de la ronda: el
+ * ultimo `cr:map` anunciado se le reenvia a cualquiera que se conecte despues, que es
+ * lo que el modelo de Supabase no podia dar (el que entraba tarde se quedaba sin el
+ * anuncio y caia al circuito por seed, no al votado).
+ *
+ * Mismo nivel de confianza spoofeable ya aceptado en el repo; el server no escribe en
+ * Supabase (lobby / marcador / rejoin siguen en la DB).
+ */
+
+/** Snapshot de posicion de un auto. El `p` lo estampa el SERVER con el nickname del
+ *  socket emisor: asi nadie puede mover el auto de otro (el cliente manda el resto). */
+export interface CrPos {
+  /** Nickname del emisor (lo pone el server, no el cliente). */
+  p: string;
+  x: number;
+  y: number;
+  /** Angulo del auto en radianes. */
+  a: number;
+  /** Vuelta actual (0-based). */
+  l: number;
+  /** Progreso dentro de la vuelta ∈ [0,1). */
+  s: number;
+  /** True cuando el emisor ya cruzo la meta final. */
+  f: boolean;
+}
+
+/** Cliente -> Server. */
+export interface CrClientToServer {
+  /** `round` scopea el estado: una ronda nueva descarta los votos de la anterior. */
+  "cr:join": (msg: { code: string; nickname: string; roster: string[]; round: number }) => void;
+  /** Posicion propia (sin `p`: lo estampa el server). */
+  "cr:pos": (msg: Omit<CrPos, "p">) => void;
+  /** Voto por un circuito (indice), antes de largar. */
+  "cr:vote": (msg: { m: number }) => void;
+  /** Circuito ganador que anuncia el anfitrion al cerrar la votacion. */
+  "cr:map": (msg: { m: number }) => void;
+}
+
+/** Server -> Cliente. */
+export interface CrServerToClient {
+  "cr:pos": (msg: CrPos) => void;
+  "cr:vote": (msg: { p: string; m: number }) => void;
+  "cr:map": (msg: { m: number }) => void;
+}
+
 /* ========================== IMPOSTOR (namespace /impostor) ========================== */
 
 /**
