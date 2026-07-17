@@ -131,3 +131,10 @@ Usa el contexto extendido de `RoomMode` (`code`, `me`, `round()`, `players()`,
   al rival).
 - La IA usa `DEPTH = 8`: si se sube mucho, el arbol sin terminales de empate se
   vuelve caro. Ajustar dificultad se hace con `DEPTH` y la heuristica en `ai.ts`.
+- **`menuVisible` gatea el reinicio (no el estado).** Igual que Conecta 4: al perder
+  la racha en solo, `onMatchLose` pone el estado en `over` pero el overlay de fin
+  (con el ranking) se muestra `SOLO_RESULT_MS` despues. En esa ventana un Enter/tap
+  reiniciaba la partida y `cancelPending()` cancelaba el `schedule` del overlay, asi
+  que la corrida no mostraba puntaje ni reportaba al ranking. El flag `menuVisible`
+  (true solo con el overlay en pantalla) lo bloquea; la continuacion de racha no se
+  afecta porque ahi el estado sigue en `playing`.

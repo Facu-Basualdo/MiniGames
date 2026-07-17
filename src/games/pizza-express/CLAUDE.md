@@ -160,6 +160,15 @@ the road surface is `y = 0`. The scooter only moves in **X** (steering).
 
 ## Non-obvious decisions
 
+**`menuVisible` gates the restart during the deferred game-over.** The game-over
+overlay is deferred (600 ms after a crash, 250 ms otherwise) so the crash plays in
+the clear, and that deferred callback is what calls `reportScore`/`showRanking` —
+guarded by a `state === "gameover"` re-check that aborts if the player restarted
+mid-window. Without a guard, restarting during that window silently **dropped the
+run's leaderboard submission**. `handleActivate` now bails on `!menuVisible` (true
+only while the start/game-over overlay is actually shown), so the score always
+lands.
+
 **Fairness — the gap is always reachable.** `ObstacleField.spawnRow` picks a safe
 gap `[gapX ± gapHalf]` whose centre drifts from the previous row by at most the
 scooter's reachable travel (`SCOOTER_MOVE_SPEED × spacing/speed ×
